@@ -1,0 +1,141 @@
+﻿@model List<Web.Models.EnquetesVotadas>
+<script type="text/javascript">
+    var mensagem = @Html.Raw(Json.Encode(ViewData["EditError"]));
+    var controles = {
+        onReady: function() {
+            _erros(mensagem);
+        }
+    };
+    $(document).ready(controles.onReady);
+</script>
+<div id="ContainerPrincipal" class="align-content-center my-auto">
+    <div>
+        @{
+            Html.RenderPartial("_Header");
+        }
+    </div>
+    <div id="loading"> <i class="fa fa-cog fa-spin fa-5x fa-fw"></i><span class="sr-only">Loading...</span> </div>
+    <div id="Container">
+        <div style="background-color: rgb(241,247,252);padding: 15px 15px;min-height: 650px;">
+            <div class="container">
+                <div class="row" style="background-color: #ffffff; margin-bottom: 35px;">
+                    <div class="col-md-12" style="box-shadow: 1px 1px 5px rgba(0, 0, 0, 0.1);">
+                        <h1 class="text-center" style="color: #888; padding: 35px 0px 35px 0px;">Enquetes disponíves para votação<br></h1>
+                        <div class="table-responsive">
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th style="width: 20%;">Período de Votação</th>
+                                        <th style="width: 30%;">Enquete</th>
+                                        <th style="width: 30%;">Banco</th>
+                                        <th class="text-center" style="width: 20%;">Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @{
+                                        foreach (var enquete in Model.Where(e => e.Ativa).ToList())
+                                        {
+                                            var nomeBanco = enquete.Enquete.BANCO == null ? "GERAL" : enquete.Enquete.BANCO.NOME;
+                                            enquete.Enquete.DATA = DateTime.Parse(enquete.Enquete.DATA.ToString("d") + " " + TimeSpan.Parse(enquete.Enquete.HORAINICIO).ToString("g"));
+                                            enquete.Enquete.DATARESULTADO = DateTime.Parse(enquete.Enquete.DATARESULTADO.Value.ToString("d") + " " + TimeSpan.Parse(enquete.Enquete.HORAFINAL).ToString("g"));
+                                            <tr>
+                                                <td style="width: 10%;">@enquete.Enquete.DATA <br> @enquete.Enquete.DATARESULTADO</td>
+                                                <td style="width: 30%;">@enquete.Enquete.TITULO </td>
+                                                <td style="width: 20%;">@nomeBanco</td>
+                                                <td class="text-center" style="width: 40%;">
+                                                    @if (enquete.Votado)
+                                                    {
+                                                        <a role="button" class="btn btn-primary disabled"> VOTADO </a>
+                                                    }
+                                                    else
+                                                    {
+
+                                                        if (!enquete.Associados)
+                                                        {
+                                                            if (DateTime.Now >= enquete.Enquete.DATA && DateTime.Now <= enquete.Enquete.DATARESULTADO)
+                                                            {
+                                                                @Ajax.ActionLink(" EM VOTAÇÃO ", "Responder", "EIntegrad", new { idEnquete = enquete.Enquete.Sguid }, new AjaxOptions
+                                                                {
+                                                                    UpdateTargetId = "Container",
+                                                                    LoadingElementId = "loading",
+                                                                    InsertionMode = InsertionMode.Replace,
+                                                                    HttpMethod = "GET"
+                                                                }, new { @class = "btn btn-primary ", role = "button", data_bs_hover_animate = "pulse" })
+                                                            }
+                                                            else
+                                                            {
+                                                                <a role="button" class="btn btn-primary disabled">AGUARDANDO</a>
+                                                            }
+                                                        }
+                                                        else if (enquete.Associados == enquete.Pessoa.ASSOCIADO)
+                                                        {
+                                                            if (DateTime.Now >= enquete.Enquete.DATA && DateTime.Now <= enquete.Enquete.DATARESULTADO)
+                                                            {
+                                                                @Ajax.ActionLink("[ EM VOTAÇÃO ]", "Responder", "EIntegrad", new { idEnquete = enquete.Enquete.Sguid }, new AjaxOptions
+                                                                {
+                                                                    UpdateTargetId = "Container",
+                                                                    LoadingElementId = "loading",
+                                                                    InsertionMode = InsertionMode.Replace,
+                                                                    HttpMethod = "GET"
+                                                                }, new { @class = "btn btn-primary ", role = "button", data_bs_hover_animate = "pulse" })
+                                                            }
+                                                            else
+                                                            {
+                                                                <a role="button" class="btn btn-primary disabled">AGUARDANDO</a>
+                                                            }
+                                                        }
+                                                    }
+                                                </td>
+                                            </tr>
+                                        }
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                <div class="row" style="background-color: #ffffff;">
+                    <div class="col-md-12" style="box-shadow: 1px 1px 5px rgba(0,0,0,0.1);">
+                        <h1 class="text-center" style="color: #888;padding: 35px 0px 35px 0px;">Enquetes apuradas<br></h1>
+                        <div class="table-responsive">
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th style="width: 20%;">Data da Apuração</th>
+                                        <th style="width: 60%;">Enquete</th>
+                                        <th class="text-center" style="width: 20%;">Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @{
+                                        foreach (var enquete in Model.Where(e => !e.Ativa).ToList())
+                                        {
+                                            <tr>
+                                                <td style="width: 20%;">@enquete.Enquete.DATARESULTADO.Value.ToString("d")</td>
+                                                <td style="width: 60%;">@enquete.Enquete.TITULO</td>
+
+                                                <td class="text-center" style="width: 20%;">
+                                                    @Ajax.ActionLink("VER RESULTADO", "Resultado", "EIntegrad", new { idEnquete = enquete.Enquete.Sguid }, new AjaxOptions
+                                                    {
+                                                        UpdateTargetId = "Container",
+                                                        LoadingElementId = "loading",
+                                                        InsertionMode = InsertionMode.Replace,
+                                                        HttpMethod = "GET"
+                                                    }, new { @class = "btn btn-danger", role = "button", data_bs_hover_animate = "pulse" })
+                                                </td>
+
+                                            </tr>
+                                        }
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    @{
+        Html.RenderPartial("_Footer");
+    }
+</div>

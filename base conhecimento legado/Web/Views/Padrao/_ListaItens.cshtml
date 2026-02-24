@@ -1,0 +1,102 @@
+﻿<script type="text/javascript">
+    var controles = {
+        onReady: function () {
+            barra();
+        }
+    };
+    $(document).ready(controles.onReady);
+</script>
+@using Domain
+@using Web.Models
+@model List<CBase>
+@{
+    var cTelas = ViewBag.Telas as CTelas;
+    var lLista = ViewBag.Lista as ListaModel;
+    var cCampos = ViewBag.Campos as List<CCampos>;
+    var nTela = ViewBag.NomeItemTela;
+}
+<div id="ListaItens">
+    @{
+        var listgrid = new WebGrid(Model, ajaxUpdateContainerId: "lgrids", rowsPerPage: 10000);
+        var colunas = new List<WebGridColumn>();
+       
+        var ccampo = new CCampos();
+        var ncampo = lLista?.Campo;
+
+        if (lLista?.Lista.Count > 0)
+        {
+            if (lLista.IdCampo == "9")
+            {
+                if (!lLista.CampoClasse.IsEmpty() && !lLista.CampoSource.IsEmpty())
+                {
+                    ccampo.Descricao = lLista.Descricao;
+                    ncampo = lLista.CampoClasse + '.' + lLista.CampoSource;
+                }
+                else
+                {
+                    ccampo.Descricao = lLista.Descricao;
+                }
+
+            }
+            else
+            {
+                ccampo = cCampos?.FirstOrDefault(l => l.Campo == ncampo);
+            }
+
+            if (ccampo != null && ccampo.Tipo == "1")
+            {
+                ncampo = "Temp" + lLista.Campo;
+            }
+
+            if (ccampo != null && ccampo.Tipo == "5")
+            {
+                ncampo = ccampo.Source + '.' + ccampo.Listar;
+            }
+        }
+
+        var identificador = new WebGridColumn
+        {
+            Style = "coluna_left",
+            Header = ccampo?.Descricao,
+            ColumnName = ncampo,
+            CanSort = false
+
+        };
+        colunas.Add(identificador);
+
+        identificador = new WebGridColumn
+        {
+            Style = "fixa",
+            Header = "Editar",
+            ColumnName = "Sguid",
+            CanSort = false,
+            Format = item => Html.Raw(
+                Ajax.ActionLink(@"[replace]", "Seleciona", "Padrao", 
+                    new { id = item.Sguid, 
+                        nclasse = cTelas?.Help, 
+                        idtela = cTelas?.Sguid }, 
+                    new AjaxOptions { HttpMethod = "Get", LoadingElementId = "loading", InsertionMode = InsertionMode.Replace,
+                        UpdateTargetId = "subtela_" + nTela })
+                    .ToString().Replace("[replace]", "<i style='color: blue' class='fa fa-edit'></i>") +
+                "<span onclick=\"excluir('" + item.Sguid + "','" + cTelas?.Help + "','" + cTelas?.Sguid + "','subtela_" + nTela + "','" +
+                Url.Action("Deleta", "Padrao") + "','" + "1" + "')\"><i style='color: blue' class='fa fa-trash-o'></i></span>")
+
+        };
+
+        colunas.Add(identificador);
+    }
+    <div class="shadowbutton" id="listgrid">
+        @if (Model?.Count > 0)
+        {
+        <div style="overflow: scroll;">
+            @listgrid.GetHtml(htmlAttributes: new { id = "lgrids" },
+                     fillEmptyRows: false,
+                     tableStyle: "table table-responsive-sm table-bordered table-striped table-sm",
+                     headerStyle: "coluna_center",
+                     footerStyle: "webgrid-footer",
+                     columns: colunas,
+                     mode: WebGridPagerModes.All)
+        </div>
+        }
+    </div>
+</div>

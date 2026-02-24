@@ -1,0 +1,86 @@
+﻿@model IList<Domain.CMenus>
+<script type="text/javascript">
+    var controles = {
+        onReady: function () {
+            $('#loading').hide();
+            $('.nav-dropdown-items li a').click(function () {
+                $('.nav-dropdown-items li a.active').removeClass('active');
+                $(this).addClass('active').siblings().removeClass('active');
+            });
+        }
+    };
+    $(document).ready(controles.onReady);
+</script>
+<header class="app-header navbar">
+    <button class="navbar-toggler sidebar-toggler d-lg-none mr-auto" type="button" data-toggle="sidebar-show">
+        <span class="navbar-toggler-icon"></span>
+        <img class="navbar-brand-full" src="~/Content/imagem/log-menu.png" width="110" height="30">
+    </button>
+    <button class="navbar-toggler sidebar-toggler d-md-down-none" type="button" data-toggle="sidebar-lg-show">
+        <span class="navbar-toggler-icon"></span>
+        <img class="navbar-brand-full" src="~/Content/imagem/log-menu.png" width="110" height="30">
+    </button>
+    <nav id="menuVaral">
+        <ul>
+            <li>
+                @Html.Raw(Html.ActionLink("[replace]", "SelecionaEmpresa", "Account").ToString().Replace("[replace]", "Conectado em <strong>" + ViewBag.NomeEmpresa + "</strong>"))
+            </li>
+            <li>
+                <a class="btn" onclick="return Sair('@(Url.Action("Sair", "eIntegrad"))', '@Url.Action("Index", "Home")')">Sair</a>
+            </li>
+        </ul>
+    </nav>
+</header>
+<div class="app-body">
+    <div class="sidebar">
+        <nav class="sidebar-nav">
+            <ul class="nav">
+                <li class="nav-item">
+                    @Html.Raw(Html.ActionLink("[replace]", "Index", "EIntegrad", new { @class = "nav-link" }).ToString().Replace("[replace]", "<i class=\"nav-icon icon-speedometer\"></i> Dashboard"))
+                </li>
+                @if (Model != null)
+                {
+                    foreach (var cMenuse in Model)
+                    {
+                        <li class="nav-item nav-dropdown">
+                            <a class="nav-link nav-dropdown-toggle" href="#">
+                                <i class="nav-icon icon-list"></i> @cMenuse.Menu
+                            </a>
+                            <ul id="menuPrincipalLeft" class="nav-dropdown-items">
+                                @foreach (var cMenusi in cMenuse.SubMenu.Where(cMenusi => cMenusi.Acesso == 1).OrderBy(l => l.Sequencia))
+                                {
+                                    if (cMenusi.Tipo == 0 && cMenusi.Acesso == 1)
+                                    {
+                                        <li class="nav-item">
+                                            @Ajax.ActionLink(cMenusi.NomeTela, "Index", "Padrao", new { id = cMenusi.Sguid }, new AjaxOptions { HttpMethod = "Get", LoadingElementId = "loading", InsertionMode = InsertionMode.Replace, UpdateTargetId = "Container" }, new { name = "#" + cMenusi.Descricao, @class = "nav-link" })
+                                        </li>
+                                    }
+                                    if (cMenusi.Tipo == 1 && cMenusi.Acesso == 1)
+                                    {
+                                        <li class="nav-item">
+                                            @Ajax.ActionLink(cMenusi.NomeTela, "Index", cMenusi.Descricao, new { id = cMenusi.Sguid }, new AjaxOptions { HttpMethod = "Get", LoadingElementId = "" + "loading", InsertionMode = InsertionMode.Replace, UpdateTargetId = "Container" }, new { name = "#" + cMenusi.Descricao, @class = "nav-link" })
+                                        </li>
+
+                                    }
+                                }
+                            </ul>
+                        </li>
+                    }
+                }
+            </ul>
+        </nav>
+    </div>
+    <div id="loading"> <i class="fa fa-cog fa-spin fa-5x fa-fw"></i><span class="sr-only">Loading...</span> </div>
+    <main id="Container" class="main">
+    </main>
+</div>
+<footer class="app-footer">
+    <div>
+        <a href="http://www.willbugs.com.br">PcMaxInf</a>
+        <span>© 2019.</span>
+    </div>
+    <div class="ml-auto">
+        <span>Powered by</span>
+        <a href="http://www.willbugs.com.br">WillBugs</a>
+    </div>
+</footer>

@@ -1,0 +1,93 @@
+﻿@using Domain
+@model Web.Models.FiltroModel
+<script type="text/javascript">
+    function _pesquisar(squid, campo) {
+        $('#' + campo + ' option[value="' + squid + '"]').attr({ selected: "selected" });
+    };
+    var mensagem = (@Html.Raw(Json.Encode(ViewData["EditError"])));
+    var controles = {
+        onReady: function () {
+            consulta_controle();
+            barra();
+        }
+    };
+    $(document).ready(controles.onReady);
+</script>
+@{
+    var cTelas = ViewBag.Telas as CTelas;
+    var acampo = ViewBag.Campo;
+    var form = "#formfiltro" + cTelas.Parent;
+    var grid = new WebGrid(ViewBag.Dados, ajaxUpdateContainerId: "grids", rowsPerPage: 8, ajaxUpdateCallback: "barra");
+    var colunas = new List<WebGridColumn>();
+    var identificador = new WebGridColumn
+    {
+        Style = "fixa",
+        Header = "Seleciona",
+        ColumnName = "Sguid",
+        CanSort = false,
+        Format = item => Html.Raw("<a class =\"btn note-color-btn ion ion-checkmark\" type=\"button\" data-dismiss=\"modal\" onclick=\"_pesquisar('" + item.Sguid + "','" + acampo + "');\"></a>")
+    };
+    colunas.Add(identificador);
+
+    foreach (var campo in cTelas.Campos.Where(l => l.Grid == 1).OrderBy(x => x.Sequencia))
+    {
+        identificador = new WebGridColumn { CanSort = true, ColumnName = (campo.Tipo == "1" || campo.Tipo == "5" || campo.Tipo == "6") ? "Temp" + campo.Campo : campo.Campo, Header = campo.Descricao, Style = "coluna_left" };
+        switch (campo.Tipo)
+        {
+            case "2":
+                identificador.Style = "coluna_center";
+                break;
+            case "3":
+                identificador.ColumnName = "Currency" + campo.Campo;
+                identificador.Style = "coluna_right";
+                break;
+        }
+        colunas.Add(identificador);
+    }
+
+
+}
+<div class="modal-content card">
+    <div class="modal-header card-header">
+        <i class="icon-note"></i>Pesquisar @cTelas.Help
+        <button id="fecharPesquisa" type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+    </div>
+    <div class="modal-body card-body">
+        @using (Ajax.BeginForm("Filtros", "Padrao", new { id = cTelas.SubMenu.Sguid, source = 1 }, new AjaxOptions() { HttpMethod = "Get", LoadingElementId = "loading", InsertionMode = InsertionMode.Replace, UpdateTargetId = "Pesquisar", OnComplete = "_erros(mensagem);" }, new { @Class = "form-horizontal", id = "formfiltro" + cTelas.Parent }))
+        {
+            @Html.HiddenFor(c => c.Ordens)
+
+            <div class="row">
+                <div class="form-group col-4">
+                    <label>Ordem de pesquisa</label>
+                    @Html.DropDownListFor(c => c.Ordem, Model.Ordens, new { @class = "form-control", @id = "Ordem" })
+                </div>
+                <div class="form-group col-4">
+                    <label>Chave de busca</label>
+                    @Html.TextBoxFor(c => c.Chavebusca, new { @class = "form-control", @id = "Chavebusca", @placeholder = "Chave de busca" })
+                </div>
+                <div class="form-group col-4" style="margin-top: 2.9%;">
+                    <button type="button" class="btn btn-info fa fa-search" onclick="$('@form').submit();"> Pesquisar</button>
+                </div>
+            </div>
+        }
+        <div class="shadowbutton" id="grid">
+            @{
+                if ((int)ViewBag.Dados.GetType().GetProperty("Count").GetValue(ViewBag.Dados, null) > 0)
+                {
+                    <div style="overflow: scroll;">
+                        @grid.GetHtml(htmlAttributes: new { id = "grids" },
+                            fillEmptyRows: false,
+                            tableStyle: "datatable table table-striped table-bordered dataTable",
+                            headerStyle: "coluna_center",
+                            footerStyle: "webgrid-footer",
+                            columns: colunas,
+                            mode: WebGridPagerModes.All)
+                    </div>
+                }}
+        </div>
+    </div>
+    <div class="modal-footer card-footer">
+    </div>
+    <div class="col-md-2"></div>
+</div>

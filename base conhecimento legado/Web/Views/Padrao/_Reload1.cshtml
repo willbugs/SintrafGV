@@ -1,0 +1,24 @@
+﻿@using Domain
+@model CBase
+@{
+    var aCampo = (string)ViewBag.aCampo;
+}
+<script type="text/javascript">
+    var controles = {
+        onReady: function () {
+            var select = $('#@aCampo');
+            select.children().remove();
+            $.ajax({
+                method: "get",
+                url: '@(Url.Action("GetSelectList", "Padrao"))',
+                success: function (data) {
+                    $(data).each(function (index, item) {
+                        select.append($("<option />").val(item.Value).text(item.Text));
+                    });
+                }
+            });
+            $('#adicionar').modal('hide');
+        }
+    };
+    $(document).ready(controles.onReady);
+</script>

@@ -1,0 +1,17 @@
+using Microsoft.Extensions.DependencyInjection;
+using SintrafGv.Application.Interfaces;
+using SintrafGv.Application.Services;
+
+namespace SintrafGv.Application;
+
+public static class DependencyInjection
+{
+    public static IServiceCollection AddApplication(this IServiceCollection services)
+    {
+        services.AddScoped<IAssociadoService, AssociadoService>();
+        services.AddScoped<IEleicaoService, EleicaoService>();
+        services.AddScoped<IAuthService, AuthService>();
+        services.AddScoped<IUsuarioService, UsuarioService>();
+        return services;
+    }
+}

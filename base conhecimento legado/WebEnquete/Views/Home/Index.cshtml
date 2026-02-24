@@ -1,0 +1,95 @@
+﻿@model Domain.CPessoas
+<script type="text/javascript">
+    var mensagem = @Html.Raw(Json.Encode(ViewData["EditError"]));
+    function CadNovo() {
+        $.alert({
+            title: "Atenção",
+            theme: "material",
+            content: "Cadastro efetuado com sucesso, aguarde ativação!",
+            icon: "fa fa-warning",
+            type: "red"
+        });
+    }
+    var controles = {
+        onReady: function() {
+            $.validator.methods.date = function (value, element) {return this.optional(element) || moment(value, "DD/MM/YYYY", true).isValid();}
+            mascaras();
+            _erros(mensagem);
+            $(".select-add-placeholder").prepend("<option value='' disabled selected>Instituição Bancária</option>");
+            if (@Html.Raw(Json.Encode(ViewData["novo"])) == "1") { CadNovo(); }
+            $("#MATRICULABANCARIA").change(function(e) {
+                $("#loading").show();
+                $.ajax({ method: "get",
+                    url: "@Url.Action("Existente")",
+                    data: { matricula: $("#MATRICULABANCARIA").val() },
+                    success: function(data) {
+                        $.confirm({
+                            title: 'Atenção',
+                            content: 'Matrícula já cadastrada em nosso sistema. Você será redirecionado para a tela de login.',
+                            type: 'red',
+                            typeAnimated: true,
+                            buttons: {
+                                tryAgain: {
+                                    text: 'OK',
+                                    btnClass: 'btn-red',
+                                    action: function(){
+                                        window.location.href = '/Account/Login';
+                                    }
+                                }
+                            }
+                        });
+                        
+                        
+                    }
+                });
+                $("#loading").hide();
+            });
+
+        }
+    };
+    $(document).ready(controles.onReady);
+</script>
+<div id="FormCadastroHome" class="register-photo">
+    <div class="form-container">
+        <div class="image-holder"></div>
+        @using (Ajax.BeginForm("Cadastro", "Home", null, new AjaxOptions()
+        {
+            HttpMethod = "Post",
+            LoadingElementId = "loading",
+            InsertionMode = InsertionMode.ReplaceWith,
+            UpdateTargetId = "FormCadastroHome",
+            OnComplete = "_erros(mensagem);"
+        }, new { Class = "text-left", id = "FormCadastro", role = "form" }))
+        {
+            <h2 class="text-center"><strong>ASSEMBLEIA&nbsp;</strong>ONLINE</h2>
+            <fieldset>
+                @Html.AntiForgeryToken()
+                @*@Html.HiddenFor(e => Model.Sguid)*@
+                <div class="form-group">
+                    @Html.TextBoxFor(e => Model.MATRICULABANCARIA, Model.MATRICULABANCARIA, new { @class = "form-control mSINDICATO", name = "MATRICULABANCARIA", placeholder = "Matrícula Funcional", maxlength="9" })
+                    @Html.TextBoxFor(e => Model.NOME, Model.NOME, new { @class = "form-control", name = "NOME", placeholder = "Nome completo" })
+                    @Html.TextBoxFor(e => Model.DATNASCIMENTO, null, new { @class = "form-control mDATA", name = "DATNASCIMENTO", placeholder = "Data nascimento" })
+                    @Html.TextBoxFor(e => Model.CPF, Model.CPF, new { @class = "form-control mCPF", name = "CPF", placeholder = "CPF" })
+                    @Html.TextBoxFor(e => Model.CELULAR, Model.CELULAR, new { @class = "form-control mTELEFONE", name = "CELULAR", placeholder = "Celular" })
+                    @Html.TextBoxFor(e => Model.EMAIL, Model.EMAIL, new { @class = "form-control ", name = "EMAIL", placeholder = "Email" })
+                    @Html.DropDownListFor(e => Model.BANCO.Sguid, Model.DropBANCO, null, new { @class = "form-control select-add-placeholder", name = "BANCO" })
+                    @*@Html.CheckBoxFor(e => Model.ASSOCIADO, new {  name = "ASSOCIADO", type="checkbox" }) Já sou associado.*@
+                </div>
+                <div class="form-group">
+                    <div class="form-check">
+                        <label class="form-check-label">
+                            @Html.CheckBoxFor(e => Model.DEACORDO, new { @class = "form-check-input", name = "DEACORDO", type = "checkbox" })Estou de acordo com <a href="#">Termos de Uso.</a>
+                        </label>
+                    </div>
+                </div>
+                <div class="row">
+                    <button type="submit" class="btn btn-success btn-block" data-bs-hover-animate="pulse">CADASTRAR</button>
+                    @Html.ActionLink("Associado, clique aqui para votar", "Login", "Account", null, new { @class = "btn btn-primary" })
+                </div>
+
+            </fieldset>
+        }
+    </div>
+</div>
+
+

@@ -1,0 +1,283 @@
+﻿@using Domain
+@using Microsoft.Ajax.Utilities
+@model CBase
+@{
+    var cTelas = ViewBag.Telas as CTelas;
+    var cont = 0;
+    var tcollapce = "";
+    var form = "#form" + cTelas.Parent;
+    var box = "box" + cTelas.Parent;
+    var fechou = false;
+    var colllapse = false;
+    var idPesquisa = "pesquisa_" + cTelas.Parent;
+    var idAdicionar = "adicionar_" + cTelas.Parent;
+    var cidPesquisa = "cpesquisa_" + cTelas.Parent;
+    var cidAdicionar = "cadicionar_" + cTelas.Parent;
+}
+<script type="text/javascript">
+
+
+    var mensagem = (@Html.Raw(Json.Encode(ViewData["EditError"])));
+    var controles = {
+        onReady: function() {
+            //var autocomplete = new window.google.maps.places.Autocomplete(document.getElementById('EnderecoNegocio'));
+            //window.google.maps.event.addListener(autocomplete, 'place_changed', function () { var place = autocomplete.getPlace(); console.log(place.address_components); });
+
+            $(".select-add-placeholder").prepend("<option value='' disabled selected>Todos</option>");
+            mascaras();
+            Totalizar("@form");
+            _erros(mensagem);
+            errorfields();
+            ChangeOpen(this, '@form', '@Url.Action("CarregarPagina", "Padrao")');
+        }
+    };
+    $(document).ready(controles.onReady);
+</script>
+<div class="modal1 fade" id="@idPesquisa" tabindex="-1" role="dialog" aria-hidden="true">
+    <div id="@cidPesquisa" class="modal-dialog"></div>
+</div>
+<div class="modal fade" id="@idAdicionar" tabindex="-1" role="dialog" aria-labelledby="adicionarLabel" aria-hidden="true">
+    <div id="@cidAdicionar" class="modal-dialog"></div>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        @using (Ajax.BeginForm("Cadastro", "Padrao", new { id = cTelas.Sguid, nclasse = cTelas.Help },
+            new AjaxOptions()
+            {
+                HttpMethod = "Post",
+                LoadingElementId = "loading",
+                InsertionMode = InsertionMode.Replace,
+                UpdateTargetId = "subtela_" + cTelas.Parent
+            }, new
+            {
+                @Class = "form-horizontal",
+                id = "form" + cTelas.Parent,
+                enctype = "multipart/form-data"
+            }))
+        {
+            <fieldset>
+                @Html.AntiForgeryToken()
+                @Html.Hidden("Sguid")
+                @foreach (var campo in cTelas.Campos.Where(l => l.Visivel == 0).OrderBy(l => l.Sequencia))
+                {
+                    @Html.Hidden(campo.Campo)
+                }
+
+                @foreach (var campo in cTelas.Campos.Where(l => l.Visivel == 1).OrderBy(l => l.Sequencia))
+                {
+                    cont++;
+                    if (tcollapce != campo.Collapse)
+                    {
+                        tcollapce = campo.Collapse;
+                        if (!fechou)
+                        {
+                            @Html.Raw("</div>")
+                        }
+                        if (colllapse)
+                        {
+                            @Html.Raw("</div>")
+                            colllapse = false;
+                        }
+                        if (tcollapce != "")
+                        {
+                            @Html.Raw("<div class=\"separador\" >")
+                            @Html.Raw("<a type=\"button\" class=\"xcollapse badge badge-primary\" data-toggle=\"collapse\" data-target=\"#" + campo.Collapse + "\"> <span style=\"color: white\">" + campo.Collapse + "</span></a>")
+                            @Html.Raw("</div>")
+                            @Html.Raw("<div id=\"" + campo.Collapse + "\" class=\"boxcollapse collapse\">")
+                            colllapse = true;
+                        }
+                        cont = 1;
+                    }
+                    if (cont == 1)
+                    {
+                        @Html.Raw("<div class=\"row\">")
+                    }
+                <div class="form-group col-sm-4">
+                    @if (!campo.Tipo.Equals("6"))
+                    {
+                        <label for="@campo.Campo">
+                            @campo.Descricao
+                            @if (campo.Tipo == "5" && campo.ReadOnly == 0)
+                            {
+                                @Ajax.ActionLink(@" ", "Pesquisar", "Padrao", new { id = campo.Sguid }, new AjaxOptions { HttpMethod = "Get", LoadingElementId = "loading", InsertionMode = InsertionMode.Replace, UpdateTargetId = cidPesquisa }, new { @Class = "fa fa-search-plus", data_toggle = "modal", data_target = "#" + idPesquisa })
+                            }
+                            &nbsp;
+                        </label>
+                    }
+                    else
+                    {
+                        <label for="@campo.Campo">
+                            &nbsp;
+                        </label>
+                    }
+                    @if (campo.Adicionar == 1)
+                    {
+                        @Ajax.ActionLink(@"+Adicionar", "Adicionar", "Padrao", new { id = campo.Sguid, sCampo = campo.Campo }, new AjaxOptions() { HttpMethod = "Get", LoadingElementId = "loading", InsertionMode = InsertionMode.Replace, UpdateTargetId = cidAdicionar }, new { data_toggle = "modal", data_target = "#" + idAdicionar })
+                    }
+                    @switch (campo.Tipo)
+                    {
+                        case "0":
+
+                            if (campo.Campo.Equals("MATRICULABANCARIA"))
+                            {
+                                @(campo.ReadOnly == 1 ? Html.TextBox(campo.Campo, null, new {@class = "form-control " + campo.Mascara, id = campo.IdCampo.IsNullOrWhiteSpace() ? campo.Campo : campo.IdCampo, @readonly = "true"}) : Html.TextBox(campo.Campo, null, new {@class = "form-control " + campo.Mascara, id = campo.IdCampo.IsNullOrWhiteSpace() ? campo.Campo : campo.IdCampo}))
+                            }
+                            else
+                            {
+                                @(campo.ReadOnly == 1 ? Html.TextBox(campo.Campo, null, new {@class = "form-control " + campo.Mascara, id = campo.IdCampo.IsNullOrWhiteSpace() ? campo.Campo : campo.IdCampo, @readonly = "true"}) : Html.TextBox(campo.Campo, null, new {@class = "form-control " + campo.Mascara, id = campo.IdCampo.IsNullOrWhiteSpace() ? campo.Campo : campo.IdCampo}))
+                            }
+                            @Html.ValidationMessage(campo.Campo)
+                            break;
+                        case "1": // Drop
+                            if (campo.ReadOnly == 1)
+                            {
+                                var conteudo = (ViewData[campo.Campo] as List<SelectListItem>);
+                                var texto = "";
+                                var tguid = "";
+                                if (conteudo?.FirstOrDefault(x => x.Selected) != null)
+                                {
+                                    texto = conteudo.FirstOrDefault(x => x.Selected).Text;
+                                    tguid = conteudo.FirstOrDefault(x => x.Selected).Value;
+                                }
+                                @Html.Hidden(campo.Campo, tguid)
+                                @Html.DropDownList(campo.Campo, (ViewData["Drop" + campo.Campo] as List<SelectListItem>), 
+                                    string.Empty, new { @class = "form-control ", id = campo.IdCampo.IsNullOrWhiteSpace() ? campo.Campo : campo.IdCampo, 
+                                        @readonly = "true" })
+                                @*@Html.TextBox(campo.Campo + "fix", texto, new { @class = "form-control " + campo.Mascara, id = campo.IdCampo.IsNullOrWhiteSpace() ? campo.Campo : campo.IdCampo, @readonly = "true" })*@
+                            }
+                            else
+                            {
+                                @Html.DropDownList(campo.Campo, (ViewData["Drop" + campo.Campo] as List<SelectListItem>),  
+                                    new { @class = "form-control select-add-placeholder", id = campo.IdCampo.IsNullOrWhiteSpace() ? campo.Campo : campo.IdCampo })
+                            }
+                            @Html.ValidationMessage(campo.Campo)
+                            break;
+                        case "2": // Data
+                            @(campo.ReadOnly == 1 ? Html.TextBox(campo.Campo, null, new {@class = "form-control mDATA", id = campo.IdCampo.IsNullOrWhiteSpace() ? campo.Campo : campo.IdCampo, @readonly = "true"}) : Html.TextBox(campo.Campo, null, new {@class = "form-control mDATA", id = campo.IdCampo.IsNullOrWhiteSpace() ? campo.Campo : campo.IdCampo}))
+                            @Html.ValidationMessage(campo.Campo)
+                            break;
+                        case "3": // Valor
+                            @(campo.ReadOnly == 1 ? Html.TextBox(campo.Campo, null, new {@class = "form-control " + campo.Mascara, id = campo.IdCampo.IsNullOrWhiteSpace() ? campo.Campo : campo.IdCampo, @readonly = "true"}) : Html.TextBox(campo.Campo, null, new {@class = "form-control " + campo.Mascara, id = campo.IdCampo.IsNullOrWhiteSpace() ? campo.Campo : campo.IdCampo}))
+                            @Html.ValidationMessage(campo.Campo)
+                            break;
+                        case "4": // Memo
+                            @(campo.ReadOnly == 1 ? Html.TextArea(campo.Campo, null, new {@class = "form-control " + campo.Mascara, id = campo.IdCampo.IsNullOrWhiteSpace() ? campo.Campo : campo.IdCampo, @readonly = "true", rows = "10" }) :
+                                    Html.TextArea(campo.Campo, null, new {@class = "form-control " + campo.Mascara, id = campo.IdCampo.IsNullOrWhiteSpace() ? campo.Campo : campo.IdCampo, rows="10"}))
+                            @Html.ValidationMessage(campo.Campo)
+                            break;
+                        case "5": // ComboBox
+                            if (campo.ReadOnly == 1)
+                            {
+                                var conteudo = (ViewData[campo.Campo] as List<SelectListItem>);
+                                var texto = "";
+                                var tguid = "";
+                                if (conteudo != null)
+                                {
+                                    if (conteudo.FirstOrDefault(x => x.Selected) != null)
+                                    {
+                                        texto = conteudo.FirstOrDefault(x => x.Selected).Text;
+                                        tguid = conteudo.FirstOrDefault(x => x.Selected).Value;
+                                    }
+                                }
+                                @*@Html.Hidden(campo.Campo, tguid)*@
+                                @Html.DropDownList(campo.Campo, (ViewData["Drop" + campo.Campo] as List<SelectListItem>),  new
+                                {
+                                    @onchange = form == "#formUsuarios" && campo.Campo == "GrupoUsuarios" ? "ChangeGrupo(this.value,'" + @Url.Action("GrupoUsuario", "Padrao") + "','" + @Url.Action("ListaItens", "Padrao", new { id = cTelas.Sguid }) + "')" : "ChangeCombo(this,'" + @form + "','" + (Url.Action("ComboFuncion", "Padrao")) + "')",
+                                    @class = "form-control ",
+                                    id = campo.IdCampo.IsNullOrWhiteSpace() ? campo.Campo : campo.IdCampo,
+                                    @rows = 2,
+                                    @readonly = "true"
+                                })
+                            }
+                            else
+                            {
+                                @Html.DropDownList(campo.Campo, (ViewData["Drop" + campo.Campo] as List<SelectListItem>),  new
+                                {
+                                    @onchange = form == "#formUsuarios" && campo.Campo == "GrupoUsuarios" ? "ChangeGrupo(this.value,'" + @Url.Action("GrupoUsuario", "Padrao") + "','" + @Url.Action("ListaItens", "Padrao", new { id = cTelas.Sguid }) + "')" : "ChangeCombo(this,'" + @form + "','" + (Url.Action("ComboFuncion", "Padrao")) + "')",
+                                    @class = "form-control select-add-placeholder",
+                                    id = campo.IdCampo.IsNullOrWhiteSpace() ? campo.Campo : campo.IdCampo,
+                                    @rows = 2
+                                })
+                            }
+                            @Html.ValidationMessage(campo.Campo)
+                            break;
+                        case "6": // Check Box
+                            <label class="form-control">
+                                &nbsp;&nbsp;&nbsp;
+                                @(campo.ReadOnly == 1 ? Html.CheckBox(campo.Campo, new {@class = "form-check-input ", type = "checkbox", id = campo.IdCampo.IsNullOrWhiteSpace() ? campo.Campo : campo.IdCampo, @disabled = "disabled"}) :
+                                        Html.CheckBox(campo.Campo, new {@class = "form-check-input ", type = "checkbox", id = campo.IdCampo.IsNullOrWhiteSpace() ? campo.Campo : campo.IdCampo}))
+                                @campo.Descricao
+                                @Html.ValidationMessage(campo.Campo)
+                            </label>
+                            break;
+                        case "7": // Foto
+                            if (campo.ReadOnly == 1)
+                            {
+                                @Html.TextBox("XFOTO", null, new { @class = "form-control " + campo.Mascara, id = "XFOTO", type = "file", onchange = "readImage(this);", @readonly = "true" })
+                                @Html.TextBox("TempFoto", null, new { id = "TempFoto", type = "hidden" })
+
+                                @Html.Raw("<img id=\"fotoimg\" class=\"thumbnail\" src=\"\" alt=\"...\" width=\"250\" height=\"200\">")
+                            }
+                            else
+                            {
+                                @Html.TextBox("XFOTO", null, new { @class = "form-control " + campo.Mascara, id = "XFOTO", type = "file", onchange = "readImage(this);" })
+                                @Html.TextBox("TempFoto", null, new { id = "TempFoto", type = "hidden" })
+
+                                @Html.Raw("<img id=\"fotoimg\" class=\"thumbnail\" src=\"\" alt=\"...\" width=\"250\" height=\"200\">")
+                            }
+                            @Html.ValidationMessage(campo.Campo)
+                            break;
+                        case "B": // ComboBoxMulti
+                            @Html.DropDownList(campo.Campo, (ViewData["Multi" + campo.Campo] as List<SelectListItem>), string.Empty, new { @class = "form-control ", id = campo.IdCampo.IsNullOrWhiteSpace() ? campo.Campo : campo.IdCampo, @multiple = "multiple" })
+                            @Html.ValidationMessage(campo.Campo)
+                            break;
+                        case "C": // Time
+
+                            @(campo.ReadOnly == 1 ?
+                                Html.TextBox(campo.Campo, null, new {@class = "form-control " + campo.Mascara, id = campo.IdCampo.IsNullOrWhiteSpace() ? campo.Campo : campo.IdCampo, @readonly = "true"}) :
+                                Html.TextBox(campo.Campo, null, new {@class = "form-control " + campo.Mascara, id = campo.IdCampo.IsNullOrWhiteSpace() ? campo.Campo : campo.IdCampo}))
+                            @Html.ValidationMessage(campo.Campo)
+                            break;
+                        case "D": // File
+                            @Html.TextBox(campo.Campo, null, new { @class = "form-control ", name = "arquivo", type = "File" })
+                            @Html.ValidationMessage(campo.Campo)
+                            break;
+                    }
+                </div>
+                    if (cont == 3)
+                    {
+                        cont = 0;
+                        @Html.Raw("</div>")
+                        fechou = true;
+                    }
+                    else
+                    {
+                        fechou = false;
+                    }
+                }
+                @*foreach*@
+
+                @if (cont > 0 && cont < 4)
+                {
+                    @Html.Raw("</div>")
+                }
+                @if (tcollapce != "")
+                {
+                    @Html.Raw("</div>")
+                }
+                <button id="botaosalvar" type="submit" class="btn btn-success pull-right fa fa-floppy-o shadowbutton" onclick="gravar('@form', @cTelas.Lista);"><span>@(cTelas.Lista == 0 ? Html.Raw("  Gravar") : Html.Raw("  Salvar"))</span></button>
+            </fieldset>
+        }
+        @if (cTelas.Lista == 1)
+        {
+            <br />
+            <div class="">
+                <div class="shadowbutton" id="@box">
+                    @{ Html.RenderAction("ListaItens", "Padrao", new { id = cTelas.Sguid }); }
+                </div>
+            </div>
+            <hr />
+        }
+    </div>
+</div>

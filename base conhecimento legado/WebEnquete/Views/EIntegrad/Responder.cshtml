@@ -1,0 +1,70 @@
+﻿@model Domain.CEnquetes
+<script type="text/javascript">
+    var mensagem = @Html.Raw(Json.Encode(ViewData["EditError"]));
+    var controles = {
+        onReady: function() {
+            _erros(mensagem);
+        }
+    };
+    $(document).ready(controles.onReady);
+</script>
+<div style="background-color: rgb(241,247,252);padding: 15px 15px;min-height: 600px;">
+    <div class="container text-center">
+        <div class="row" style="background-color: #ffffff;">
+            <div class="col-md-12" style="box-shadow: 1px 1px 5px rgba(0,0,0,0.1);">
+                <h1 class="text-center" style="color: #ff0000;padding: 35px 0px 35px 0px;">@Model.TITULO<br></h1>
+                <img class="img-fluid" src="~/Content/assets/img/imagemexemplo.jpg" style="max-height: 300px;">
+                <p class="text-justify" style="font-size: 20px;"><strong>@Model.DESCRICAO</strong><br></p>
+                <hr>
+                @if(!string.IsNullOrEmpty(Model.ARQUIVOANEXO)){
+                @Html.ActionLink("ARQUIVO PARA DOWNLOAD", "Download", "EIntegrad", new { id = Model.ARQUIVOANEXO },
+                    new { @class = "btn btn-danger", role = "button", data_bs_hover_animate = "pulse", target = "_blank" })
+
+                }
+                <hr>
+                <div class="row">
+                    <div class="col" style="background-color: #cfe5f5;padding: 0px;">
+                        @using (Ajax.BeginForm("Responder", "EIntegrad", null, new AjaxOptions()
+                        {
+                            HttpMethod = "Post",
+                            LoadingElementId = "loading",
+                            InsertionMode = InsertionMode.ReplaceWith,
+                            UpdateTargetId = "Container",
+                            OnComplete = "_erros(mensagem);"
+                        }, new { Class = "text-left", id = "FormPerguntasRespostas", role = "form" }))
+                        {
+                            <fieldset>
+                                @Html.AntiForgeryToken()
+                                @Html.HiddenFor(e => Model.Sguid)
+                                @{
+                                    <h5 class="text-left" style="padding: 15px 15px; background-color: #bbdcf4;">@Model.PERGUNTA<br></h5>
+                                    @Html.ValidationMessage(@Model.Sguid)
+                                    ;
+                                    if (!string.IsNullOrEmpty(Model.RESPOSTA01))
+                                    {
+                                        <div class="form-check" style="margin: 25px; margin-top: 0px; margin-right: 0px; margin-bottom: 5px; margin-left: 25px;">
+                                            <input class="form-check-input" data-val="true" data-val-number="O campo RESPONDIDO deve ser um número."
+                                                   data-val-required="O campo RESPONDIDO é obrigatório." id="formCheck-@Model.Sguid-1"
+                                                   name="@Model.Sguid" type="radio" value="1">
+                                            <label class="form-check-label">@Model.RESPOSTA01</label>
+                                        </div>
+                                    }
+                                    if (!string.IsNullOrEmpty(Model.RESPOSTA02))
+                                    {
+                                        <div class="form-check" style="margin: 25px; margin-top: 0px; margin-right: 0px; margin-bottom: 5px; margin-left: 25px;">
+                                            <input class="form-check-input" data-val="true" data-val-number="O campo RESPONDIDO deve ser um número."
+                                                   data-val-required="O campo RESPONDIDO é obrigatório." id="formCheck-@Model.Sguid-2"
+                                                   name="@Model.Sguid" type="radio" value="2">
+                                            <label class="form-check-label">@Model.RESPOSTA02</label>
+                                        </div>
+                                    }
+                                }
+                            </fieldset>
+                            <button type="submit" class="btn btn-primary" data-bs-hover-animate="pulse" style="margin: 15px;">VOTAR</button>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

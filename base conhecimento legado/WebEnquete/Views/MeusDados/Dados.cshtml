@@ -1,0 +1,64 @@
+﻿@model Domain.CPessoas
+<script type="text/javascript">
+    var mensagem = @Html.Raw(Json.Encode(ViewData["EditError"]));
+    var controles = {
+        onReady: function() {
+            mascaras();
+            _erros(mensagem);
+        }
+    };
+    $(document).ready(controles.onReady);
+</script>
+<div id="ContainerMeusDados" class="align-content-center my-auto">
+    <div>
+        @{
+            Html.RenderPartial("_Header");
+        }
+    </div>
+    <div style="background-color: rgb(241,247,252);padding: 15px 15px;">
+        <div class="container text-center">
+            <div class="row" style="background-color: #ffffff;">
+                <div class="col-md-12" style="box-shadow: 1px 1px 5px rgba(0,0,0,0.1);">
+                    <p class="text-center text-black-50" style="font-size: 20px;padding: 15PX;"><strong>Mantenha seus dados atualizados</strong></p>
+                    @using (Ajax.BeginForm("Dados", "MeusDados", null, new AjaxOptions()
+                    {
+                        HttpMethod = "Post",
+                        LoadingElementId = "loading",
+                        InsertionMode = InsertionMode.ReplaceWith,
+                        UpdateTargetId = "ContainerMeusDados",
+                        OnComplete = "_erros(mensagem);"
+                    }, new { Class = "text-left", id = "FormMeusDados", role = "form" }))
+                    {
+                        <h2 class="text-center"><strong>ASSEMBLEIA&nbsp;</strong>ONLINE</h2>
+                        <fieldset>
+                            @Html.AntiForgeryToken()
+                            @Html.HiddenFor(e => e.Sguid)
+                            <div class="form-group">
+                                @Html.TextBoxFor(e => Model.NOME, Model.NOME, new { @class = "form-control", name = "NOME", placeholder = "Nome completo", style = "margin-bottom: 10px;" })
+                                @Html.TextBoxFor(e => Model.DATNASCIMENTO, "{0:yyyy-MM-dd}", new { @class = "form-control", name = "DATNASCIMENTO", type = "date", style = "margin-bottom: 10px;" })
+                                @Html.TextBoxFor(e => Model.CPF, Model.CPF, new { @class = "form-control mCPF", name = "CPF", placeholder = "CPF", style = "margin-bottom: 10px;" })
+                                @Html.TextBoxFor(e => Model.MATRICULABANCARIA, Model.MATRICULABANCARIA, new { @class = "form-control mSINDICATO", name = "MATRICULABANCARIA", placeholder = "Matrícula Funcional", style = "margin-bottom: 10px;" })
+                                @Html.TextBoxFor(e => Model.CELULAR, Model.CELULAR, new { @class = "form-control mTELEFONE", name = "CELULAR", placeholder = "Celular", style = "margin-bottom: 10px;" })
+                                @Html.TextBoxFor(e => Model.EMAIL, Model.EMAIL, new { @class = "form-control ", name = "EMAIL", placeholder = "EMAIL", style = "margin-bottom: 10px;", required = "" })
+                                <br />
+                                @Html.TextBoxFor(e => Model.ENDERECO, Model.ENDERECO, new { @class = "form-control ", name = "ENDERECO", placeholder = "ENDERECO", style = "margin-bottom: 10px;", required = "" })
+                                @Html.TextBoxFor(e => Model.BAIRRO, Model.BAIRRO, new { @class = "form-control ", name = "BAIRRO", placeholder = "BAIRRO", style = "margin-bottom: 10px;", required = "" })
+                                @Html.TextBoxFor(e => Model.CIDADE, Model.CIDADE, new { @class = "form-control ", name = "CIDADE", placeholder = "CIDADE", style = "margin-bottom: 10px;", required = "" })
+                                @Html.TextBoxFor(e => Model.ESTADO, Model.ESTADO, new { @class = "form-control ", name = "ESTADO", placeholder = "ESTADO", style = "margin-bottom: 10px;", required = "" })
+                                <br />
+                                @Html.DropDownListFor(e => Model.BANCO.Sguid, Model.DropBANCO, null, new { @class = "form-control select-add-placeholder", name = "BANCO", style = "margin-bottom: 10px;" })
+                            </div>
+                            <div class="form-group text-center">
+                                <button class="btn btn-success text-center" data-bs-hover-animate="pulse" type="submit">ATUALIZAR</button>
+                            </div>
+                        </fieldset>
+                    }
+
+                </div>
+            </div>
+        </div>
+    </div>
+    @{
+        Html.RenderPartial("_Footer");
+    }
+</div>

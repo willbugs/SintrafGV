@@ -1,0 +1,88 @@
+﻿@model List<Domain.RelatorioAssociados>
+<script type="text/javascript">
+    var mensagem = @Html.Raw(Json.Encode(ViewData["EditError"]));
+    var controles = {
+        onReady: function() {
+            mascaras();
+            _erros(mensagem);
+        }
+    };
+    $(document).ready(controles.onReady);
+</script>
+<div class="modal-content card">
+    <div class="modal-header card-header">
+        <h4>Relatórios - Associados</h4>
+        <button id="bfecharRelat" type="button" class="close" data-dismiss="modal">&times;</button>
+    </div>
+    <div class="modal-body card-body">
+        @using (Html.BeginForm("Relatorios", "Padrao", FormMethod.Post, new { @class = "form-inline", id = "relfiltrocustom", target = "_blank" }))
+        {
+            @Html.Raw("<fieldset>")
+            @Html.AntiForgeryToken()
+            var contador = 0;
+            foreach (var item in Model)
+            {
+                if (contador.Equals(0))
+                {
+                    @Html.Raw("<div class=\"row\">")
+                }
+                @Html.Raw("<div class=\"form-group col-lg-3\">")
+
+                @Html.CheckBoxFor(e => item.Visivel, new { @class = "", type = "checkbox", Name = $"chk_{item.NomeCampo}", id = $"chk_{item.NomeCampo}" })
+
+                <span> @item.TituloCampo </span>
+                if (item.Mascara != null && item.Mascara.Equals("mDATA"))
+                {
+                    @Html.TextBoxFor(e => item.Filtro, "{0:yyyy-MM-dd}", new { @class = "form-control ", type = "date", Name = $"fil_{item.NomeCampo}", id = $"fil_{item.NomeCampo}" })
+                }
+                else
+                {
+                    if (item.Tipo == typeof(bool))
+                    {
+                        @Html.DropDownListFor(e => item.Filtro, (ViewData["Drop" + item.NomeCampo] as List<SelectListItem>), new { @class = "form-control", Name = $"fil_{item.NomeCampo}", id = $"fil_{item.NomeCampo}" })
+                    }
+                    else
+                    {
+                        if (item.Lookup)
+                        {
+                            @Html.DropDownListFor(e => item.Filtro, (ViewData["Drop" + item.LookupCampo] as List<SelectListItem>), new { @class = "form-control", Name = $"fil_{item.NomeCampo}", id = $"fil_{item.NomeCampo}" })
+                        }
+                        else
+                        {
+                            @Html.TextBoxFor(e => item.Filtro, new { @class = "form-control", Name = $"fil_{item.NomeCampo}", id = $"fil_{item.NomeCampo}" })
+                        }
+                    }
+                }
+                @Html.Raw("</div>")
+                contador++;
+                if (contador.Equals(4))
+                {
+                    contador = 0;
+                    @Html.Raw("</div>")
+                }
+            }
+            if (!contador.Equals(0))
+            {
+                @Html.Raw("</div>")
+            }
+            @Html.Raw("</fieldset>")
+            <div class="row">
+                <div class="col-4">
+                    <span>Mês dos aniversariantes</span>
+                    <input name="fil_ENIVERSARIO" class="form-control mMES" id="fil_ENIVERSARIO" type="text" value="">
+                </div>
+                <div class="col-4">
+                    
+                </div>
+                <div class="col-2">
+                    <button id="botaosalvar" type="submit" class="btn btn-success pull-right fa fa-floppy-o shadowbutton"><span> Imprimir</span></button>
+                </div>
+                <div class="col-2"></div>
+
+            </div>
+        }
+    </div>
+
+    <div class="modal-footer card-footer">
+    </div>
+</div>

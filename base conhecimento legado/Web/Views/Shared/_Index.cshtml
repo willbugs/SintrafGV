@@ -1,0 +1,133 @@
+﻿@model IList<Domain.CTelas>
+@{
+    /**/
+
+    var submenu = Model[0].SubMenu;
+    const string names = "[TABS]";
+    var guid = submenu.Sguid;
+    var novo = (bool)ViewBag.Carregamento;
+    var subtela = "";
+}
+
+<script type="text/javascript">
+    var mensagem = (@Html.Raw(Json.Encode(ViewData["EditError"])));
+    function onclickNovo() {
+        window.novoclick = 1;
+    };
+    function onClickBFecha() {
+        if (novoclick === 1) {
+            $.confirm(
+                {
+                    closeIcon: true,
+                    closeIconClass: 'fa fa-close',
+                    title: 'Atenção',
+                    content: 'Fechar tela sem gravar registo?',
+                    type: 'red',
+                    typeAnimated: true,
+                    icon: 'fa fa-warning',
+                    buttons: {
+                        confirm: {
+                            text: 'Sim',
+                            keys: ['y'],
+                            btnClass: 'btn-info',
+                            action: function () {
+                               window.novoclick = 0;
+                                _bfechar('@(Url.Action("Consultas", "Padrao"))','@guid',($('#TABS').length) ? @names : null);
+                                return true;
+                            }
+                        },
+                        close: {
+                            keys: ['n'],
+                            text: "Não",
+                            btnClass: 'btn-default',
+                            action: function () {
+                                return true;
+                            }
+                        }
+                    }
+                }
+            );
+        } else {
+            $('.nav-dropdown-items li a.active').removeClass('active');
+            _bfechar('@(Url.Action("Consultas", "Padrao"))', '@guid', ($('#TABS').length) ? @names : null);
+            return true;
+        }
+    };
+    var controles = {
+        onReady: function () {
+            if (mensagem != null) {
+                _erros(mensagem);
+            }
+        }
+    };
+    $(document).ready(controles.onReady);
+</script>
+<div id="Page">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item active"><h4>@ViewBag.NomeTela</h4></li>
+        <li class="breadcrumb-menu">
+            <div class="btn-group" role="group" aria-label="Button group">
+                <a title="Fechar janela" id="bfechar"><i onclick="onClickBFecha();" class="icon-close"></i></a>
+            </div>
+        </li>
+    </ol>
+    <div id="board" class="col">
+        @{
+            if (novo)
+            {
+                <div id="Consultas">
+                    @{ Html.RenderAction("Consultas", "Padrao", new { id = Model[0].SubMenu.Sguid }); }
+                </div>
+            }
+            else
+            {
+                <div id="Consultas"></div>
+
+                <div id="TABS" class="card">
+                    @if (Model.Count > 1)
+                    {
+                        <div class="card-header">
+                            <i class="fa fa-align-justify"></i> Formulário
+                        </div>
+                        <div class="card-body">
+                            <ul id="subtelas" class="nav nav-tabs" role="tablist">
+                                @{
+                                    var cont = 0;
+                                }
+                                @foreach (var cTelase in Model.OrderBy(l => l.Sequencia))
+                                {
+                                    cont++;
+                                    <li @{
+                                            if (cTelase.Lista.Equals(0))
+                                            {
+                                                @Html.Raw("class=\"nav-item\"")
+                                            }
+                                        } 
+                                        @{ subtela = "subtela_" + cTelase.Parent; } >
+                                        <a class="nav-link @( cont.Equals(1) ? "active": "" )" href="#@subtela" data-toggle="tab" id="@subtela-tab" role="tab" aria-controls="@subtela" aria-selected="true">@cTelase.NomeTela</a>
+                                    </li>
+                                }
+                            </ul>
+                        </div>
+                    }
+                    <div id="subtelasContent" class="tab-content">
+                        @foreach (var cTelase in Model.OrderBy(l => l.Sequencia))
+                        {
+                            <div class="tab-pane
+                                 @{
+                                     if (cTelase.Lista == 0)
+                                     {
+                                         @Html.Raw("fade show active")
+                                     }
+                                     subtela = "subtela_" + cTelase.Parent;
+
+                                 }" id="@subtela">
+                                @{ Html.RenderAction("Cadastro", "Padrao", new { id = cTelase.Sguid, nclasse = cTelase.Help, sguid = ViewBag.aEditar }); }
+                            </div>
+                        }
+                    </div>
+                </div>
+            }
+        }
+    </div>
+</div>

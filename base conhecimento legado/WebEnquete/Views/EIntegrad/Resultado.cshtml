@@ -1,0 +1,21 @@
+﻿@model  List<Web.Models.Resultado>
+<div style="background-color: rgb(241,247,252);padding: 15px 15px;">
+    <div class="container text-center">
+        <p class="text-center" style="font-size: 20px;"><strong>Resultado da votação apurada em: @Model[0].DataResultado.Value.ToString("d")</strong></p>
+        @foreach (var resultado in Model)
+        {
+            <div class="row" style="background-color: #ffffff;">
+                <div class="col-md-12" style="box-shadow: 1px 1px 5px rgba(0, 0, 0, 0.1);">
+                    <h1 class="text-center" style="color: #ff0000; padding: 5px 0px 5px 0px;">@resultado.Titulo<br></h1>
+                    <canvas data-bs-chart=@resultado.JsonGrafico></canvas>
+                    <hr>
+                </div>
+            </div>
+        }
+    </div>
+</div>
+<script src="../../Content/assets/js/chart.min.js"></script>
+<script src="../../Content/assets/js/bs-animation.js"></script>
+<script src="../../Content/assets/js/bs-charts.js"></script>
+
+

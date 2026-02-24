@@ -1,0 +1,27 @@
+# SQL Server para desenvolvimento local - SintrafGV
+# Uso: docker-compose up -d
+# Conexão: localhost,1433 | usuário: sa | senha: SintrafGv_Dev2025!
+
+name: sintrafgv
+
+services:
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: sintrafgv-sqlserver
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: "SintrafGv_Dev2025!"
+      MSSQL_PID: "Developer"
+    ports:
+      - "1433:1433"
+    volumes:
+      - sqlserver_data:/var/opt/mssql
+    healthcheck:
+      test: ["CMD-SHELL", "exit 0"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
+volumes:
+  sqlserver_data:

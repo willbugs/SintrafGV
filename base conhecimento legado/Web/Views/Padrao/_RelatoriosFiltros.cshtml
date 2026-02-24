@@ -1,0 +1,101 @@
+﻿@using Domain
+@model FormCollection
+@{
+    var relatorio = ViewData["Relatorios"];
+    var filtros = ViewData["RelatoriosFiltros"] as IList<CRelatoriosFiltros>;
+    var contador = 1;
+}
+<script type="text/javascript">
+    var mensagem = (@Html.Raw(Json.Encode(ViewData["EditError"])));
+    var controles = {
+        onReady: function() {
+            mascaras('@(Url.Action("Cep", "Cep"))');
+            errorfields();
+        }
+    };
+    $(document).ready(controles.onReady);
+</script>
+@using (Html.BeginForm("RelatoriosFiltros", "Padrao", new { @class = "form-inline", id = relatorio }, FormMethod.Post, new { id = "formrel", target = "_blank" }))
+{
+    <fieldset>
+        @Html.AntiForgeryToken()
+        @if (filtros != null && filtros.Count > 0)
+        {
+            foreach (var campo in filtros)
+            {
+                if (contador.Equals(1))
+                {
+                    @Html.Raw("<div class=\"row\">")
+                }
+
+                <div class="form-group col-sm-4">
+                    <label for="@campo.NomeCampo">@campo.TituloCampo</label>
+                    @{
+                        switch (campo.TipoCampo)
+                        {
+                            case 0: // invisivel
+                                W‌rite(Html.Hidden(campo.NomeCampo));
+                                W‌rite(Html.ValidationMessage(campo.NomeCampo));
+                                break;
+                            case 1: // Text
+                                @(campo.Requerido ? Html.TextBox(campo.NomeCampo, null, new {@class = "form-control ", id = campo.NomeCampo, required = "true"}) : Html.TextBox(campo.NomeCampo, null, new {@class = "form-control ", id = campo.NomeCampo}))
+                                W‌rite(Html.ValidationMessage(campo.NomeCampo));
+                                break;
+                            case 2: // Data
+                                @(campo.Requerido ? Html.TextBox(campo.NomeCampo, null, new { @class = "form-control", id = campo.NomeCampo, required = "true", type = "date" }) : Html.TextBox(campo.NomeCampo, null, new { @class = "form-control", id = campo.NomeCampo, type = "date" }))
+                                W‌rite(Html.ValidationMessage(campo.NomeCampo));
+                                break;
+                            case 3: // Valor
+                                @(campo.Requerido ? Html.TextBox(campo.NomeCampo, null, new { @class = "form-control mDINHEIRO", id = campo.NomeCampo, required = "true" }) : Html.TextBox(campo.NomeCampo, null, new { @class = "form-control mDINHEIRO", id = campo.NomeCampo }))
+                                W‌rite(Html.ValidationMessage(campo.NomeCampo));
+                                break;
+                            case 4: // Número
+                                @(campo.Requerido ? Html.TextBox(campo.NomeCampo, null, new { @class = "form-control", id = campo.NomeCampo, required = "true", type = "number" }) : Html.TextBox(campo.NomeCampo, null, new { @class = "form-control", id = campo.NomeCampo, type = "number" }))
+                                W‌rite(Html.ValidationMessage(campo.NomeCampo));
+                                break;
+                            case 5: // DropBox
+                                @(campo.Requerido ? Html.DropDownList(campo.NomeCampo, (ViewData["Rel" + campo.NomeCampo] as List<SelectListItem>), string.Empty, new {@class = "form-control ", id = campo.NomeCampo, rows = 2, required = "true"}) : Html.DropDownList(campo.NomeCampo, (ViewData["Rel" + campo.NomeCampo] as List<SelectListItem>), string.Empty, new {@class = "form-control ", id = campo.NomeCampo, rows = 2}))
+                                W‌rite(Html.ValidationMessage(campo.NomeCampo));
+                                break;
+                            case 6: // Drop
+                                @(campo.Requerido ? Html.DropDownList(campo.NomeCampo, (ViewData["Rel" + campo.NomeCampo] as List<SelectListItem>), string.Empty, new {@class = "form-control ", id = campo.NomeCampo, rows = 2, required = "true"}) : Html.DropDownList(campo.NomeCampo, (ViewData["Rel" + campo.NomeCampo] as List<SelectListItem>), string.Empty, new {@class = "form-control ", id = campo.NomeCampo, rows = 2}))
+                                W‌rite(Html.ValidationMessage(campo.NomeCampo));
+                                break;
+                            case 7: // CheckBoxP
+                                <label class="form-control">
+                                    @(campo.Requerido ?
+                                    Html.CheckBox(campo.NomeCampo, new {@class = "form-check-input ", id = campo.NomeCampo, required = "true"}) :
+                                        Html.CheckBox(campo.NomeCampo, new {@class = "form-check-input ", id = campo.NomeCampo}))
+                                </label>
+                                    W‌rite(Html.ValidationMessage(campo.NomeCampo));
+                                
+                                break;
+                            case 8: // DropMeses
+                                @(campo.Requerido ? Html.DropDownList(campo.NomeCampo, (ViewData["RelMeses" + campo.NomeCampo] as List<SelectListItem>), string.Empty, new {@class = "form-control ", id = campo.NomeCampo, rows = 2, required = "true"}) : Html.DropDownList(campo.NomeCampo, (ViewData["Rel" + campo.NomeCampo] as List<SelectListItem>), string.Empty, new {@class = "form-control ", id = campo.NomeCampo, rows = 2}))
+                                W‌rite(Html.ValidationMessage(campo.NomeCampo));
+                                break;
+                        }
+                    }
+                </div>
+                if (contador.Equals(3))
+                {
+                    @Html.Raw("</div>")
+                    contador = 0;
+                }
+                contador++;
+            }
+            if (!contador.Equals(2))
+            {
+                @Html.Raw("</div>")
+            }
+        }
+        else
+        {
+            <div class="form-group">
+                <label>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</label>
+                <div class="row"><label>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</label></div>
+            </div>
+        }
+    </fieldset>
+    <button id="botaosalvar" type="submit" class="btn btn-success pull-right fa fa-floppy-o shadowbutton"><span> Imprimir</span></button>
+}

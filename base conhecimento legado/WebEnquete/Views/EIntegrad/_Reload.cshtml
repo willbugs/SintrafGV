@@ -1,0 +1,15 @@
+﻿<script type="text/javascript">
+    var controles = {
+        onReady: function () {
+            $.ajax({
+                method: "get",
+                url: "@Url.Action("Index", "EIntegrad")",
+                success: function(result) {
+                    $("#ContainerPrincipal").empty();
+                    $("#ContainerPrincipal").append(result);
+                }
+            });
+        }
+    };
+    $(document).ready(controles.onReady);
+</script>

@@ -1,0 +1,147 @@
+﻿@using Domain
+@model Web.Models.FiltroModel
+@{
+    var cTelas = ViewBag.Telas as CTelas;
+    var form = "#formfiltro" + cTelas.Parent;
+    var grid = new WebGrid(ViewBag.Dados, ajaxUpdateContainerId: "grids", rowsPerPage: 20, ajaxUpdateCallback: "barra");
+    var colunas = new List<WebGridColumn>();
+    WebGridColumn identificador;
+    if (cTelas.Seleciona == 1)
+    {
+        identificador = new WebGridColumn
+        {
+            Style = "fixa",
+            Header = "",
+            ColumnName = "Sguid",
+            CanSort = false,
+            Format = item => new HtmlString("<input class=\"check-box\" id=\"assignChkBx\" name=\"assignChkBx\" type=\"checkbox\" value=\" " + @item.Sguid + "\" onclick=\"checkClick(this);\"/>")
+        };
+        colunas.Add(identificador);
+    }
+    foreach (var campo in cTelas.Campos.Where(l => l.Grid == 1).OrderBy(x => x.Sequencia))
+    {
+        identificador = new WebGridColumn { CanSort = true, ColumnName = (campo.Tipo == "1" || campo.Tipo == "5" || campo.Tipo == "6") ? "Temp" + campo.Campo : campo.Campo, Header = campo.Descricao, Style = "coluna_left" };
+        switch (campo.Tipo)
+        {
+            case "2":
+                identificador.Style = "coluna_center";                  
+                break;
+            case "3":
+                identificador.ColumnName = "Currency" + campo.Campo;
+                identificador.Style = "coluna_right";
+                break;
+        }
+        colunas.Add(identificador);
+    }
+    identificador = new WebGridColumn
+    {
+        Style = "fixa",
+        Header = "Ação",
+        ColumnName = "Sguid",
+        CanSort = false,
+        Format = item => Html.Raw(
+            Ajax.ActionLink(@"[replace]", "Editar", "Padrao", new { id = cTelas.SubMenu.Sguid, sguid = item.Sguid }, new AjaxOptions
+            {
+                UpdateTargetId = "Container",
+                LoadingElementId = "loading",
+                InsertionMode = InsertionMode.Replace,
+                HttpMethod = "GET"
+            }).ToString().Replace("[replace]", "<i style='color: blue' class='fa fa-edit'></i>") + "   " + (cTelas.Apagar.Equals(1) ?
+                    "<span onclick=\"excluir('" + cTelas.SubMenu.Sguid + "','" + item.Sguid + "','" + "" + "','" + "Container" + "','" + Url.Action("Delete", "Padrao") + "','" +
+                    "0" + "')\" ><i class='fa fa-trash-o'  style='color: blue'></i></span>" : ""))
+
+    };
+    colunas.Add(identificador);
+}
+<script type="text/javascript">
+    var controles = {
+        onReady: function() {
+            window.novoclick = 0;
+            consulta_controle();
+            barra();
+        }
+    };
+    function Limpo() {
+        if (@Model.Registros === 0 ) {
+            $("#nadaEncontrado").removeAttr('hidden'); 
+            var interval = setInterval(function() {
+                 $("#nadaEncontrado").attr("hidden", true);
+                clearInterval(interval);
+            }, 2000);
+            
+        }
+        return true;
+    }
+    $(document).ready(controles.onReady);
+</script>
+<div class="modal1 fade" id="Relatorios" tabindex="-1" role="dialog" aria-labelledby="Relatórios" aria-hidden="true">
+    <div id="Frelatorio" class="modal-dialog"></div>
+</div>
+<div class="modal fade" id="importar" tabindex="-1" role="dialog" aria-labelledby="importarLabel" aria-hidden="true">
+    <div id="Fimportar" class="modal-dialog"></div>
+</div>
+<div class="card">
+    <div class="card-header">
+        <div class="row">
+            <div class="col-12">
+                @if (cTelas.Novo == 1)
+                {
+                    @Html.Raw(Ajax.ActionLink("[replace]", "Novo", "Padrao", new { id = cTelas.SubMenu.Sguid }, new AjaxOptions() { HttpMethod = "Get",
+                        LoadingElementId = "loading", InsertionMode = InsertionMode.Replace, UpdateTargetId = "Container" },
+                        new {@class = "btn btn-primary", data_toggle = "tooltip", title = "Incluir Novo", @onclick = "onclickNovo();" }).ToString().Replace("[replace]", "<i class=\"fa fa-plus-square\"></i>&nbsp;Incluir"))
+                }
+                @Html.Raw(Ajax.ActionLink("[replace]", "Relatorios", "Padrao", new { id = cTelas.SubMenu.Sguid }, new AjaxOptions() { HttpMethod = "Get",
+                    LoadingElementId = "loading", InsertionMode = InsertionMode.Replace, UpdateTargetId = "Frelatorio" },
+                    new { @class = "btn btn-dark", title ="Relatórios", data_toggle = "modal", data_target = "#Relatorios"}).ToString().Replace("[replace]", "<i class=\"fa fa fa-print\"></i>&nbsp;Relatório"))
+            </div>
+        </div>
+        <div id="VConsultas" class="card-body">
+            @using (Ajax.BeginForm("Filtros", "Padrao", new { id = cTelas.SubMenu.Sguid }, new AjaxOptions() { HttpMethod = "Get", LoadingElementId = "loading", InsertionMode = InsertionMode.Replace, UpdateTargetId = "Consultas", OnComplete = "_erros(mensagem);Limpo();" }, new { @Class = "form-horizontal", id = "formfiltro" + cTelas.Parent }))
+            {
+                @Html.HiddenFor(c => c.Ordens)
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="input-group mb-3">
+                            <div class="input-group-prepend">
+                                <label class="input-group-text" for="Ordem">Ordem</label>
+                            </div>
+                            @Html.DropDownListFor(c => c.Ordem, Model.Ordens, new { @class = "custom-select", @id = "Ordem" })
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="input-group">
+                            @Html.TextBoxFor(c => c.Chavebusca, new { @class = "form-control", @id = "Chavebusca", @placeholder = "Chave de busca" })
+                            <div class="input-group-append">
+                                <a class="input-group-text bg-success" data-toggle="tooltip" title="Pesquisar" onclick="$('@form').submit();"><i class="fa fa-search" style="color: white;"></i></a>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+            }
+            <hr />
+            <div class="row">
+                <div class="col-lg-2 text-center"><h4>&nbsp;</h4></div>
+                <div id="nadaEncontrado" hidden class="col-lg-10 text-center"><h4><span class="badge badge-danger">Nada encontrado</span></h4></div>
+            </div>
+            <div class="" id="grid">
+                @{
+                    if (ViewBag.Dados != null && (int)ViewBag.Dados.GetType().GetProperty("Count").GetValue(ViewBag.Dados, null) > 0)
+                    {
+                        <div>
+                            @grid.GetHtml(htmlAttributes: new {id = "grids"},
+                                tableStyle: "webgrid-table",
+                                headerStyle: "webgrid-header",
+                                footerStyle: "webgrid-footer",
+                                alternatingRowStyle: "webgrid-alternating-row",
+                                selectedRowStyle: "webgrid-selected-row",
+                                rowStyle: "webgrid-row-style",
+                                fillEmptyRows: false,
+                                columns: colunas,
+                                mode: WebGridPagerModes.All)
+                        </div>
+                    }}
+            </div>
+        </div>
+    </div>
+</div>

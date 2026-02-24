@@ -1,0 +1,55 @@
+﻿@using Webcliente.Models
+<div>
+    <header class="top">
+        <div class="container">
+            <div class="row">
+                <div class="col-3">
+                    <img src="https://www.sacratours.com/wp-content/uploads/2018/06/logo-sacratours-blue.png" alt="" title=""
+                         srcset="https://www.sacratours.com/wp-content/uploads/2018/06/logo-sacratours-blue.png 350w, https://www.sacratours.com/wp-content/uploads/2018/06/logo-sacratours-blue-300x75.png 300w"
+                         sizes="(max-width: 280px) 100vw, 280px">
+                </div>
+                <div class="col-9">
+                    <nav class="navbar navbar-expand-lg navbar-light bg-light float-right">
+                        <button class="navbar-toggler ml-auto" type="button" data-toggle="collapse" data-target="#Links" aria-controls="navbarResponsive" aria-expanded="false" aria-label="Toggle navigation">
+                            <i style="color: azure" class="fa fa-bars"></i>
+                        </button>
+                        <div class="collapse navbar-collapse" id="Links">
+                            <ul class="navbar-nav mr-auto mt-2 mt-lg-0">
+                                <li class="nav-item">
+                                    @Html.ActionLink("Packages", "Index", "DashBoard", null, new { @class = "nav-link" })
+                                </li>
+                                <li class="nav-item">
+                                    @Html.ActionLink("My Account", "NewAccount", "Account", null, new { @class = "nav-link" })
+                                </li>
+                                <li class="nav-item">
+                                    @Html.ActionLink(Resources.DashBoard.Sair, "LogOff", "DashBoard", null, new { @class = "nav-link" })
+                                </li>
+                                @*<li>
+                                    <div style="padding:5px">
+                                        @{
+                                            var flag = "";
+                                            foreach (var i in LanguageMang.AvailableLanguages)
+                                            {
+                                                if (i.LanguageCultureName.Equals("pt-br"))
+                                                {
+                                                    flag = "<img alt=\"Portuguese\" border=\"0\" align=\"absbottom\" title=\"Portuguese\" height=\"32\" src=\"http://lh4.ggpht.com/_pt7i0nbIOCY/SWwkG0osjzI/AAAAAAAAA2g/_kM2A16R_Ho/Portuguese_thumb%5B1%5D.png?imgmax=800\" style=\"cursor: pointer; margin-right: 13px\" width=\"24\" />";
+                                                }
+                                                if (i.LanguageCultureName.Equals("en"))
+                                                {
+                                                    flag = "<img alt=\"English\" border=\"0\" align=\"absbottom\" title=\"English\" height=\"32\" src=\"http://lh6.ggpht.com/_pt7i0nbIOCY/SWwjycGEnLI/AAAAAAAAA1o/7p6S3-tipsA/English_thumb%5B3%5D.png?imgmax=800\" style=\"cursor: pointer; margin-right: 13px\" width=\"24\" />";
+                                                }
+
+                                                @Html.Raw(Html.ActionLink("[replace]", "ChangeLanguage", "Account", new { lang = i.LanguageCultureName }, null).ToString().Replace("[replace]", flag)) <text> </text>
+                                            }
+                                        }
+                                    </div>
+                                </li>*@
+                            </ul>
+                        </div>
+                    </nav>
+                </div>
+            </div>
+        </div>
+    </header>
+    <div id="loading"></div>
+</div>

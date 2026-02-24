@@ -1,0 +1,54 @@
+# .NET
+bin/
+obj/
+*.dll
+*.exe
+*.pdb
+*.user
+*.suo
+*.cache
+*.log
+*.vs/
+.vs/
+
+# Node.js
+node_modules/
+dist/
+.vite/
+*.local
+
+# Environment files
+.env
+.env.local
+.env.*.local
+appsettings.Development.json
+appsettings.Local.json
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Build outputs
+build/
+publish/
+out/
+
+# Test results
+TestResults/
+coverage/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# Misc
+*.tmp
+*.temp

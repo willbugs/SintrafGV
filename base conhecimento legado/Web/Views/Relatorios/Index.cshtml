@@ -1,0 +1,110 @@
+﻿<script type="text/javascript">
+    var mensagem = (@Html.Raw(Json.Encode(ViewData["EditError"])));
+    function onClickXFecha() {
+        $(".sub-menu-list li").removeClass("active");
+        $("#Page").remove();
+        return true;
+    };
+    var controles = {
+        onReady: function () {
+
+        }
+    };
+
+    $(document).ready(controles.onReady);
+</script>
+<div class="modal1 fade" id="Relatorios" tabindex="-1" role="dialog" aria-labelledby="Relatórios" aria-hidden="true">
+    <div id="Frelatorio" class="modal-dialog"></div>
+</div>
+<div id="Page">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item active"><h4>Relatórios</h4></li>
+        <li class="breadcrumb-menu">
+            <div class="btn-group" role="group" aria-label="Button group">
+                <a title="Fechar janela" id="bfechar"><i onclick="onClickXFecha();" class="icon-close"></i></a>
+            </div>
+        </li>
+    </ol>
+    <div class="col">
+        <div class="card">
+            <div class="card-header">
+                <div class="row">
+                    <div class="col-12">
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="col-12">
+                        @Html.Raw(Ajax.ActionLink("[replace]", "Relatorios", "Padrao", new { id = ""}, new AjaxOptions() { HttpMethod = "Get",
+                            LoadingElementId = "loading", InsertionMode = InsertionMode.Replace, UpdateTargetId = "Frelatorio" },
+                            new { @class = "btn btn-dark", title ="Relatórios", data_toggle = "modal", data_target = "#Relatorios"}).ToString().Replace("[replace]", "<i class=\"fa fa fa-print\"></i>&nbsp;Relatório"))
+                    </div>
+                    @*@using (Ajax.BeginForm("Index", "Email", null, new AjaxOptions()
+                    {
+                        HttpMethod = "Post",
+                        LoadingElementId = "loading",
+                        InsertionMode = InsertionMode.ReplaceWith,
+                        UpdateTargetId = "Page",
+                        OnComplete = "_erros(mensagem);"
+                    }, new { Class = "form-horizontal", id = "FormEmail", role = "form", enctype = "multipart/form-data" }))
+                    {
+                        @Html.AntiForgeryToken()
+                        @Html.HiddenFor(f => f.Sguid)
+                        <fieldset>
+                            <div class="row">
+                                <div class="form-group col-sm-4">
+                                    @Html.LabelFor(model => model.SMTP)
+                                    @Html.TextBoxFor(f => f.SMTP, Model.SMTP, new { @class = "form-control", placeholder = "endereço servidor email", id = "smtp", autofocus = "autofocus" })
+                                </div>
+                                <div class="form-group col-sm-4">
+                                    @Html.LabelFor(model => model.PORTA)
+                                    @Html.TextBoxFor(f => f.PORTA, Model.PORTA.ToString(), new { @class = "form-control", placeholder = "porta servidor email ", id = "porta" })
+                                </div>
+                                <div class="form-group col-sm-4">
+                                    @Html.LabelFor(model => model.USERNAME)
+                                    @Html.TextBoxFor(f => f.USERNAME, Model.USERNAME, new { @class = "form-control", placeholder = "usuario", id = "porta" })
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="form-group col-sm-4">
+                                    @Html.LabelFor(model => model.PASSWORD)
+                                    @Html.TextBoxFor(f => f.PASSWORD, Model.PASSWORD, new { @class = "form-control", placeholder = "senha", id = "senha" })
+                                </div>
+                                <div class="form-group col-sm-4">
+                                    @Html.LabelFor(model => model.SUBJECT)
+                                    @Html.TextBoxFor(f => f.SUBJECT, Model.SUBJECT, new { @class = "form-control", placeholder = "Subject, titul do email", id = "SUBJECT" })
+                                </div>
+                                <div class="form-group col-sm-4">
+
+                                    @Html.LabelFor(model => model.MENSAGEM)
+                                    @Html.TextBoxFor(f => f.MENSAGEM, Model.MENSAGEM, new { @class = "form-control", placeholder = "Mensagem", id = "MENSAGEM" })
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="form-group col-sm-4">
+                                    <label id="larquivo" class="custom-file-upload" for="arquivo"><b>Arquivo com mensagem de aniverário</b></label> <br>
+                                    <input type="file" name="file" id="arquivo" value="@Model.ARQUIVO" />
+                                </div>
+                                <div class="form-group col-sm-3">
+                                    <label id="resArqu">Arquivo selecionado: <strong>@Model.NOMEARQUIVO</strong></label>
+                                </div>
+                                <div class="form-group col-sm-2">
+                                    @Html.LabelFor(model => model.HTML)
+                                    @Html.CheckBoxFor(f => f.HTML, new { id = "HTML" })
+                                </div>
+                                <div class="form-group col-sm-2">
+                                    @Html.LabelFor(model => model.ENVIAR)
+                                    @Html.CheckBoxFor(f => f.ENVIAR, new { id = "ENVIAR" })
+                                </div>
+
+                                <div class="form-group col-sm-1">
+                                    <button type="submit" class="btn btn-success btn-block"> Gravar</button>
+                                </div>
+                            </div>
+
+                        </fieldset>
+                    }*@
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

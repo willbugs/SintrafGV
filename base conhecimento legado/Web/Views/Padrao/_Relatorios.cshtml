@@ -1,0 +1,24 @@
+﻿@using Domain
+@model Web.Models.RelatorioModel
+@{
+    var cTelas = ViewBag.Telas as CTelas;
+}
+<div class="modal-content card">
+    <div class="modal-header card-header">
+        <h4>Relatórios - @cTelas.NomeTela</h4>
+        <button id="bfecharRelat" type="button" class="close" data-dismiss="modal">&times;</button>
+    </div>
+    <div class="modal-body card-body">
+        <div class="row">
+            <div class="form-group col-sm-6">
+                <label>Relatório</label>
+                @Html.DropDownListFor(c => c.Relatorio, Model.DropRelatorios, new { @class = "form-control", onchange = "relatchange('" + (Url.Action("RelatoriosFiltros", "Padrao")) + "','" + cTelas.SubMenu.Sguid + "')" })
+            </div>
+            <div class="form-group col-sm-6"></div>
+        </div>
+        <div class="row">
+            <div class="form-group col-sm-12" id="relatfiltros"></div>
+        </div>
+    </div>
+    <div class="modal-footer card-footer"></div>
+</div>

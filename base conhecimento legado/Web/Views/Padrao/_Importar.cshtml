@@ -1,0 +1,48 @@
+﻿@using Domain
+@model CTelas
+<script type="text/javascript">
+    $(document).ready(function () {
+        $('#fileupload').fileupload({
+            dataType: 'json',
+            url: '@Url.Action("UploadFiles", "Padrao", new { id = Model.Sguid })',
+            autoUpload: true,
+            done: function (e, data) {
+                $('.file_name').html(data.result.name);
+                $('.file_error').html(data.result.error);
+            }
+        }).on('fileuploadprogressall', function (e, data) {
+            var progress = parseInt(data.loaded / data.total * 100, 10);
+            $('.progress .progress-bar').css('width', progress + '%');
+        });
+    });
+</script>
+
+<div class="card">
+    <div class="card-header">
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+        <h4 class="modal-title" id="TestarLabel">Importação de arquivos - @Model.Help</h4>
+    </div>
+    <div id="sadicionar" class="card-body">
+        <div class="container">
+            <span class="btn btn-success fileinput-button">
+                <i class="glyphicon glyphicon-plus"></i>
+                <span>Selecionar</span>
+                <input id="fileupload" type="file" name="files[]" multiple>
+            </span>
+        </div>
+    </div>
+    <div class="card-footer">
+        <div class="progress">
+            <div class="progress-bar" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" style="width: 0%;">
+                <span class="sr-only">0% complete</span>
+            </div>
+        </div>
+        
+        <br />
+        <div class="file_name"></div>
+        <br />
+        <div class="file_error"></div>
+
+
+    </div>
+</div>

@@ -1,0 +1,19 @@
+﻿@model Domain.CSubMenus
+@{
+    const string names = "[TABS]";
+    var guid = Model.Sguid;
+}
+<script type="text/javascript">
+    var controles = {
+        onReady: function () {
+            $.each( @names, function(i,val) {$(val).remove();});
+            $.ajax({
+                method: "get",
+                url: "@(Url.Action("Consultas", "Padrao"))",
+                data: { id: "@guid" },
+                success: function (result) {$("#Consultas").append(result);}
+            });
+        }
+    };
+    $(document).ready(controles.onReady);
+</script>

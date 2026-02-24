@@ -1,0 +1,88 @@
+﻿@model Domain.CParametros
+<script type="text/javascript">
+    var mensagem = (@Html.Raw(Json.Encode(ViewData["EditError"])));
+    function onClickXFecha() {
+        $(".sub-menu-list li").removeClass("active");
+        $("#Page").remove();
+        return true;
+    };
+    var controles = {
+        onReady: function () {
+            _erros(mensagem);
+
+        }
+    };
+    $(document).ready(controles.onReady);
+</script>
+<div id="Page">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item active"><h4>Email</h4></li>
+        <li class="breadcrumb-menu">
+            <div class="btn-group" role="group" aria-label="Button group">
+                <a title="Fechar janela" id="bfechar"><i onclick="onClickXFecha();" class="icon-close"></i></a>
+            </div>
+        </li>
+    </ol>
+    <div class="col">
+        <div class="card">
+            <div class="card-header">
+                <div class="row">
+                    <div class="col-12">
+                    </div>
+                </div>
+                <div class="card-body">
+                    @using (Ajax.BeginForm("Index", "Parametros", null, new AjaxOptions()
+                    {
+                        HttpMethod = "Post",
+                        LoadingElementId = "loading",
+                        InsertionMode = InsertionMode.ReplaceWith,
+                        UpdateTargetId = "Page",
+                        OnComplete = "_erros(mensagem);",
+                        OnSuccess = "_erros(mensagem);"
+                    }, new { Class = "form-horizontal", id = "FormEmail", role = "form", enctype = "multipart/form-data" }))
+                    {
+                        @Html.AntiForgeryToken()
+                        @Html.HiddenFor(f => f.Sguid)
+                        <fieldset>
+                            <div class="row">
+                                <div class="form-group col-sm-4">
+                                    @Html.LabelFor(model => model.SMTP)
+                                    @Html.TextBoxFor(f => f.SMTP, Model.SMTP, new { @class = "form-control", placeholder = "endereço servidor email", id = "smtp", autofocus = "autofocus" })
+                                </div>
+                                <div class="form-group col-sm-4">
+                                    @Html.LabelFor(model => model.PORTA)
+                                    @Html.TextBoxFor(f => f.PORTA, Model.PORTA, new { @class = "form-control", placeholder = "porta servidor email ", id = "porta" })
+                                </div>
+                                <div class="form-group col-sm-4">
+                                    @Html.LabelFor(model => model.LOGIN)
+                                    @Html.TextBoxFor(f => f.LOGIN, Model.LOGIN, new { @class = "form-control", placeholder = "usuario", id = "login do servidor email" })
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="form-group col-sm-4">
+                                    @Html.LabelFor(model => model.SENHA)
+                                    @Html.TextBoxFor(f => f.SENHA, Model.SENHA, new { @class = "form-control", placeholder = "senha", id = "senha" })
+                                </div>
+                                <div class="form-group col-sm-4">
+                                    @Html.LabelFor(model => model.EMAILATIVACOES)
+                                    @Html.TextBoxFor(f => f.EMAILATIVACOES, Model.EMAILATIVACOES, new { @class = "form-control", placeholder = "email", id = "SUBJECT" })
+                                </div>
+                                <div class="form-group col-sm-4">
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="form-group col-sm-4">
+                                </div>
+                                <div class="form-group col-sm-4">
+                                </div>
+                                <div class="form-group col-sm-3">
+                                    <button type="submit" class="btn btn-success btn-block"> Gravar</button>
+                                </div>
+                            </div>
+                        </fieldset>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
