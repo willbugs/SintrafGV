@@ -67,4 +67,54 @@ public class EleicaoRepository : IEleicaoRepository
         _context.Eleicoes.Update(eleicao);
         await _context.SaveChangesAsync(cancellationToken);
     }
+
+    // MÉTODOS PARA APURAÇÃO
+    public async Task<int> ContarVotantesPorEleicaoAsync(Guid eleicaoId, CancellationToken cancellationToken = default) =>
+        await _context.Votos.CountAsync(v => v.EleicaoId == eleicaoId, cancellationToken);
+
+    public async Task<Dictionary<Guid, int>> ContarVotosPorOpcaoAsync(Guid eleicaoId, CancellationToken cancellationToken = default)
+    {
+        var votos = await _context.VotosDetalhes
+            .Include(vd => vd.Pergunta)
+            .Where(vd => vd.Pergunta!.EleicaoId == eleicaoId && vd.OpcaoId != null)
+            .GroupBy(vd => vd.OpcaoId!.Value)
+            .Select(g => new { OpcaoId = g.Key, Count = g.Count() })
+            .ToListAsync(cancellationToken);
+        return votos.ToDictionary(v => v.OpcaoId, v => v.Count);
+    }
+
+    public async Task<Dictionary<Guid, int>> ContarVotosBrancoPorPerguntaAsync(Guid eleicaoId, CancellationToken cancellationToken = default)
+    {
+        var votosBranco = await _context.VotosDetalhes
+            .Include(vd => vd.Pergunta)
+            .Where(vd => vd.Pergunta!.EleicaoId == eleicaoId && (vd.OpcaoId == null || vd.VotoBranco))
+            .GroupBy(vd => vd.PerguntaId)
+            .Select(g => new { PerguntaId = g.Key, Count = g.Count() })
+            .ToListAsync(cancellationToken);
+        return votosBranco.ToDictionary(v => v.PerguntaId, v => v.Count);
+    }
+
+    public async Task<bool> AssociadoJaVotouAsync(Guid eleicaoId, Guid associadoId, CancellationToken cancellationToken = default) =>
+        await _context.Votos.AnyAsync(v => v.EleicaoId == eleicaoId && v.AssociadoId == associadoId, cancellationToken);
+
+    public async Task<Voto> RegistrarVotoAsync(Voto voto, List<VotoDetalhe> detalhes, CancellationToken cancellationToken = default)
+    {
+        using var transaction = await _context.Database.BeginTransactionAsync(cancellationToken);
+        try
+        {
+            _context.Votos.Add(voto);
+            await _context.SaveChangesAsync(cancellationToken);
+
+            _context.VotosDetalhes.AddRange(detalhes);
+            await _context.SaveChangesAsync(cancellationToken);
+
+            await transaction.CommitAsync(cancellationToken);
+            return voto;
+        }
+        catch
+        {
+            await transaction.RollbackAsync(cancellationToken);
+            throw;
+        }
+    }
 }

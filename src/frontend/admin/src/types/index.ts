@@ -147,6 +147,7 @@ export interface EleicaoResumoDto {
   titulo: string;
   tipo: TipoEleicaoVal;
   status: StatusEleicaoVal;
+  arquivoAnexo?: string | null;
   inicioVotacao: string;
   fimVotacao: string;
   totalPerguntas: number;

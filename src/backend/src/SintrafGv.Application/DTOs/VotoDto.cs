@@ -2,17 +2,14 @@ namespace SintrafGv.Application.DTOs;
 
 public class VotoDto
 {
-    public Guid Id { get; set; }
     public Guid EleicaoId { get; set; }
-    public Guid AssociadoId { get; set; }
-    public string AssociadoNome { get; set; } = string.Empty;
     public DateTime DataHoraVoto { get; set; }
     public string? CodigoComprovante { get; set; }
+    public List<VotoDetalheRequest> Respostas { get; set; } = new();
 }
 
-public class RegistrarVotoRequest
+public class CreateVotoRequest
 {
-    public Guid EleicaoId { get; set; }
     public List<VotoDetalheRequest> Respostas { get; set; } = new();
 }
 

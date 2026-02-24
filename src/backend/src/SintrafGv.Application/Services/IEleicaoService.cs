@@ -10,4 +10,8 @@ public interface IEleicaoService
     Task<EleicaoDto> CriarAsync(CreateEleicaoRequest request, Guid? criadoPorId, CancellationToken cancellationToken = default);
     Task AtualizarAsync(Guid id, UpdateEleicaoRequest request, CancellationToken cancellationToken = default);
     Task AtualizarStatusAsync(Guid id, StatusEleicao status, CancellationToken cancellationToken = default);
+
+    // Apuração e Votação  
+    Task<ResultadoEleicaoDto?> ObterResultadosAsync(Guid id, CancellationToken cancellationToken = default);
+    Task<VotoDto> VotarAsync(Guid eleicaoId, CreateVotoRequest request, Guid associadoId, string? ipOrigem, string? userAgent, CancellationToken cancellationToken = default);
 }

@@ -71,4 +71,41 @@ public class EleicoesController : ControllerBase
             return NotFound();
         }
     }
+
+    /// <summary>
+    /// Obtém os resultados de uma eleição (apenas para eleições encerradas/apuradas)
+    /// </summary>
+    [HttpGet("{id:guid}/resultados")]
+    public async Task<ActionResult<ResultadoEleicaoDto>> ObterResultados(Guid id, CancellationToken cancellationToken = default)
+    {
+        var resultados = await _service.ObterResultadosAsync(id, cancellationToken);
+        if (resultados is null)
+            return NotFound("Eleição não encontrada ou não está disponível para apuração.");
+
+        return Ok(resultados);
+    }
+
+    /// <summary>
+    /// Registra voto de um associado em uma eleição
+    /// </summary>
+    [HttpPost("{id:guid}/votar")]
+    public async Task<ActionResult<VotoDto>> Votar(Guid id, [FromBody] CreateVotoRequest request, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var userIdClaim = User.FindFirst("AssociadoId")?.Value ?? User.FindFirst("sub")?.Value;
+            if (!Guid.TryParse(userIdClaim, out var associadoId))
+                return Unauthorized("Token inválido ou associado não identificado.");
+
+            var ipOrigem = HttpContext.Connection.RemoteIpAddress?.ToString();
+            var userAgent = Request.Headers.UserAgent.ToString();
+
+            var voto = await _service.VotarAsync(id, request, associadoId, ipOrigem, userAgent, cancellationToken);
+            return Ok(voto);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
 }

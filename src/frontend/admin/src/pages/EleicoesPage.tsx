@@ -14,7 +14,7 @@ import {
   IconButton,
   Chip,
 } from '@mui/material';
-import { Add, Edit, HowToVote } from '@mui/icons-material';
+import { Add, Edit, HowToVote, AttachFile, Assessment } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { eleicoesAPI } from '../services/api';
 import type { EleicaoResumoDto, StatusEleicaoVal } from '../types';
@@ -59,6 +59,7 @@ const EleicoesPage: React.FC = () => {
           titulo: (r.titulo ?? r.Titulo) as string,
           tipo: (r.tipo ?? r.Tipo) as number,
           status: (r.status ?? r.Status) as StatusEleicaoVal,
+          arquivoAnexo: (r.arquivoAnexo ?? r.ArquivoAnexo) as string | null,
           inicioVotacao: (r.inicioVotacao ?? r.InicioVotacao) as string,
           fimVotacao: (r.fimVotacao ?? r.FimVotacao) as string,
           totalPerguntas: (r.totalPerguntas ?? r.TotalPerguntas) as number,
@@ -67,7 +68,7 @@ const EleicoesPage: React.FC = () => {
       );
       setTotal(data.total ?? 0);
     } catch {
-      toast.error('Erro', 'Erro ao carregar eleições. Verifique se a API está rodando.');
+      toast.error('Erro', 'Erro ao carregar enquetes. Verifique se a API está rodando.');
       setItens([]);
       setTotal(0);
     } finally {
@@ -91,13 +92,13 @@ const EleicoesPage: React.FC = () => {
   return (
     <Box sx={{ width: '100%' }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
-        <Typography variant="h4">Eleições e Enquetes</Typography>
+        <Typography variant="h4">Enquetes</Typography>
         <Button
           variant="contained"
           startIcon={<Add />}
           onClick={() => navigate('/eleicoes/novo')}
         >
-          Nova eleição
+          Nova enquete
         </Button>
       </Box>
 
@@ -116,6 +117,7 @@ const EleicoesPage: React.FC = () => {
                   <TableCell>Título</TableCell>
                   <TableCell>Tipo</TableCell>
                   <TableCell>Status</TableCell>
+                  <TableCell align="center">Anexo</TableCell>
                   <TableCell>Início</TableCell>
                   <TableCell>Fim</TableCell>
                   <TableCell align="center">Perguntas</TableCell>
@@ -126,8 +128,8 @@ const EleicoesPage: React.FC = () => {
               <TableBody>
                 {itens.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={8} align="center">
-                      Nenhuma eleição cadastrada.
+                    <TableCell colSpan={9} align="center">
+                      Nenhuma enquete cadastrada.
                     </TableCell>
                   </TableRow>
                 ) : (
@@ -147,15 +149,31 @@ const EleicoesPage: React.FC = () => {
                           size="small"
                         />
                       </TableCell>
+                      <TableCell align="center">
+                        {e.arquivoAnexo && (
+                          <AttachFile sx={{ color: 'action.active', fontSize: '1.2rem' }} />
+                        )}
+                      </TableCell>
                       <TableCell>{formatDate(e.inicioVotacao)}</TableCell>
                       <TableCell>{formatDate(e.fimVotacao)}</TableCell>
                       <TableCell align="center">{e.totalPerguntas}</TableCell>
                       <TableCell align="center">{e.totalVotos}</TableCell>
                       <TableCell align="right">
+                        {(e.status === 3 || e.status === 4) && ( // Encerrada ou Apurada
+                          <IconButton
+                            onClick={() => navigate(`/eleicoes/${e.id}/resultados`)}
+                            size="small"
+                            title="Ver resultados"
+                            color="primary"
+                            sx={{ mr: 1 }}
+                          >
+                            <Assessment />
+                          </IconButton>
+                        )}
                         <IconButton
                           onClick={() => navigate(`/eleicoes/${e.id}`)}
                           size="small"
-                          title="Editar eleição"
+                          title="Editar enquete"
                         >
                           <Edit />
                         </IconButton>
@@ -169,7 +187,7 @@ const EleicoesPage: React.FC = () => {
           {total > 0 && (
             <Box sx={{ px: 3, py: 2 }}>
               <Typography variant="body2" color="text.secondary">
-                Total: {total} eleição(ões)
+                Total: {total} enquete(s)
               </Typography>
             </Box>
           )}

@@ -19,7 +19,7 @@ import {
   CardContent,
   CircularProgress,
 } from '@mui/material';
-import { Save, ArrowBack, Add, Delete } from '@mui/icons-material';
+import { Save, ArrowBack, Add, Delete, AttachFile, GetApp } from '@mui/icons-material';
 import { eleicoesAPI } from '../services/api';
 import { useToast } from '../contexts/ToastContext';
 import { TipoEleicao, TipoPergunta, type TipoEleicaoVal, type TipoPerguntaVal } from '../types';
@@ -51,6 +51,8 @@ const EleicaoFormPage: React.FC = () => {
 
   const [titulo, setTitulo] = useState('');
   const [descricao, setDescricao] = useState('');
+  const [arquivoAnexo, setArquivoAnexo] = useState<string | null>(null);
+  const [arquivoAnexoNome, setArquivoAnexoNome] = useState<string | null>(null);
   const [tipo, setTipo] = useState<TipoEleicaoVal>(TipoEleicao.Enquete);
   const [inicioVotacao, setInicioVotacao] = useState('');
   const [fimVotacao, setFimVotacao] = useState('');
@@ -65,6 +67,13 @@ const EleicaoFormPage: React.FC = () => {
         .then((data: Record<string, unknown>) => {
           setTitulo((data.titulo ?? data.Titulo ?? '') as string);
           setDescricao((data.descricao ?? data.Descricao ?? '') as string);
+          const anexo = (data.arquivoAnexo ?? data.ArquivoAnexo ?? null) as string | null;
+          setArquivoAnexo(anexo);
+          if (anexo) {
+            // Extrai nome do arquivo da URL ou path
+            const nomeArquivo = anexo.split('/').pop()?.split('\\').pop() || 'Documento anexo';
+            setArquivoAnexoNome(nomeArquivo);
+          }
           setTipo((data.tipo ?? data.Tipo ?? TipoEleicao.Enquete) as TipoEleicaoVal);
           const inicio = (data.inicioVotacao ?? data.InicioVotacao ?? '') as string;
           const fim = (data.fimVotacao ?? data.FimVotacao ?? '') as string;
@@ -87,7 +96,7 @@ const EleicaoFormPage: React.FC = () => {
             })),
           })));
         })
-        .catch(() => toast.error('Erro', 'Erro ao carregar eleição.'))
+        .catch(() => toast.error('Erro', 'Erro ao carregar enquete.'))
         .finally(() => setLoading(false));
     }
   }, [id, isEdit]);
@@ -100,7 +109,7 @@ const EleicaoFormPage: React.FC = () => {
       tipo: TipoPergunta.UnicoVoto,
       maxVotos: null,
       permiteBranco: true,
-      opcoes: [{ ordem: 1, texto: '', descricao: '' }, { ordem: 2, texto: '', descricao: '' }],
+      opcoes: [{ ordem: 1, texto: '', descricao: '' }],
     }]);
   };
 
@@ -133,10 +142,50 @@ const EleicaoFormPage: React.FC = () => {
     } : p));
   };
 
+  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Limitar tipos de arquivo (PDFs, DOCs, etc.)
+    const allowedTypes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+    if (!allowedTypes.includes(file.type)) {
+      toast.warning('Atenção', 'Apenas arquivos PDF, DOC e DOCX são permitidos.');
+      return;
+    }
+
+    // Limitar tamanho (5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast.warning('Atenção', 'Arquivo deve ter no máximo 5MB.');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const base64 = e.target?.result as string;
+      setArquivoAnexo(base64);
+      setArquivoAnexoNome(file.name);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const removerArquivo = () => {
+    setArquivoAnexo(null);
+    setArquivoAnexoNome(null);
+  };
+
+  const downloadArquivo = () => {
+    if (arquivoAnexo && arquivoAnexoNome) {
+      const link = document.createElement('a');
+      link.href = arquivoAnexo;
+      link.download = arquivoAnexoNome;
+      link.click();
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!titulo.trim()) {
-      toast.warning('Atenção', 'Informe o título da eleição.');
+      toast.warning('Atenção', 'Informe o título da enquete.');
       return;
     }
     if (!inicioVotacao || !fimVotacao) {
@@ -152,8 +201,8 @@ const EleicaoFormPage: React.FC = () => {
         toast.warning('Atenção', 'Preencha o texto de todas as perguntas.');
         return;
       }
-      if (p.opcoes.length < 2) {
-        toast.warning('Atenção', `A pergunta "${p.texto}" precisa de pelo menos 2 opções.`);
+      if (p.opcoes.length < 1) {
+        toast.warning('Atenção', `A pergunta "${p.texto}" precisa de pelo menos 1 opção.`);
         return;
       }
       for (const o of p.opcoes) {
@@ -169,6 +218,7 @@ const EleicaoFormPage: React.FC = () => {
       const payload = {
         titulo,
         descricao,
+        arquivoAnexo,
         tipo,
         inicioVotacao: new Date(inicioVotacao).toISOString(),
         fimVotacao: new Date(fimVotacao).toISOString(),
@@ -190,14 +240,14 @@ const EleicaoFormPage: React.FC = () => {
       };
       if (isEdit && id) {
         await eleicoesAPI.atualizar(id, payload);
-        toast.success('Sucesso', 'Eleição atualizada com sucesso.');
+        toast.success('Sucesso', 'Enquete atualizada com sucesso.');
       } else {
         await eleicoesAPI.criar(payload);
-        toast.success('Sucesso', 'Eleição criada com sucesso.');
+        toast.success('Sucesso', 'Enquete criada com sucesso.');
       }
       navigate('/eleicoes');
     } catch {
-      toast.error('Erro', 'Erro ao salvar eleição.');
+      toast.error('Erro', 'Erro ao salvar enquete.');
     } finally {
       setSaving(false);
     }
@@ -212,29 +262,32 @@ const EleicaoFormPage: React.FC = () => {
   }
 
   return (
-    <Box sx={{ width: '100%' }}>
+    <Box>
       <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
         <IconButton onClick={() => navigate('/eleicoes')} sx={{ mr: 1 }}>
           <ArrowBack />
         </IconButton>
-        <Typography variant="h4">{isEdit ? 'Editar Eleição' : 'Nova Eleição'}</Typography>
+        <Typography variant="h4">{isEdit ? 'Editar Enquete' : 'Nova Enquete'}</Typography>
       </Box>
 
-      <Paper sx={{ p: 4 }}>
+      <Paper sx={{ p: 3 }}>
         <form onSubmit={handleSubmit}>
-          <Typography variant="h6" gutterBottom>Dados Básicos</Typography>
-          <Grid container spacing={3}>
-            <Grid size={{ xs: 12, md: 8 }}>
+          <Typography variant="h6" gutterBottom>
+            Dados Básicos
+          </Typography>
+          <Grid container spacing={2}>
+            <Grid item xs={12} md={8}>
               <TextField
                 label="Título"
                 fullWidth
                 value={titulo}
                 onChange={(e) => setTitulo(e.target.value)}
                 required
+                sx={{ mb: 2 }}
               />
             </Grid>
-            <Grid size={{ xs: 12, md: 4 }}>
-              <FormControl fullWidth>
+            <Grid item xs={12} md={4}>
+              <FormControl fullWidth sx={{ mb: 2 }}>
                 <InputLabel>Tipo</InputLabel>
                 <Select
                   value={tipo}
@@ -246,7 +299,7 @@ const EleicaoFormPage: React.FC = () => {
                 </Select>
               </FormControl>
             </Grid>
-            <Grid size={{ xs: 12 }}>
+            <Grid item xs={12}>
               <TextField
                 label="Descrição"
                 fullWidth
@@ -254,141 +307,288 @@ const EleicaoFormPage: React.FC = () => {
                 rows={3}
                 value={descricao}
                 onChange={(e) => setDescricao(e.target.value)}
+                sx={{ mb: 2 }}
               />
             </Grid>
-            <Grid size={{ xs: 12, md: 6 }}>
+          </Grid>
+
+          <Divider sx={{ my: 3 }} />
+
+          <Typography variant="h6" gutterBottom>
+            Regras de Acesso
+          </Typography>
+          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 3, mb: 2 }}>
+            <FormControlLabel
+              control={
+                <Checkbox
+                  checked={apenasAssociados}
+                  onChange={(e) => setApenasAssociados(e.target.checked)}
+                />
+              }
+              label="Apenas associados podem votar"
+            />
+            <FormControlLabel
+              control={
+                <Checkbox
+                  checked={apenasAtivos}
+                  onChange={(e) => setApenasAtivos(e.target.checked)}
+                />
+              }
+              label="Apenas cadastros ativos podem votar"
+            />
+          </Box>
+
+          <Divider sx={{ my: 3 }} />
+
+          <Typography variant="h6" gutterBottom>
+            Documento Anexo (Opcional)
+          </Typography>
+          <Box sx={{ mb: 3 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
+              <input
+                accept=".pdf,.doc,.docx"
+                style={{ display: 'none' }}
+                id="arquivo-upload"
+                type="file"
+                onChange={handleFileUpload}
+              />
+              <label htmlFor="arquivo-upload">
+                <Button
+                  variant="outlined"
+                  component="span"
+                  startIcon={<AttachFile />}
+                  size="medium"
+                >
+                  {arquivoAnexoNome ? 'Trocar arquivo' : 'Anexar arquivo'}
+                </Button>
+              </label>
+              {arquivoAnexoNome && (
+                <>
+                  <Typography variant="body2" color="text.secondary">
+                    {arquivoAnexoNome}
+                  </Typography>
+                  <IconButton
+                    size="small"
+                    color="primary"
+                    onClick={downloadArquivo}
+                    title="Baixar arquivo"
+                  >
+                    <GetApp />
+                  </IconButton>
+                  <IconButton
+                    size="small"
+                    color="error"
+                    onClick={removerArquivo}
+                    title="Remover arquivo"
+                  >
+                    <Delete />
+                  </IconButton>
+                </>
+              )}
+            </Box>
+            <Typography variant="caption" color="text.secondary">
+              Formatos aceitos: PDF, DOC, DOCX (até 5MB)
+            </Typography>
+          </Box>
+
+          <Divider sx={{ my: 3 }} />
+
+          <Typography variant="h6" gutterBottom>
+            Período de Votação
+          </Typography>
+          <Grid container spacing={2}>
+            <Grid item xs={12} md={6}>
               <TextField
                 label="Início da Votação"
                 type="datetime-local"
                 fullWidth
                 value={inicioVotacao}
                 onChange={(e) => setInicioVotacao(e.target.value)}
-                slotProps={{ inputLabel: { shrink: true } }}
+                InputLabelProps={{ shrink: true }}
                 required
+                sx={{ mb: 2 }}
               />
             </Grid>
-            <Grid size={{ xs: 12, md: 6 }}>
+            <Grid item xs={12} md={6}>
               <TextField
                 label="Fim da Votação"
                 type="datetime-local"
                 fullWidth
                 value={fimVotacao}
                 onChange={(e) => setFimVotacao(e.target.value)}
-                slotProps={{ inputLabel: { shrink: true } }}
+                InputLabelProps={{ shrink: true }}
                 required
-              />
-            </Grid>
-            <Grid size={{ xs: 12 }}>
-              <FormControlLabel
-                control={<Checkbox checked={apenasAssociados} onChange={(e) => setApenasAssociados(e.target.checked)} />}
-                label="Apenas associados podem votar"
-              />
-              <FormControlLabel
-                control={<Checkbox checked={apenasAtivos} onChange={(e) => setApenasAtivos(e.target.checked)} />}
-                label="Apenas cadastros ativos podem votar"
+                sx={{ mb: 2 }}
               />
             </Grid>
           </Grid>
 
-          <Divider sx={{ my: 4 }} />
+          <Divider sx={{ my: 3 }} />
 
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-            <Typography variant="h6">Perguntas</Typography>
+            <Typography variant="h6" gutterBottom>Perguntas</Typography>
             <Button startIcon={<Add />} onClick={addPergunta} variant="outlined" size="small">
               Adicionar Pergunta
             </Button>
           </Box>
 
-          {perguntas.length === 0 && (
-            <Typography color="text.secondary" sx={{ mb: 2 }}>
-              Nenhuma pergunta adicionada. Clique em "Adicionar Pergunta" acima.
-            </Typography>
-          )}
+          <Box sx={{ mb: 3 }}>
+            {perguntas.length === 0 && (
+              <Typography color="text.secondary" sx={{ fontStyle: 'italic', mb: 2 }}>
+                Nenhuma pergunta adicionada. Clique em "Adicionar Pergunta" acima.
+              </Typography>
+            )}
+            {perguntas.length > 0 && (
+              <Typography variant="body2" color="primary" sx={{ mb: 2, p: 2, bgcolor: 'primary.50', borderRadius: 1 }}>
+                💡 <strong>Flexibilidade total:</strong> Cada pergunta pode ter de 1 até quantas opções precisar (não há mais a limitação de apenas 2 opções do sistema anterior).
+              </Typography>
+            )}
 
-          {perguntas.map((p, pIdx) => (
-            <Card key={pIdx} variant="outlined" sx={{ mb: 3 }}>
-              <CardContent>
+            {perguntas.map((p, pIdx) => (
+              <Card key={pIdx} sx={{ mb: 3, border: '1px solid #e0e0e0' }}>
+                <CardContent>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                   <Typography variant="subtitle1" fontWeight="bold">Pergunta {p.ordem}</Typography>
                   <IconButton onClick={() => removePergunta(pIdx)} color="error" size="small" title="Remover pergunta">
                     <Delete />
                   </IconButton>
                 </Box>
-                <Grid container spacing={2}>
-                  <Grid size={{ xs: 12, md: 8 }}>
-                    <TextField
-                      label="Texto da Pergunta"
-                      fullWidth
-                      value={p.texto}
-                      onChange={(e) => updatePergunta(pIdx, 'texto', e.target.value)}
-                      required
-                    />
+                  <Grid container spacing={2}>
+                    <Grid item xs={12}>
+                      <TextField
+                        fullWidth
+                        label="Texto da pergunta"
+                        value={p.texto}
+                        onChange={(e) => updatePergunta(pIdx, 'texto', e.target.value)}
+                        required
+                        sx={{ mb: 2 }}
+                      />
+                    </Grid>
+                    <Grid item xs={12}>
+                      <TextField
+                        fullWidth
+                        label="Descrição (opcional)"
+                        multiline
+                        rows={2}
+                        value={p.descricao}
+                        onChange={(e) => updatePergunta(pIdx, 'descricao', e.target.value)}
+                        sx={{ mb: 2 }}
+                      />
+                    </Grid>
+                    <Grid item xs={12} md={4}>
+                      <FormControl fullWidth sx={{ mb: 2 }}>
+                        <InputLabel>Tipo de Pergunta</InputLabel>
+                        <Select
+                          value={p.tipo}
+                          label="Tipo de Pergunta"
+                          onChange={(e) => updatePergunta(pIdx, 'tipo', e.target.value as TipoPerguntaVal)}
+                        >
+                          <MenuItem value={TipoPergunta.UnicoVoto}>Único voto</MenuItem>
+                          <MenuItem value={TipoPergunta.MultiploVoto}>Múltiplos votos</MenuItem>
+                        </Select>
+                      </FormControl>
+                    </Grid>
+                    {p.tipo === TipoPergunta.MultiploVoto && (
+                      <Grid item xs={12} md={4}>
+                        <TextField
+                          fullWidth
+                          type="number"
+                          label="Máximo de votos"
+                          value={p.maxVotos ?? ''}
+                          onChange={(e) => updatePergunta(pIdx, 'maxVotos', e.target.value ? parseInt(e.target.value) : null)}
+                          inputProps={{ min: 1 }}
+                          sx={{ mb: 2 }}
+                        />
+                      </Grid>
+                    )}
+                    <Grid item xs={12} md={4}>
+                      <FormControlLabel
+                        control={
+                          <Checkbox
+                            checked={p.permiteBranco}
+                            onChange={(e) => updatePergunta(pIdx, 'permiteBranco', e.target.checked)}
+                          />
+                        }
+                        label="Permitir voto em branco"
+                      />
+                    </Grid>
                   </Grid>
-                  <Grid size={{ xs: 12, md: 4 }}>
-                    <FormControl fullWidth>
-                      <InputLabel>Tipo</InputLabel>
-                      <Select
-                        value={p.tipo}
-                        label="Tipo"
-                        onChange={(e) => updatePergunta(pIdx, 'tipo', e.target.value)}
-                      >
-                        <MenuItem value={TipoPergunta.UnicoVoto}>Único voto</MenuItem>
-                        <MenuItem value={TipoPergunta.MultiploVoto}>Múltiplos votos</MenuItem>
-                      </Select>
-                    </FormControl>
-                  </Grid>
-                  <Grid size={{ xs: 12 }}>
-                    <FormControlLabel
-                      control={<Checkbox checked={p.permiteBranco} onChange={(e) => updatePergunta(pIdx, 'permiteBranco', e.target.checked)} />}
-                      label="Permitir voto em branco"
-                    />
-                  </Grid>
-                </Grid>
 
-                <Typography variant="subtitle2" sx={{ mt: 2, mb: 1 }}>Opções de Resposta</Typography>
-                {p.opcoes.map((o, oIdx) => (
-                  <Box key={oIdx} sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-                    <Typography sx={{ minWidth: 30 }}>{o.ordem}.</Typography>
-                    <TextField
+                  <Typography variant="subtitle1" sx={{ mt: 2, mb: 1 }}>
+                    Opções de resposta:
+                  </Typography>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                    <Typography variant="body2" color="text.secondary">
+                      {p.opcoes.length === 0 ? 'Nenhuma opção adicionada.' : `${p.opcoes.length} opção(ões) - adicione quantas precisar`}
+                    </Typography>
+                    <Button
                       size="small"
-                      fullWidth
-                      placeholder="Texto da opção"
-                      value={o.texto}
-                      onChange={(e) => updateOpcao(pIdx, oIdx, 'texto', e.target.value)}
-                    />
-                    <IconButton
-                      onClick={() => removeOpcao(pIdx, oIdx)}
-                      color="error"
-                      size="small"
-                      disabled={p.opcoes.length <= 2}
-                      title="Remover opção"
+                      variant="outlined"
+                      startIcon={<Add />}
+                      onClick={() => addOpcao(pIdx)}
                     >
-                      <Delete fontSize="small" />
-                    </IconButton>
+                      Adicionar opção
+                    </Button>
                   </Box>
-                ))}
-                <Button size="small" startIcon={<Add />} onClick={() => addOpcao(pIdx)} sx={{ mt: 1 }}>
-                  Adicionar Opção
-                </Button>
-              </CardContent>
-            </Card>
-          ))}
+                  {p.opcoes.map((o, oIdx) => (
+                    <Box key={oIdx} sx={{ border: '1px solid #ddd', borderRadius: 1, p: 2, mb: 2, backgroundColor: '#fafafa' }}>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                        <Typography variant="subtitle2">Opção {o.ordem}</Typography>
+                        <IconButton
+                          size="small"
+                          color="error"
+                          onClick={() => removeOpcao(pIdx, oIdx)}
+                          disabled={p.opcoes.length <= 1}
+                          title={p.opcoes.length <= 1 ? 'Deve ter pelo menos 1 opção' : 'Remover opção'}
+                        >
+                          <Delete />
+                        </IconButton>
+                      </Box>
+                      <Grid container spacing={2}>
+                        <Grid item xs={12} md={6}>
+                          <TextField
+                            fullWidth
+                            size="small"
+                            label="Texto da opção"
+                            value={o.texto}
+                            onChange={(e) => updateOpcao(pIdx, oIdx, 'texto', e.target.value)}
+                            required
+                          />
+                        </Grid>
+                        <Grid item xs={12} md={6}>
+                          <TextField
+                            fullWidth
+                            size="small"
+                            label="Descrição (opcional)"
+                            value={o.descricao}
+                            onChange={(e) => updateOpcao(pIdx, oIdx, 'descricao', e.target.value)}
+                          />
+                        </Grid>
+                      </Grid>
+                    </Box>
+                  ))}
+                </CardContent>
+              </Card>
+            ))}
+          </Box>
 
-          <Divider sx={{ my: 4 }} />
+          <Divider sx={{ my: 3 }} />
 
-          <Box sx={{ display: 'flex', gap: 2 }}>
+          <Box sx={{ display: 'flex', gap: 2, pt: 2 }}>
             <Button
               type="submit"
               variant="contained"
               startIcon={<Save />}
               disabled={saving}
+              size="large"
             >
-              {saving ? 'Salvando...' : 'Salvar'}
+              {saving ? <CircularProgress size={20} /> : 'Salvar'}
             </Button>
             <Button
               variant="outlined"
               onClick={() => navigate('/eleicoes')}
               disabled={saving}
+              size="large"
             >
               Cancelar
             </Button>

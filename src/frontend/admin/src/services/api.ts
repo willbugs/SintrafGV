@@ -134,4 +134,12 @@ export const eleicoesAPI = {
   atualizarStatus: async (id: string, status: number) => {
     await api.patch(`/api/eleicoes/${id}/status`, { status });
   },
+  obterResultados: async (id: string) => {
+    const response = await api.get(`/api/eleicoes/${id}/resultados`);
+    return response.data;
+  },
+  votar: async (id: string, respostas: Record<string, unknown>) => {
+    const response = await api.post(`/api/eleicoes/${id}/votar`, respostas);
+    return response.data;
+  },
 };

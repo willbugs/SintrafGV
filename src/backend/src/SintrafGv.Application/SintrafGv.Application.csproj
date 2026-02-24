@@ -2,10 +2,13 @@
 
   <ItemGroup>
     <ProjectReference Include="..\SintrafGv.Domain\SintrafGv.Domain.csproj" />
+    <ProjectReference Include="..\SintrafGv.Infrastructure\SintrafGv.Infrastructure.csproj" />
   </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="BCrypt.Net-Next" Version="4.1.0" />
+    <PackageReference Include="EPPlus" Version="8.4.2" />
+    <PackageReference Include="itext7" Version="9.5.0" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.3" />
   </ItemGroup>
 

@@ -27,6 +27,7 @@ public class EleicaoResumoDto
     public string Titulo { get; set; } = string.Empty;
     public TipoEleicao Tipo { get; set; }
     public StatusEleicao Status { get; set; }
+    public string? ArquivoAnexo { get; set; }
     public DateTime InicioVotacao { get; set; }
     public DateTime FimVotacao { get; set; }
     public int TotalPerguntas { get; set; }

@@ -23,6 +23,7 @@ public class EleicaoService : IEleicaoService
             Titulo = e.Titulo,
             Tipo = e.Tipo,
             Status = e.Status,
+            ArquivoAnexo = e.ArquivoAnexo,
             InicioVotacao = e.InicioVotacao,
             FimVotacao = e.FimVotacao,
             TotalPerguntas = e.Perguntas?.Count ?? 0,
@@ -161,5 +162,137 @@ public class EleicaoService : IEleicaoService
             }
         }
         return dto;
+    }
+
+    // APURAÇÃO DE RESULTADOS
+    public async Task<ResultadoEleicaoDto?> ObterResultadosAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        var eleicao = await _repository.ObterPorIdComPerguntasAsync(id, cancellationToken);
+        if (eleicao is null) return null;
+
+        // Só permite apuração de eleições encerradas ou apuradas
+        if (eleicao.Status != StatusEleicao.Encerrada && eleicao.Status != StatusEleicao.Apurada)
+            return null;
+
+        var totalVotantes = await _repository.ContarVotantesPorEleicaoAsync(id, cancellationToken);
+        var votosPorOpcao = await _repository.ContarVotosPorOpcaoAsync(id, cancellationToken);
+        var votosBrancoPorPergunta = await _repository.ContarVotosBrancoPorPerguntaAsync(id, cancellationToken);
+
+        var perguntas = eleicao.Perguntas.Select(p =>
+        {
+            var totalVotosPergunta = p.Opcoes.Sum(o => votosPorOpcao.GetValueOrDefault(o.Id, 0)) + 
+                                     votosBrancoPorPergunta.GetValueOrDefault(p.Id, 0);
+
+            return new ResultadoPerguntaDto
+            {
+                PerguntaId = p.Id,
+                Texto = p.Texto,
+                TotalVotos = totalVotosPergunta,
+                VotosBranco = votosBrancoPorPergunta.GetValueOrDefault(p.Id, 0),
+                Opcoes = p.Opcoes.Select(o =>
+                {
+                    var votosOpcao = votosPorOpcao.GetValueOrDefault(o.Id, 0);
+                    return new ResultadoOpcaoDto
+                    {
+                        OpcaoId = o.Id,
+                        Texto = o.Texto,
+                        Foto = o.Foto,
+                        TotalVotos = votosOpcao,
+                        Percentual = totalVotosPergunta > 0 ? (decimal)votosOpcao / totalVotosPergunta * 100 : 0
+                    };
+                }).OrderByDescending(o => o.TotalVotos).ToList()
+            };
+        }).OrderBy(p => p.PerguntaId).ToList();
+
+        var totalHabilitados = totalVotantes; // Simplificado por enquanto
+
+        return new ResultadoEleicaoDto
+        {
+            EleicaoId = eleicao.Id,
+            Titulo = eleicao.Titulo,
+            TotalVotantes = totalVotantes,
+            TotalHabilitados = totalHabilitados,
+            PercentualParticipacao = totalHabilitados > 0 ? (decimal)totalVotantes / totalHabilitados * 100 : 0,
+            Perguntas = perguntas
+        };
+    }
+
+    // VOTAÇÃO
+    public async Task<VotoDto> VotarAsync(Guid eleicaoId, CreateVotoRequest request, Guid associadoId, string? ipOrigem, string? userAgent, CancellationToken cancellationToken = default)
+    {
+        var eleicao = await _repository.ObterPorIdComPerguntasAsync(eleicaoId, cancellationToken);
+        if (eleicao is null)
+            throw new InvalidOperationException("Eleição não encontrada.");
+
+        // Validações
+        if (eleicao.Status != StatusEleicao.Aberta)
+            throw new InvalidOperationException("Eleição não está aberta para votação.");
+
+        if (DateTime.UtcNow < eleicao.InicioVotacao || DateTime.UtcNow > eleicao.FimVotacao)
+            throw new InvalidOperationException("Eleição fora do período de votação.");
+
+        if (await _repository.AssociadoJaVotouAsync(eleicaoId, associadoId, cancellationToken))
+            throw new InvalidOperationException("Associado já votou nesta eleição.");
+
+        // Validar respostas
+        var respostasAgrupadas = request.Respostas.GroupBy(r => r.PerguntaId).ToList();
+
+        foreach (var grupo in respostasAgrupadas)
+        {
+            var perguntaId = grupo.Key;
+            var pergunta = eleicao.Perguntas.FirstOrDefault(p => p.Id == perguntaId);
+            
+            if (pergunta is null)
+                throw new InvalidOperationException($"Pergunta {perguntaId} não pertence a esta eleição.");
+
+            var respostas = grupo.ToList();
+            
+            // Validar limites de votos
+            if (pergunta.Tipo == TipoPergunta.UnicoVoto && respostas.Count > 1)
+                throw new InvalidOperationException($"Pergunta '{pergunta.Texto}' permite apenas um voto.");
+
+            if (pergunta.Tipo == TipoPergunta.MultiploVoto && pergunta.MaxVotos.HasValue && respostas.Count > pergunta.MaxVotos.Value)
+                throw new InvalidOperationException($"Pergunta '{pergunta.Texto}' permite no máximo {pergunta.MaxVotos} votos.");
+
+            // Validar opções
+            var opcoesIds = pergunta.Opcoes.Select(o => o.Id).ToHashSet();
+            foreach (var resposta in respostas)
+            {
+                if (resposta.OpcaoId.HasValue && !opcoesIds.Contains(resposta.OpcaoId.Value))
+                    throw new InvalidOperationException($"Opção {resposta.OpcaoId} não pertence à pergunta '{pergunta.Texto}'.");
+            }
+        }
+
+        // Criar voto
+        var codigoComprovante = Guid.NewGuid().ToString("N")[..8].ToUpper();
+        var voto = new Voto
+        {
+            Id = Guid.NewGuid(),
+            EleicaoId = eleicaoId,
+            AssociadoId = associadoId,
+            DataHoraVoto = DateTime.UtcNow,
+            IpOrigem = ipOrigem,
+            UserAgent = userAgent,
+            CodigoComprovante = codigoComprovante
+        };
+
+        var detalhes = request.Respostas.Select(r => new VotoDetalhe
+        {
+            Id = Guid.NewGuid(),
+            PerguntaId = r.PerguntaId,
+            OpcaoId = r.OpcaoId,
+            DataHora = DateTime.UtcNow,
+            VotoBranco = !r.OpcaoId.HasValue || r.VotoBranco
+        }).ToList();
+
+        await _repository.RegistrarVotoAsync(voto, detalhes, cancellationToken);
+
+        return new VotoDto
+        {
+            EleicaoId = eleicaoId,
+            CodigoComprovante = codigoComprovante,
+            DataHoraVoto = voto.DataHoraVoto,
+            Respostas = request.Respostas
+        };
     }
 }

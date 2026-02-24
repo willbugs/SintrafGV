@@ -15,6 +15,9 @@ import UsuarioFormPage from './pages/UsuarioFormPage';
 import AssociadoFormPage from './pages/AssociadoFormPage';
 import EleicoesPage from './pages/EleicoesPage';
 import EleicaoFormPage from './pages/EleicaoFormPage';
+import ResultadosEleicaoPage from './pages/ResultadosEleicaoPage';
+import RelatoriosPage from './pages/RelatoriosPage';
+import RelatorioVisualizarPage from './pages/RelatorioVisualizarPage';
 import PlaceholderPage from './pages/PlaceholderPage';
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -112,8 +115,12 @@ const AppContent: React.FC = () => (
           <Route index element={<EleicoesPage />} />
           <Route path="novo" element={<EleicaoFormPage />} />
           <Route path=":id" element={<EleicaoFormPage />} />
+          <Route path=":id/resultados" element={<ResultadosEleicaoPage />} />
         </Route>
-        <Route path="relatorios" element={<PlaceholderPage title="Relatórios" />} />
+        <Route path="relatorios" element={<Outlet />}>
+          <Route index element={<RelatoriosPage />} />
+          <Route path="visualizar" element={<RelatorioVisualizarPage />} />
+        </Route>
         <Route path="configuracoes" element={<PlaceholderPage title="Configurações" />} />
         <Route path="perfil" element={<PlaceholderPage title="Perfil" />} />
       </Route>
