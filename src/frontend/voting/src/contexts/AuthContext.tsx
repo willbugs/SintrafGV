@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react'
+import React, { createContext, useContext, useState, useEffect, type ReactNode } from 'react'
 import { api } from '../services/api'
 
 interface Associado {
@@ -36,15 +36,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
-    // Verificar se há token armazenado ao inicializar
     const token = localStorage.getItem('voting-token')
-    if (token) {
-      api.defaults.headers.common['Authorization'] = `Bearer ${token}`
-      // TODO: Verificar se token é válido
-      setIsLoading(false)
-    } else {
-      setIsLoading(false)
+    const savedAssociado = localStorage.getItem('voting-associado')
+    if (token && savedAssociado) {
+      try {
+        setAssociado(JSON.parse(savedAssociado))
+      } catch {
+        localStorage.removeItem('voting-token')
+        localStorage.removeItem('voting-associado')
+      }
     }
+    setIsLoading(false)
   }, [])
 
   const login = async (cpf: string, dataNascimento: string, matriculaBancaria: string): Promise<boolean> => {
@@ -54,7 +56,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       // Remover formatação do CPF (apenas números)
       const cpfLimpo = cpf.replace(/\D/g, '')
       
-      const response = await api.post('/auth/associado/login', {
+      const response = await api.post('/api/auth/associado/login', {
         cpf: cpfLimpo,
         dataNascimento,
         matriculaBancaria
@@ -62,11 +64,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
       const { token, associado: dadosAssociado } = response.data
 
-      // Armazenar token
       localStorage.setItem('voting-token', token)
-      api.defaults.headers.common['Authorization'] = `Bearer ${token}`
-
-      // Armazenar dados do associado
+      localStorage.setItem('voting-associado', JSON.stringify(dadosAssociado))
       setAssociado(dadosAssociado)
 
       return true
@@ -80,7 +79,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const logout = () => {
     localStorage.removeItem('voting-token')
-    delete api.defaults.headers.common['Authorization']
+    localStorage.removeItem('voting-associado')
     setAssociado(null)
   }
 

@@ -15,7 +15,8 @@ import {
   TableChart,
   Storage,
 } from '@mui/icons-material';
-import relatorioService, { RelatorioRequest } from '../../services/relatorioService';
+import relatorioService from '../../services/relatorioService';
+import type { RelatorioRequest } from '../../services/relatorioService';
 
 interface ExportMenuProps {
   relatorioRequest: RelatorioRequest;

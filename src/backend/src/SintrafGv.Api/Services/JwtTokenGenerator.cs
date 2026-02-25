@@ -3,6 +3,7 @@ using System.Security.Claims;
 using System.Text;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
+using SintrafGv.Domain.Interfaces;
 using SintrafGv.Application.Interfaces;
 using SintrafGv.Domain.Entities;
 
@@ -39,6 +40,27 @@ public class JwtTokenGenerator : IJwtTokenGenerator
             _settings.Audience,
             claims,
             expires: DateTime.UtcNow.AddMinutes(_settings.ExpirationMinutes),
+            signingCredentials: creds);
+        return new JwtSecurityTokenHandler().WriteToken(token);
+    }
+
+    public string GenerateTokenAssociado(Associado associado)
+    {
+        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_settings.Secret));
+        var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+        var claims = new[]
+        {
+            new Claim(ClaimTypes.NameIdentifier, associado.Id.ToString()),
+            new Claim("AssociadoId", associado.Id.ToString()),
+            new Claim(ClaimTypes.Name, associado.Nome),
+            new Claim("Cpf", associado.Cpf),
+            new Claim(ClaimTypes.Role, "Associado"),
+        };
+        var token = new JwtSecurityToken(
+            _settings.Issuer,
+            _settings.Audience,
+            claims,
+            expires: DateTime.UtcNow.AddMinutes(_settings.ExpirationMinutes * 2),
             signingCredentials: creds);
         return new JwtSecurityTokenHandler().WriteToken(token);
     }

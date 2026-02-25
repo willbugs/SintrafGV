@@ -13,6 +13,8 @@ namespace SintrafGv.Application.DTOs
         public bool OrdenacaoDecrescente { get; set; } = false;
         public int? Pagina { get; set; }
         public int? TamanhoPagina { get; set; }
+        public DateTime? DataInicio { get; set; }
+        public DateTime? DataFim { get; set; }
     }
 
     public class RelatorioResponse<T>

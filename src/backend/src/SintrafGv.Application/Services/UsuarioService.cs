@@ -1,4 +1,5 @@
 using SintrafGv.Application.DTOs;
+using SintrafGv.Domain.Interfaces;
 using SintrafGv.Application.Interfaces;
 using SintrafGv.Domain.Entities;
 

@@ -1,4 +1,14 @@
 # Services
-- api.ts – instância axios, base URL da API (SintrafGv.Api)
-- authAPI.ts – login, refresh token, perfil (adaptar do Bureau)
-- associadosService.ts – CRUD associados (GET/POST/PUT/DELETE)
+
+## api.ts
+Instância axios configurada com:
+- Base URL da API (SintrafGv.Api)
+- Interceptors para JWT automático
+- Tratamento de erros padronizado
+
+## Serviços Implementados
+- **authAPI** – Login JWT, refresh token, perfil
+- **associadosService** – CRUD completo de associados
+- **usuariosService** – Gestão de usuários do sistema
+- **eleicoesService** – CRUD de eleições e votações
+- **relatorioService** – Geração de relatórios diversos

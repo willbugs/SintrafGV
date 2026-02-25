@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SintrafGv.Application.DTOs;
+using SintrafGv.Domain.Interfaces;
 using SintrafGv.Application.Interfaces;
 
 namespace SintrafGv.Api.Controllers;
@@ -50,5 +51,13 @@ public class UsuariosController : ControllerBase
         if (dto is null)
             return NotFound();
         return Ok(dto);
+    }
+
+    [HttpGet("{id:guid}/historico-acoes")]
+    public ActionResult<List<object>> ObterHistoricoAcoes(Guid id, [FromQuery] int limite = 10)
+    {
+        // Retorna lista vazia - funcionalidade será implementada futuramente
+        // Requer criação da tabela HistoricoAcoesUsuario
+        return Ok(new List<object>());
     }
 }

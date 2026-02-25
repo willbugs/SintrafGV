@@ -12,17 +12,14 @@ import {
   InputAdornment
 } from '@mui/material'
 import { Visibility, VisibilityOff, HowToVote } from '@mui/icons-material'
-import { DatePicker } from '@mui/x-date-pickers/DatePicker'
-import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider'
-import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns'
-import { ptBR } from 'date-fns/locale'
+// Removido DatePicker para eliminar dependência date-fns problemática
 import { useAuth } from '../contexts/AuthContext'
 
 const LoginPage: React.FC = () => {
   const { login, isAuthenticated, isLoading } = useAuth()
   const [formData, setFormData] = useState({
     cpf: '',
-    dataNascimento: null as Date | null,
+    dataNascimento: '',
     matriculaBancaria: ''
   })
   const [showMatricula, setShowMatricula] = useState(false)
@@ -59,7 +56,7 @@ const LoginPage: React.FC = () => {
     setIsSubmitting(true)
 
     try {
-      const dataNascimentoFormatada = formData.dataNascimento.toISOString().split('T')[0]
+      const dataNascimentoFormatada = formData.dataNascimento
       
       const success = await login(
         formData.cpf,
@@ -78,7 +75,6 @@ const LoginPage: React.FC = () => {
   }
 
   return (
-    <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={ptBR}>
       <Container maxWidth="sm">
         <Box
           display="flex"
@@ -132,18 +128,19 @@ const LoginPage: React.FC = () => {
               />
 
               {/* Data de Nascimento */}
-              <DatePicker
+              <TextField
+                fullWidth
+                margin="normal"
                 label="Data de Nascimento"
+                type="date"
                 value={formData.dataNascimento}
-                onChange={(date) => setFormData({ ...formData, dataNascimento: date })}
-                format="dd/MM/yyyy"
-                maxDate={new Date()}
-                slotProps={{
-                  textField: {
-                    fullWidth: true,
-                    margin: 'normal',
-                    required: true
-                  }
+                onChange={(e) => setFormData({ ...formData, dataNascimento: e.target.value })}
+                required
+                InputLabelProps={{
+                  shrink: true,
+                }}
+                inputProps={{
+                  max: new Date().toISOString().split('T')[0]
                 }}
               />
 
@@ -192,7 +189,6 @@ const LoginPage: React.FC = () => {
           </Paper>
         </Box>
       </Container>
-    </LocalizationProvider>
   )
 }
 

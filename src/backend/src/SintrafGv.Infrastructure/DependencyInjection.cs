@@ -1,7 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using SintrafGv.Application.Interfaces;
+using SintrafGv.Domain.Interfaces;
 using SintrafGv.Infrastructure.Data;
 using SintrafGv.Infrastructure.Repositories;
 
@@ -20,6 +20,8 @@ public static class DependencyInjection
         services.AddScoped<IAssociadoRepository, AssociadoRepository>();
         services.AddScoped<IEleicaoRepository, EleicaoRepository>();
         services.AddScoped<IUsuarioRepository, UsuarioRepository>();
+        services.AddScoped<IVotoRepository, VotoRepository>();
+        services.AddScoped<IConfiguracaoSindicatoRepository, ConfiguracaoSindicatoRepository>();
 
         return services;
     }

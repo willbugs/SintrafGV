@@ -1,4 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
+using SintrafGv.Domain.Interfaces;
 using SintrafGv.Application.Interfaces;
 using SintrafGv.Application.Services;
 
@@ -12,6 +13,8 @@ public static class DependencyInjection
         services.AddScoped<IEleicaoService, EleicaoService>();
         services.AddScoped<IRelatorioService, RelatorioService>();
         services.AddScoped<IExportacaoService, ExportacaoService>();
+        services.AddScoped<IRelatorioVotacaoCartorialService, RelatorioVotacaoCartorialService>();
+        
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<IUsuarioService, UsuarioService>();
         return services;

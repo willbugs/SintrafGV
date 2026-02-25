@@ -28,6 +28,8 @@ import {
   Settings,
   Person,
   HowToVote,
+  Gavel,
+  Business,
 } from '@mui/icons-material';
 import { useNavigate, useLocation, Outlet } from 'react-router-dom';
 import type { MenuItem as MenuItemType } from '../../types';
@@ -40,8 +42,18 @@ const menuItems: MenuItemType[] = [
   { id: 'associados', label: 'Associados', icon: <Person />, path: '/associados' },
   { id: 'usuarios', label: 'Usuários', icon: <People />, path: '/usuarios' },
   { id: 'eleicoes', label: 'Enquetes', icon: <HowToVote />, path: '/eleicoes' },
-  { id: 'relatorios', label: 'Relatórios', icon: <Assessment />, path: '/relatorios' },
-  { id: 'configuracoes', label: 'Configurações', icon: <Settings />, path: '/configuracoes' },
+  { id: 'relatorios', label: 'Relatórios', icon: <Assessment />, path: '/relatorios',
+    subItems: [
+      { id: 'relatorios-gerais', label: 'Relatórios Gerais', icon: <Assessment />, path: '/relatorios' },
+      { id: 'relatorios-votacao', label: 'Relatórios de Votação', icon: <HowToVote />, path: '/relatorios/votacao' },
+      { id: 'relatorios-cartorial', label: 'Relatórios Cartoriais', icon: <Gavel />, path: '/relatorios/cartorial' },
+    ]
+  },
+  { id: 'configuracoes', label: 'Configurações', icon: <Settings />, path: '/configuracoes',
+    subItems: [
+      { id: 'config-sindicato', label: 'Dados do Sindicato', icon: <Business />, path: '/configuracoes/sindicato' },
+    ]
+  },
 ];
 
 const AdminLayout: React.FC = () => {

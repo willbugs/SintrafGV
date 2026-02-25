@@ -14,6 +14,7 @@ public class AppDbContext : DbContext
     public DbSet<Opcao> Opcoes => Set<Opcao>();
     public DbSet<Voto> Votos => Set<Voto>();
     public DbSet<VotoDetalhe> VotosDetalhes => Set<VotoDetalhe>();
+    public DbSet<ConfiguracaoSindicato> ConfiguracoesSindicato => Set<ConfiguracaoSindicato>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -78,13 +79,61 @@ public class AppDbContext : DbContext
             e.Property(x => x.IpOrigem).HasMaxLength(50);
             e.Property(x => x.UserAgent).HasMaxLength(500);
             e.Property(x => x.CodigoComprovante).HasMaxLength(100);
+            
+            // Novos campos para autenticação cartorial
+            e.Property(x => x.TimestampPreciso).HasMaxLength(50).IsRequired();
+            e.Property(x => x.HashVoto).HasMaxLength(100).IsRequired();
+            e.Property(x => x.AssinaturaDigital).HasMaxLength(500);
+            e.Property(x => x.RespostaCriptografada).HasMaxLength(200).IsRequired();
+            e.Property(x => x.ChaveCriptografia).HasMaxLength(100).IsRequired();
+            e.Property(x => x.NumeroSequencial).HasMaxLength(50);
+            e.Property(x => x.HashAnterior).HasMaxLength(100);
+            e.Property(x => x.DadosDispositivo).HasMaxLength(200);
+            e.Property(x => x.Latitude).HasMaxLength(50);
+            e.Property(x => x.Longitude).HasMaxLength(50);
+            e.Property(x => x.NumeroProtocoloCartorio).HasMaxLength(100);
+            e.Property(x => x.ObservacoesValidacao).HasMaxLength(500);
+            
             e.HasOne(x => x.Associado).WithMany().HasForeignKey(x => x.AssociadoId).OnDelete(DeleteBehavior.Restrict);
             e.HasIndex(x => new { x.EleicaoId, x.AssociadoId }).IsUnique();
+            e.HasIndex(x => x.HashVoto).IsUnique();
+            e.HasIndex(x => x.DataHoraVoto);
         });
 
         modelBuilder.Entity<VotoDetalhe>(e =>
         {
             e.HasKey(x => x.Id);
+        });
+
+        modelBuilder.Entity<ConfiguracaoSindicato>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.RazaoSocial).HasMaxLength(200).IsRequired();
+            e.Property(x => x.NomeFantasia).HasMaxLength(200).IsRequired();
+            e.Property(x => x.CNPJ).HasMaxLength(18).IsRequired();
+            e.Property(x => x.InscricaoEstadual).HasMaxLength(20);
+            e.Property(x => x.Endereco).HasMaxLength(300).IsRequired();
+            e.Property(x => x.Numero).HasMaxLength(10).IsRequired();
+            e.Property(x => x.Complemento).HasMaxLength(100);
+            e.Property(x => x.Bairro).HasMaxLength(100).IsRequired();
+            e.Property(x => x.Cidade).HasMaxLength(100).IsRequired();
+            e.Property(x => x.UF).HasMaxLength(2).IsRequired();
+            e.Property(x => x.CEP).HasMaxLength(9).IsRequired();
+            e.Property(x => x.Telefone).HasMaxLength(20);
+            e.Property(x => x.Celular).HasMaxLength(20);
+            e.Property(x => x.Email).HasMaxLength(200);
+            e.Property(x => x.Website).HasMaxLength(200);
+            e.Property(x => x.Presidente).HasMaxLength(200).IsRequired();
+            e.Property(x => x.CPFPresidente).HasMaxLength(14).IsRequired();
+            e.Property(x => x.Secretario).HasMaxLength(200);
+            e.Property(x => x.CPFSecretario).HasMaxLength(14);
+            e.Property(x => x.TextoAutenticacao).HasMaxLength(500);
+            e.Property(x => x.CartorioResponsavel).HasMaxLength(200);
+            e.Property(x => x.EnderecoCartorio).HasMaxLength(300);
+            e.Property(x => x.CriadoPor).HasMaxLength(100);
+            e.Property(x => x.AtualizadoPor).HasMaxLength(100);
+            
+            e.HasIndex(x => x.CNPJ).IsUnique();
         });
     }
 }

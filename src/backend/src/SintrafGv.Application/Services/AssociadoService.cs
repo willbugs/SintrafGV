@@ -1,4 +1,4 @@
-using SintrafGv.Application.Interfaces;
+using SintrafGv.Domain.Interfaces;
 using SintrafGv.Domain.Entities;
 
 namespace SintrafGv.Application.Services;

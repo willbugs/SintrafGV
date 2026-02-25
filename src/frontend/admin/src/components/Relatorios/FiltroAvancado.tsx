@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   Box,
   Paper,
@@ -10,12 +10,7 @@ import {
   MenuItem,
   Button,
   Grid,
-  Chip,
   IconButton,
-  Switch,
-  FormControlLabel,
-  Autocomplete,
-  Stack,
   Divider,
 } from '@mui/material';
 import {
@@ -24,8 +19,8 @@ import {
   Clear,
   FilterList,
 } from '@mui/icons-material';
-import { DatePicker } from '@mui/x-date-pickers/DatePicker';
-import { CampoRelatorio } from '../../services/relatorioService';
+// import { DatePicker } from '@mui/x-date-pickers/DatePicker';
+import type { CampoRelatorio } from '../../services/relatorioService';
 
 export interface FiltroItem {
   campo: string;
@@ -137,30 +132,26 @@ const FiltroAvancado: React.FC<FiltroAvancadoProps> = ({
         return (
           <Grid container spacing={1}>
             <Grid item xs={isRange ? 6 : 12}>
-              <DatePicker
+              <TextField
                 label="Valor"
-                value={filtro.valor ? new Date(filtro.valor) : null}
-                onChange={(date) => atualizarFiltro(index, 'valor', date?.toISOString())}
-                slotProps={{
-                  textField: {
-                    size: 'small',
-                    fullWidth: true
-                  }
-                }}
+                type="date"
+                size="small"
+                fullWidth
+                value={filtro.valor || ''}
+                onChange={(e) => atualizarFiltro(index, 'valor', e.target.value)}
+                InputLabelProps={{ shrink: true }}
               />
             </Grid>
             {isRange && (
               <Grid item xs={6}>
-                <DatePicker
+                <TextField
                   label="Até"
-                  value={filtro.valorAte ? new Date(filtro.valorAte) : null}
-                  onChange={(date) => atualizarFiltro(index, 'valorAte', date?.toISOString())}
-                  slotProps={{
-                    textField: {
-                      size: 'small',
-                      fullWidth: true
-                    }
-                  }}
+                  type="date"
+                  size="small"
+                  fullWidth
+                  value={filtro.valorAte || ''}
+                  onChange={(e) => atualizarFiltro(index, 'valorAte', e.target.value)}
+                  InputLabelProps={{ shrink: true }}
                 />
               </Grid>
             )}
@@ -176,8 +167,8 @@ const FiltroAvancado: React.FC<FiltroAvancadoProps> = ({
               onChange={(e) => atualizarFiltro(index, 'valor', e.target.value)}
               label="Valor"
             >
-              <MenuItem value={true}>Sim</MenuItem>
-              <MenuItem value={false}>Não</MenuItem>
+              <MenuItem value="true">Sim</MenuItem>
+              <MenuItem value="false">Não</MenuItem>
             </Select>
           </FormControl>
         );

@@ -3,6 +3,8 @@ import { BrowserRouter as Router, Routes, Route, Navigate, Outlet } from 'react-
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import { SnackbarProvider } from 'notistack';
+import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
+import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { Box, CircularProgress } from '@mui/material';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ToastProvider } from './contexts/ToastContext';
@@ -18,7 +20,10 @@ import EleicaoFormPage from './pages/EleicaoFormPage';
 import ResultadosEleicaoPage from './pages/ResultadosEleicaoPage';
 import RelatoriosPage from './pages/RelatoriosPage';
 import RelatorioVisualizarPage from './pages/RelatorioVisualizarPage';
-import PlaceholderPage from './pages/PlaceholderPage';
+import ConfiguracaoSindicatoPage from './pages/ConfiguracaoSindicatoPage';
+import RelatorioCartorialPage from './pages/RelatorioCartorialPage';
+import RelatoriosVotacaoPage from './pages/RelatoriosVotacaoPage';
+import PerfilPage from './pages/PerfilPage';
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, loading } = useAuth();
@@ -88,7 +93,12 @@ const theme = createTheme({
 });
 
 const AppContent: React.FC = () => (
-  <Router>
+  <Router
+    future={{
+      v7_startTransition: true,
+      v7_relativeSplatPath: true
+    }}
+  >
     <Routes>
       <Route path="/login" element={<LoginPage />} />
       <Route
@@ -120,9 +130,14 @@ const AppContent: React.FC = () => (
         <Route path="relatorios" element={<Outlet />}>
           <Route index element={<RelatoriosPage />} />
           <Route path="visualizar" element={<RelatorioVisualizarPage />} />
+          <Route path="cartorial" element={<RelatorioCartorialPage />} />
+          <Route path="votacao" element={<RelatoriosVotacaoPage />} />
         </Route>
-        <Route path="configuracoes" element={<PlaceholderPage title="Configurações" />} />
-        <Route path="perfil" element={<PlaceholderPage title="Perfil" />} />
+        <Route path="configuracoes" element={<Outlet />}>
+          <Route index element={<ConfiguracaoSindicatoPage />} />
+          <Route path="sindicato" element={<ConfiguracaoSindicatoPage />} />
+        </Route>
+        <Route path="perfil" element={<PerfilPage />} />
       </Route>
     </Routes>
   </Router>
@@ -131,17 +146,19 @@ const AppContent: React.FC = () => (
 function App() {
   return (
     <AuthProvider>
-      <ThemeProvider theme={theme}>
-        <CssBaseline />
-        <SnackbarProvider
-          maxSnack={3}
-          anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
-        >
-          <ToastProvider>
-            <AppContent />
-          </ToastProvider>
-        </SnackbarProvider>
-      </ThemeProvider>
+      <LocalizationProvider dateAdapter={AdapterDateFns}>
+        <ThemeProvider theme={theme}>
+          <CssBaseline />
+          <SnackbarProvider
+            maxSnack={3}
+            anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+          >
+            <ToastProvider>
+              <AppContent />
+            </ToastProvider>
+          </SnackbarProvider>
+        </ThemeProvider>
+      </LocalizationProvider>
     </AuthProvider>
   );
 }

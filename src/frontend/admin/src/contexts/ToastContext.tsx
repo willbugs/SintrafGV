@@ -1,4 +1,5 @@
-import React, { createContext, useContext, ReactNode } from 'react';
+import React, { createContext, useContext } from 'react';
+import type { ReactNode } from 'react';
 import { useSnackbar } from 'notistack';
 
 type SnackbarVariant = 'default' | 'error' | 'success' | 'warning' | 'info';
@@ -8,6 +9,7 @@ interface ToastContextData {
   error: (title: string, message: string) => void;
   warning: (title: string, message: string) => void;
   info: (title: string, message: string) => void;
+  showToast: (message: string, variant: SnackbarVariant) => void;
 }
 
 const ToastContext = createContext<ToastContextData>({} as ToastContextData);
@@ -19,7 +21,7 @@ interface ToastProviderProps {
 export const ToastProvider: React.FC<ToastProviderProps> = ({ children }) => {
   const { enqueueSnackbar } = useSnackbar();
 
-  const showToast = (title: string, message: string, variant: SnackbarVariant) => {
+  const showToastInternal = (title: string, message: string, variant: SnackbarVariant) => {
     enqueueSnackbar(
       <div>
         <strong>{title}</strong>
@@ -37,24 +39,35 @@ export const ToastProvider: React.FC<ToastProviderProps> = ({ children }) => {
     );
   };
 
+  const showToast = (message: string, variant: SnackbarVariant) => {
+    enqueueSnackbar(message, {
+      variant,
+      autoHideDuration: 5000,
+      anchorOrigin: {
+        vertical: 'top',
+        horizontal: 'right',
+      },
+    });
+  };
+
   const success = (title: string, message: string) => {
-    showToast(title, message, 'success');
+    showToastInternal(title, message, 'success');
   };
 
   const error = (title: string, message: string) => {
-    showToast(title, message, 'error');
+    showToastInternal(title, message, 'error');
   };
 
   const warning = (title: string, message: string) => {
-    showToast(title, message, 'warning');
+    showToastInternal(title, message, 'warning');
   };
 
   const info = (title: string, message: string) => {
-    showToast(title, message, 'info');
+    showToastInternal(title, message, 'info');
   };
 
   return (
-    <ToastContext.Provider value={{ success, error, warning, info }}>
+    <ToastContext.Provider value={{ success, error, warning, info, showToast }}>
       {children}
     </ToastContext.Provider>
   );

@@ -1,5 +1,5 @@
 using Microsoft.EntityFrameworkCore;
-using SintrafGv.Application.Interfaces;
+using SintrafGv.Domain.Interfaces;
 using SintrafGv.Domain.Entities;
 using SintrafGv.Infrastructure.Data;
 
@@ -13,6 +13,9 @@ public class AssociadoRepository : IAssociadoRepository
 
     public async Task<Associado?> ObterPorIdAsync(Guid id, CancellationToken cancellationToken = default) =>
         await _context.Associados.FindAsync([id], cancellationToken);
+
+    public async Task<Associado?> ObterPorCpfAsync(string cpf, CancellationToken cancellationToken = default) =>
+        await _context.Associados.FirstOrDefaultAsync(a => a.Cpf == cpf, cancellationToken);
 
     public async Task<IReadOnlyList<Associado>> ListarAsync(int skip, int take, bool apenasAtivos = false, CancellationToken cancellationToken = default)
     {
@@ -35,6 +38,19 @@ public class AssociadoRepository : IAssociadoRepository
         _context.Associados.Add(associado);
         await _context.SaveChangesAsync(cancellationToken);
         return associado;
+    }
+
+    public async Task<int> ContarAssociadosAtivosAsync(CancellationToken cancellationToken = default)
+    {
+        return await _context.Associados
+            .CountAsync(a => a.Ativo, cancellationToken);
+    }
+
+    public async Task<List<Associado>> ObterPorIdsAsync(List<Guid> ids, CancellationToken cancellationToken = default)
+    {
+        return await _context.Associados
+            .Where(a => ids.Contains(a.Id))
+            .ToListAsync(cancellationToken);
     }
 
     public async Task AtualizarAsync(Associado associado, CancellationToken cancellationToken = default)

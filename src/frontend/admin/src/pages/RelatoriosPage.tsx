@@ -32,9 +32,11 @@ import {
   LocationOn,
   Business,
   GetApp,
-  FilterList,
   Visibility,
   Close,
+  HowToVote,
+  TrendingUp,
+  Gavel,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 
@@ -112,6 +114,39 @@ const tiposRelatorios: TipoRelatorio[] = [
     categoria: 'Demográficos',
     cor: '#FF5722'
   },
+  // Relatórios de Votações/Eleições
+  {
+    id: 'participacao-votacao',
+    titulo: 'Participação em Votações',
+    descricao: 'Análise de engajamento dos associados nas enquetes',
+    icone: <HowToVote />,
+    categoria: 'Votações',
+    cor: '#2196F3'
+  },
+  {
+    id: 'resultados-eleicao',
+    titulo: 'Resultados de Enquetes',
+    descricao: 'Detalhamento dos resultados por enquete e pergunta',
+    icone: <Assessment />,
+    categoria: 'Votações',
+    cor: '#4CAF50'
+  },
+  {
+    id: 'engajamento-votacao',
+    titulo: 'Engajamento em Votações',
+    descricao: 'Métricas de participação e engajamento por período',
+    icone: <TrendingUp />,
+    categoria: 'Votações',
+    cor: '#FF9800'
+  },
+  {
+    id: 'cartorial',
+    titulo: 'Relatório Cartorial',
+    descricao: 'Relatório oficial para autenticação em cartório',
+    icone: <Gavel />,
+    categoria: 'Votações',
+    cor: '#9C27B0'
+  },
 ];
 
 const RelatoriosPage: React.FC = () => {
@@ -130,8 +165,26 @@ const RelatoriosPage: React.FC = () => {
   const categorias = Array.from(new Set(tiposRelatorios.map(r => r.categoria)));
 
   const handleAbrirRelatorio = (tipo: TipoRelatorio) => {
-    setRelatorioSelecionado(tipo);
-    setDialogAberto(true);
+    // Navegar diretamente para páginas específicas baseadas no tipo
+    switch (tipo.id) {
+      case 'participacao-votacao':
+        navigate('/relatorios/votacao?tab=0');
+        break;
+      case 'resultados-eleicao':
+        navigate('/relatorios/votacao?tab=1');
+        break;
+      case 'engajamento-votacao':
+        navigate('/relatorios/votacao?tab=2');
+        break;
+      case 'cartorial':
+        navigate('/relatorios/cartorial');
+        break;
+      default:
+        // Para relatórios genéricos, usar o dialog
+        setRelatorioSelecionado(tipo);
+        setDialogAberto(true);
+        break;
+    }
   };
 
   const handleFecharDialog = () => {
@@ -312,9 +365,9 @@ const RelatoriosPage: React.FC = () => {
                         size="small" 
                         onClick={(e) => {
                           e.stopPropagation();
-                          // TODO: Implementar export direto do card
+                          handleAbrirRelatorio(tipo);
                         }}
-                        title="Exportar (em breve)"
+                        title="Exportar relatório"
                       >
                         <GetApp />
                       </IconButton>

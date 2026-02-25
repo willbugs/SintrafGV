@@ -24,20 +24,20 @@ import {
 } from '@mui/material';
 import {
   ArrowBack,
-  GetApp,
-  Print,
   Refresh,
   FilterList,
   Visibility,
   VisibilityOff,
 } from '@mui/icons-material';
-import relatorioService, {
+import relatorioService from '../services/relatorioService';
+import type {
   RelatorioRequest,
   RelatorioResponse,
   AssociadoRelatorio,
   CampoRelatorio,
 } from '../services/relatorioService';
-import FiltroAvancado, { FiltroItem } from '../components/Relatorios/FiltroAvancado';
+import FiltroAvancado from '../components/Relatorios/FiltroAvancado';
+import type { FiltroItem } from '../components/Relatorios/FiltroAvancado';
 import ExportMenu from '../components/Relatorios/ExportMenu';
 
 interface ColunasVisibilidade {
@@ -59,7 +59,6 @@ const RelatorioVisualizarPage: React.FC = () => {
   const [tamanhoPagina, setTamanhoPagina] = useState(25);
 
   const tipoRelatorio = searchParams.get('tipo') || 'associados-geral';
-  const formato = searchParams.get('formato') || 'html';
 
   useEffect(() => {
     carregarRelatorio();
@@ -150,41 +149,11 @@ const RelatorioVisualizarPage: React.FC = () => {
     return filtrosObj;
   };
 
-  const handleExportar = async (formatoExport: 'pdf' | 'excel' | 'csv') => {
-    try {
-      const request: RelatorioRequest = {
-        tipoRelatorio,
-        filtros: construirFiltros(),
-        formatoExportacao: formatoExport,
-      };
-
-      const blob = await relatorioService.exportarRelatorio(request);
-      
-      // Criar link para download
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `relatorio_${tipoRelatorio}_${new Date().toISOString().split('T')[0]}.${formatoExport}`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
-    } catch (err) {
-      console.error('Erro ao exportar:', err);
-      alert('Funcionalidade de exportação será implementada em breve');
-    }
-  };
-
   const toggleColunaVisibilidade = (nomeCampo: string) => {
     setColunasVisiveis(prev => ({
       ...prev,
       [nomeCampo]: !prev[nomeCampo]
     }));
-  };
-
-  const aplicarFiltros = () => {
-    setPagina(0);
-    carregarRelatorio();
   };
 
   const limparFiltros = () => {

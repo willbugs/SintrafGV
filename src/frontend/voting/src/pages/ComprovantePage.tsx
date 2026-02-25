@@ -19,8 +19,7 @@ import {
   Share, 
   Home,
   QrCode,
-  Security,
-  AccessTime
+  Security
 } from '@mui/icons-material'
 import { useAuth } from '../contexts/AuthContext'
 import { api } from '../services/api'
@@ -53,7 +52,7 @@ const ComprovantePage: React.FC = () => {
   const carregarComprovante = async () => {
     try {
       setLoading(true)
-      const response = await api.get(`/votacao/comprovante/${votoId}`)
+      const response = await api.get(`/api/eleicoes/comprovante/${votoId}`)
       setComprovante(response.data)
     } catch (err) {
       setError('Erro ao carregar comprovante')

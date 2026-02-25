@@ -27,6 +27,14 @@ public class EleicoesController : ControllerBase
         return Ok(new { itens, total });
     }
 
+    /// <summary>Lista eleições ativas disponíveis para votação (usado pelo PWA)</summary>
+    [HttpGet("ativas")]
+    public async Task<ActionResult<object>> ListarAtivas(CancellationToken cancellationToken = default)
+    {
+        var (itens, _) = await _service.ListarResumoAsync(1, 100, StatusEleicao.Aberta, cancellationToken);
+        return Ok(itens);
+    }
+
     [HttpGet("{id:guid}")]
     public async Task<ActionResult<EleicaoDto>> ObterPorId(Guid id, CancellationToken cancellationToken = default)
     {

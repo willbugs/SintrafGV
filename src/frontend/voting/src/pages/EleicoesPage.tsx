@@ -21,10 +21,7 @@ import {
 import { 
   HowToVote, 
   AccountCircle, 
-  Logout,
-  AccessTime,
-  CheckCircle,
-  Block 
+  Logout
 } from '@mui/icons-material'
 import { useAuth } from '../contexts/AuthContext'
 import { api } from '../services/api'
@@ -56,7 +53,7 @@ const EleicoesPage: React.FC = () => {
   const carregarEleicoes = async () => {
     try {
       setLoading(true)
-      const response = await api.get('/eleicoes/publicas')
+      const response = await api.get('/api/eleicoes/ativas')
       setEleicoes(response.data)
     } catch (err) {
       setError('Erro ao carregar eleições disponíveis')

@@ -1,5 +1,5 @@
 using SintrafGv.Application.DTOs;
-using SintrafGv.Application.Interfaces;
+using SintrafGv.Domain.Interfaces;
 using SintrafGv.Domain.Entities;
 
 namespace SintrafGv.Application.Services;
@@ -7,8 +7,13 @@ namespace SintrafGv.Application.Services;
 public class EleicaoService : IEleicaoService
 {
     private readonly IEleicaoRepository _repository;
+    private readonly IAssociadoRepository _associadoRepository;
 
-    public EleicaoService(IEleicaoRepository repository) => _repository = repository;
+    public EleicaoService(IEleicaoRepository repository, IAssociadoRepository associadoRepository)
+    {
+        _repository = repository;
+        _associadoRepository = associadoRepository;
+    }
 
     public async Task<(IReadOnlyList<EleicaoResumoDto> Itens, int Total)> ListarResumoAsync(int pagina, int porPagina, StatusEleicao? status, CancellationToken cancellationToken = default)
     {
@@ -204,7 +209,7 @@ public class EleicaoService : IEleicaoService
             };
         }).OrderBy(p => p.PerguntaId).ToList();
 
-        var totalHabilitados = totalVotantes; // Simplificado por enquanto
+        var totalHabilitados = await _associadoRepository.ContarAssociadosAtivosAsync(cancellationToken);
 
         return new ResultadoEleicaoDto
         {

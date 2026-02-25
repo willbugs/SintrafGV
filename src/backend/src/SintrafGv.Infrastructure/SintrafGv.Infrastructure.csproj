@@ -1,7 +1,6 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
-    <ProjectReference Include="..\SintrafGv.Application\SintrafGv.Application.csproj" />
     <ProjectReference Include="..\SintrafGv.Domain\SintrafGv.Domain.csproj" />
   </ItemGroup>
 

@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.IdentityModel.Tokens;
 using SintrafGv.Application;
+using SintrafGv.Domain.Interfaces;
 using SintrafGv.Application.Interfaces;
 using SintrafGv.Api.Services;
 using SintrafGv.Domain.Entities;

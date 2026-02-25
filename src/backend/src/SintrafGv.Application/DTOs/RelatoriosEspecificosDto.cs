@@ -78,6 +78,25 @@ namespace SintrafGv.Application.DTOs
         public DateTime DataFiliacao { get; set; }
     }
 
+    // DTO para Relatório de Engajamento em Votações
+    public class EngajamentoVotacaoDto
+    {
+        public Guid EleicaoId { get; set; }
+        public string TituloEleicao { get; set; } = string.Empty;
+        public DateTime DataInicio { get; set; }
+        public DateTime DataFim { get; set; }
+        public int TotalAssociadosElegiveis { get; set; }
+        public int TotalVotosComputados { get; set; }
+        public decimal PercentualParticipacao { get; set; }
+        public int VotosPorDia { get; set; }
+        public DateTime? PicoVotacao { get; set; }
+        public int VotosNoPico { get; set; }
+        public TimeSpan TempoMedioVotacao { get; set; }
+        public Dictionary<string, int> VotosPorDispositivo { get; set; } = new();
+        public Dictionary<string, int> VotosPorHorario { get; set; } = new();
+        public string StatusEleicao { get; set; } = string.Empty;
+    }
+
     // DTO para Relatório de Distribuição por Faixa Etária
     public class FaixaEtariaDto
     {

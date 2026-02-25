@@ -17,9 +17,8 @@ import {
   TrendingDown,
   People,
   PersonAdd,
-  PersonOff,
-  Assessment,
   HowToVote,
+  Assessment,
 } from '@mui/icons-material';
 import { Line, Bar, Doughnut } from 'react-chartjs-2';
 import {
@@ -34,7 +33,8 @@ import {
   Legend,
   ArcElement,
 } from 'chart.js';
-import relatorioService, { DashboardKpi } from '../services/relatorioService';
+import relatorioService from '../services/relatorioService';
+import type { DashboardKpi } from '../services/relatorioService';
 
 // Registrar componentes do Chart.js
 ChartJS.register(
@@ -56,9 +56,10 @@ interface KpiCardProps {
   cor: string;
   crescimento?: number;
   subtitle?: string;
+  isPercentage?: boolean;
 }
 
-const KpiCard: React.FC<KpiCardProps> = ({ titulo, valor, icone, cor, crescimento, subtitle }) => (
+const KpiCard: React.FC<KpiCardProps> = ({ titulo, valor, icone, cor, crescimento, subtitle, isPercentage }) => (
   <Card sx={{ height: '100%' }}>
     <CardContent>
       <Box display="flex" justifyContent="space-between" alignItems="flex-start">
@@ -67,7 +68,7 @@ const KpiCard: React.FC<KpiCardProps> = ({ titulo, valor, icone, cor, cresciment
             {titulo}
           </Typography>
           <Typography variant="h4" fontWeight="bold">
-            {valor.toLocaleString('pt-BR')}
+            {isPercentage ? `${valor.toFixed(1)}%` : valor.toLocaleString('pt-BR')}
           </Typography>
           {subtitle && (
             <Typography variant="body2" color="text.secondary">
@@ -285,16 +286,35 @@ const DashboardPage: React.FC = () => {
         <Grid item xs={12} sm={6} md={3}>
           <KpiCard
             titulo="Enquetes Ativas"
-            valor={kpis.enquetesAbertas}
+            valor={kpis.eleicoesAbertas || kpis.enquetesAbertas}
             icone={<HowToVote />}
             cor="#9C27B0"
-            subtitle={`${kpis.enquetesEncerradas} encerradas`}
+            subtitle={`${kpis.eleicoesEncerradas || kpis.enquetesEncerradas} encerradas`}
           />
         </Grid>
       </Grid>
 
       {/* Segunda linha de KPIs */}
       <Grid container spacing={3} mb={4}>
+        <Grid item xs={12} sm={6} md={3}>
+          <KpiCard
+            titulo="Total de Votos"
+            valor={kpis.totalVotosRealizados || 0}
+            icone={<Assessment />}
+            cor="#2196F3"
+            subtitle="Votos computados"
+          />
+        </Grid>
+        <Grid item xs={12} sm={6} md={3}>
+          <KpiCard
+            titulo="Participação Média"
+            valor={kpis.percentualParticipacaoMedia || 0}
+            icone={<TrendingUp />}
+            cor="#4CAF50"
+            subtitle="% de engajamento"
+            isPercentage
+          />
+        </Grid>
         <Grid item xs={12} sm={6} md={3}>
           <Card>
             <CardContent>

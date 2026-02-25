@@ -1,9 +1,11 @@
 using System;
+using System.Security.Claims;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SintrafGv.Application.DTOs;
+using SintrafGv.Domain.Interfaces;
 using SintrafGv.Application.Interfaces;
 
 namespace SintrafGv.Api.Controllers
@@ -186,75 +188,14 @@ namespace SintrafGv.Api.Controllers
             }
         }
 
-        /// <summary>
-        /// Obtém histórico de relatórios do usuário
-        /// </summary>
-        [HttpGet("historico")]
-        public async Task<ActionResult<dynamic[]>> ObterHistorico(
-            int limite = 10, 
-            CancellationToken cancellationToken = default)
-        {
-            // TODO: Obter ID do usuário do JWT
-            var usuarioId = Guid.NewGuid(); // Placeholder
-            
-            var historico = await _relatorioService.ObterHistoricoRelatoriosUsuarioAsync(usuarioId, limite, cancellationToken);
-            return Ok(historico);
-        }
-
-        /// <summary>
-        /// Exporta relatório em formato específico
-        /// </summary>
-        [HttpPost("exportar")]
-        public async Task<IActionResult> ExportarRelatorio([FromBody] RelatorioRequest request, CancellationToken cancellationToken)
-        {
-            try
-            {
-                var arquivo = await _relatorioService.ExportarRelatorioAsync(request, cancellationToken);
-                
-                return File(arquivo.Conteudo, arquivo.ContentType, arquivo.NomeArquivo);
-            }
-            catch (ArgumentException ex)
-            {
-                return BadRequest(ex.Message);
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, $"Erro ao gerar relatório: {ex.Message}");
-            }
-        }
-
         // === RELATÓRIOS ESPECÍFICOS DE GESTÃO SINDICAL ===
-
-        /// <summary>
-        /// Relatório de Inadimplência - associados com mensalidades em atraso
-        /// </summary>
-        [HttpPost("inadimplencia")]
-        public async Task<ActionResult<RelatorioResponse<InadimplenciaDto>>> RelatorioInadimplencia(
-            [FromBody] RelatorioRequest request, 
-            CancellationToken cancellationToken)
-        {
-            var relatorio = await _relatorioService.ObterRelatorioInadimplenciaAsync(request, cancellationToken);
-            return Ok(relatorio);
-        }
-
-        /// <summary>
-        /// Relatório de Movimentação Mensal - entradas e saídas de associados
-        /// </summary>
-        [HttpPost("movimentacao-mensal")]
-        public async Task<ActionResult<RelatorioResponse<MovimentacaoMensalDto>>> RelatorioMovimentacaoMensal(
-            [FromBody] RelatorioRequest request, 
-            CancellationToken cancellationToken)
-        {
-            var relatorio = await _relatorioService.ObterRelatorioMovimentacaoMensalAsync(request, cancellationToken);
-            return Ok(relatorio);
-        }
 
         /// <summary>
         /// Relatório de Participação em Votações - análise de engajamento
         /// </summary>
         [HttpPost("participacao-votacao")]
         public async Task<ActionResult<RelatorioResponse<ParticipacaoVotacaoDto>>> RelatorioParticipacaoVotacao(
-            [FromBody] RelatorioRequest request, 
+            [FromBody] RelatorioRequest request,
             CancellationToken cancellationToken)
         {
             var relatorio = await _relatorioService.ObterRelatorioParticipacaoVotacaoAsync(request, cancellationToken);
@@ -262,26 +203,26 @@ namespace SintrafGv.Api.Controllers
         }
 
         /// <summary>
-        /// Relatório de Distribuição por Faixa Etária - demografia dos associados
+        /// Relatório de Resultados de Eleições - detalhamento por eleição
         /// </summary>
-        [HttpPost("faixa-etaria")]
-        public async Task<ActionResult<RelatorioResponse<FaixaEtariaDto>>> RelatorioFaixaEtaria(
-            [FromBody] RelatorioRequest request, 
+        [HttpPost("resultados-eleicao")]
+        public async Task<ActionResult<RelatorioResponse<ResultadoEleicaoDto>>> RelatorioResultadosEleicao(
+            [FromBody] RelatorioRequest request,
             CancellationToken cancellationToken)
         {
-            var relatorio = await _relatorioService.ObterRelatorioFaixaEtariaAsync(request, cancellationToken);
+            var relatorio = await _relatorioService.ObterRelatorioResultadosEleicaoAsync(request, cancellationToken);
             return Ok(relatorio);
         }
 
         /// <summary>
-        /// Relatório de Aposentados e Pensionistas - beneficiários do sindicato
+        /// Relatório de Engajamento em Votações - métricas por período
         /// </summary>
-        [HttpPost("aposentados-pensionistas")]
-        public async Task<ActionResult<RelatorioResponse<AposentadoPensionistaDto>>> RelatorioAposentadosPensionistas(
-            [FromBody] RelatorioRequest request, 
+        [HttpPost("engajamento-votacao")]
+        public async Task<ActionResult<RelatorioResponse<EngajamentoVotacaoDto>>> RelatorioEngajamentoVotacao(
+            [FromBody] RelatorioRequest request,
             CancellationToken cancellationToken)
         {
-            var relatorio = await _relatorioService.ObterRelatorioAposentadosAsync(request, cancellationToken);
+            var relatorio = await _relatorioService.ObterRelatorioEngajamentoVotacaoAsync(request, cancellationToken);
             return Ok(relatorio);
         }
     }

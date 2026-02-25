@@ -1,5 +1,5 @@
 using Microsoft.EntityFrameworkCore;
-using SintrafGv.Application.Interfaces;
+using SintrafGv.Domain.Interfaces;
 using SintrafGv.Domain.Entities;
 using SintrafGv.Infrastructure.Data;
 
