@@ -1,0 +1,5 @@
+{
+  "ConnectionStrings": {
+    "DefaultConnection": "Data Source=127.0.0.1;Initial Catalog=Sintraf_GV;Integrated Security=false;Connect Timeout=30;Encrypt=False;TrustServerCertificate=True;User Id=Durval;Password=SUA_SENHA"
+  }
+}

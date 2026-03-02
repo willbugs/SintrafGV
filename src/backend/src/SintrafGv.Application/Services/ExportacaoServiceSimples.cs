@@ -27,6 +27,7 @@ namespace SintrafGv.Application.Services
 
     public class ExportacaoService : IExportacaoService
     {
+        [Obsolete("Obsolete")]
         static ExportacaoService()
         {
             // Configurar licença do EPPlus uma única vez
@@ -219,7 +220,7 @@ namespace SintrafGv.Application.Services
                     };
                     
                     // Escapar caracteres especiais do CSV
-                    if (valorFormatado.Contains("\"") || valorFormatado.Contains(";") || valorFormatado.Contains("\n"))
+                    if (valorFormatado!.Contains("\"") || valorFormatado.Contains(";") || valorFormatado.Contains("\n"))
                     {
                         valorFormatado = "\"" + valorFormatado.Replace("\"", "\"\"") + "\"";
                     }

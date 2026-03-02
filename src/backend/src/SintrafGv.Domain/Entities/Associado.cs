@@ -38,6 +38,12 @@ public class Associado
     public string? Funcao { get; set; }
     public string? Ctps { get; set; }
     public string? Serie { get; set; }
+    /// <summary>Número da carteirinha (legado PESSOAS.CARTEIRINHA)</summary>
+    public string? Carteirinha { get; set; }
+    /// <summary>Base de lotação (legado PESSOAS.BASE)</summary>
+    public string? Base { get; set; }
+    /// <summary>Motivo de desligamento ou observação (legado PESSOAS.MOTIVO)</summary>
+    public string? Motivo { get; set; }
 
     // Datas importantes
     public DateTime? DataAdmissao { get; set; }

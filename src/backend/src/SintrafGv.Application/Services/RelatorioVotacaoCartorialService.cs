@@ -322,6 +322,7 @@ namespace SintrafGv.Application.Services
             RelatorioVotacaoCartorialDto relatorio, 
             CancellationToken cancellationToken = default)
         {
+            await Task.Delay(1, cancellationToken);
             var dadosParaHash = new
             {
                 relatorio.DadosEleicao.EleicaoId,
@@ -340,6 +341,7 @@ namespace SintrafGv.Application.Services
             string hashRelatorio, 
             CancellationToken cancellationToken = default)
         {
+            await Task.Delay(1, cancellationToken);
             return $"HASH_{hashRelatorio[..16]}_{DateTime.UtcNow:yyyyMMddHHmmss}";
         }
 

@@ -1,0 +1,6 @@
+{
+  "ConnectionStrings": {
+    "Legado": "Data Source=127.0.0.1;Initial Catalog=Sintrafgv;User Id=USUARIO;Password=SENHA;TrustServerCertificate=True;Connect Timeout=30;",
+    "Novo": "Data Source=127.0.0.1;Initial Catalog=Sintraf_GV;User Id=USUARIO;Password=SENHA;TrustServerCertificate=True;Connect Timeout=30;"
+  }
+}

@@ -437,16 +437,16 @@ namespace SintrafGv.Application.Services
             var dados = associados.Select(associado =>
             {
                 var votosAssociado = votos.Where(v => v.AssociadoId == associado.Id).ToList();
-                var eleicoesDisponiveis = eleicoes.Where(e => e.InicioVotacao <= DateTime.Now).Count();
+                var eleicoesDisponiveis = eleicoes.Count(e => e.InicioVotacao <= DateTime.Now);
                 
                 return new ParticipacaoVotacaoDto
                 {
                     AssociadoId = associado.Id,
                     Nome = associado.Nome,
                     Cpf = associado.Cpf,
-                    MatriculaSindicato = associado.MatriculaSindicato,
+                    MatriculaSindicato = associado.MatriculaSindicato!,
                     NomeBanco = associado.Banco ?? "",
-                    Funcao = associado.Funcao,
+                    Funcao = associado.Funcao!,
                     TotalEleicoesDisponiveis = eleicoesDisponiveis,
                     TotalVotosRealizados = votosAssociado.Count,
                     PercentualParticipacao = eleicoesDisponiveis > 0 ? 
@@ -474,7 +474,7 @@ namespace SintrafGv.Application.Services
                     Titulo = "Relatório de Participação em Votações",
                     Subtitulo = "Análise de engajamento dos associados",
                     TotalRegistros = dados.Count,
-                    FiltrosAplicados = request.Filtros
+                    FiltrosAplicados = request.Filtros!
                 },
                 Totalizadores = new Dictionary<string, object>
                 {
@@ -526,7 +526,7 @@ namespace SintrafGv.Application.Services
                 {
                     Id = eleicao.Id,
                     Titulo = eleicao.Titulo,
-                    Descricao = eleicao.Descricao,
+                    Descricao = eleicao.Descricao!,
                     DataInicio = eleicao.InicioVotacao,
                     DataFim = eleicao.FimVotacao,
                     Status = eleicao.Status.ToString(),
