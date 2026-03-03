@@ -79,10 +79,15 @@ public class ConfiguracaoEmailController : ControllerBase
     }
 
     [HttpPost("testar")]
-    public async Task<ActionResult<object>> Testar()
+    public async Task<ActionResult<object>> Testar([FromQuery] string destinatario)
     {
-        var ok = await _emailService.TestarConfiguracaoAsync();
-        return Ok(new { sucesso = ok, mensagem = ok ? "E-mail de teste enviado com sucesso." : "Falha ao enviar. Verifique a configuração." });
+        if (string.IsNullOrWhiteSpace(destinatario))
+            return BadRequest(new { message = "Informe o e-mail para enviar o teste." });
+        var (ok, erro) = await _emailService.TestarConfiguracaoAsync(destinatario.Trim());
+        var mensagem = ok
+            ? $"E-mail de teste enviado para {destinatario.Trim()}. Verifique sua caixa de entrada."
+            : (erro ?? "Falha ao enviar. Verifique a configuração SMTP.");
+        return Ok(new { sucesso = ok, mensagem });
     }
 }
 

@@ -45,47 +45,97 @@ Acesse: https://admin.sintrafgv.com.br
 Sistema SintrafGV
 ";
 
-        return await EnviarAsync(config, destinatario, assunto, corpo, cancellationToken);
+        var (sucesso, _) = await EnviarAsync(config, destinatario, assunto, corpo, cancellationToken);
+        return sucesso;
     }
 
-    public async Task<bool> TestarConfiguracaoAsync(CancellationToken cancellationToken = default)
+    public async Task<(bool Sucesso, string? Erro)> TestarConfiguracaoAsync(string destinatario, CancellationToken cancellationToken = default)
     {
+        if (string.IsNullOrWhiteSpace(destinatario))
+            return (false, "E-mail de destino não informado.");
+
         var config = await _configRepository.ObterAsync(cancellationToken);
         if (config == null || !config.Habilitado || string.IsNullOrWhiteSpace(config.SmtpHost))
-            return false;
+            return (false, "Configuração de e-mail não habilitada ou incompleta. Salve e habilite.");
 
         var assunto = "Teste de configuração - SintrafGV";
         var corpo = "Este é um e-mail de teste. A configuração de envio está funcionando corretamente.";
-        return await EnviarAsync(config, config.EmailRemetente, assunto, corpo, cancellationToken);
+        return await EnviarAsync(config, destinatario.Trim(), assunto, corpo, cancellationToken);
     }
 
-    private async Task<bool> EnviarAsync(Domain.Entities.ConfiguracaoEmail config, string destinatario, string assunto, string corpo, CancellationToken cancellationToken)
+    private async Task<(bool Sucesso, string? Erro)> EnviarAsync(Domain.Entities.ConfiguracaoEmail config, string destinatario, string assunto, string corpo, CancellationToken cancellationToken)
     {
-        try
+        var message = new MimeMessage();
+        message.From.Add(new MailboxAddress(config.NomeRemetente ?? "SintrafGV", config.EmailRemetente));
+        message.To.Add(MailboxAddress.Parse(destinatario));
+        message.Subject = assunto;
+        message.Body = new TextPart("plain") { Text = corpo.Trim() };
+
+        var usuariosParaTestar = ObterVariacoesUsuario(config.SmtpUsuario);
+        var opcoesSsl = ObterOpcoesSslParaTestar(config);
+
+        Exception? ultimoErro = null;
+        foreach (var secureOpt in opcoesSsl)
         {
-            var message = new MimeMessage();
-            message.From.Add(new MailboxAddress(config.NomeRemetente ?? "SintrafGV", config.EmailRemetente));
-            message.To.Add(MailboxAddress.Parse(destinatario));
-            message.Subject = assunto;
-            message.Body = new TextPart("plain") { Text = corpo.Trim() };
+            foreach (var usuario in usuariosParaTestar)
+            {
+                try
+                {
+                    using var client = new SmtpClient();
+                    client.ServerCertificateValidationCallback = (_, _, _, _) => true;
+                    await client.ConnectAsync(config.SmtpHost, config.SmtpPort, secureOpt, cancellationToken);
 
-            using var client = new SmtpClient();
-            var secureSocketOptions = config.UsarSsl ? SecureSocketOptions.StartTls : SecureSocketOptions.None;
-            await client.ConnectAsync(config.SmtpHost, config.SmtpPort, secureSocketOptions, cancellationToken);
+                    if (!string.IsNullOrWhiteSpace(usuario))
+                        await client.AuthenticateAsync(usuario, config.SmtpSenha ?? "", cancellationToken);
 
-            if (!string.IsNullOrWhiteSpace(config.SmtpUsuario))
-                await client.AuthenticateAsync(config.SmtpUsuario, config.SmtpSenha ?? "", cancellationToken);
+                    await client.SendAsync(message, cancellationToken);
+                    await client.DisconnectAsync(true, cancellationToken);
 
-            await client.SendAsync(message, cancellationToken);
-            await client.DisconnectAsync(true, cancellationToken);
-
-            _logger.LogInformation("E-mail enviado com sucesso para {Destinatario}", destinatario);
-            return true;
+                    _logger.LogInformation("E-mail enviado com sucesso para {Destinatario} (usuário: {Usuario})", destinatario, usuario ?? "(nenhum)");
+                    return (true, null);
+                }
+                catch (Exception ex)
+                {
+                    ultimoErro = ex;
+                    _logger.LogWarning(ex, "Tentativa falhou (usuário={Usuario}, SSL={Ssl})", usuario ?? "(nenhum)", secureOpt);
+                }
+            }
         }
-        catch (Exception ex)
+
+        _logger.LogError(ultimoErro, "Erro ao enviar e-mail para {Destinatario}", destinatario);
+        var msg = ultimoErro != null && !string.IsNullOrWhiteSpace(ultimoErro.Message) ? ultimoErro.Message : "Falha ao enviar.";
+        if (ultimoErro?.InnerException != null && !string.IsNullOrWhiteSpace(ultimoErro.InnerException.Message))
+            msg += " | " + ultimoErro.InnerException.Message;
+        return (false, msg);
+    }
+
+    private static IEnumerable<string> ObterVariacoesUsuario(string? smtpUsuario)
+    {
+        if (string.IsNullOrWhiteSpace(smtpUsuario)) return [""];
+        var list = new List<string> { smtpUsuario.Trim() };
+        if (smtpUsuario.Contains('@'))
         {
-            _logger.LogError(ex, "Erro ao enviar e-mail para {Destinatario}", destinatario);
-            return false;
+            var parteLocal = smtpUsuario.Split('@')[0].Trim();
+            if (!string.IsNullOrEmpty(parteLocal) && !list.Contains(parteLocal))
+                list.Add(parteLocal);
         }
+        return list;
+    }
+
+    private static List<SecureSocketOptions> ObterOpcoesSslParaTestar(Domain.Entities.ConfiguracaoEmail config)
+    {
+        var lista = new List<SecureSocketOptions>();
+        if (config.UsarSsl)
+        {
+            if (config.SmtpPort == 465)
+                lista.Add(SecureSocketOptions.SslOnConnect);
+            else
+                lista.Add(SecureSocketOptions.StartTls);
+        }
+        else
+        {
+            lista.Add(SecureSocketOptions.None);
+        }
+        return lista;
     }
 }

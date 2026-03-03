@@ -35,6 +35,8 @@ const ConfiguracaoEmailPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [testando, setTestando] = useState(false);
+  const [emailTeste, setEmailTeste] = useState('');
+  const [mensagemTeste, setMensagemTeste] = useState<{ tipo: 'success' | 'error' | 'info'; texto: string } | null>(null);
   const [config, setConfig] = useState<ConfiguracaoEmail>({
     smtpHost: '',
     smtpPort: 587,
@@ -85,12 +87,20 @@ const ConfiguracaoEmailPage: React.FC = () => {
   };
 
   const testar = async () => {
+    setMensagemTeste(null);
+    if (!emailTeste.trim()) {
+      setMensagemTeste({ tipo: 'error', texto: 'Informe o e-mail para enviar o teste.' });
+      return;
+    }
     try {
       setTestando(true);
-      const res = await api.post('/api/configuracao-email/testar');
-      showToast(res.data.mensagem, res.data.sucesso ? 'success' : 'error');
-    } catch {
-      showToast('Erro ao testar envio', 'error');
+      const res = await api.post(`/api/configuracao-email/testar?destinatario=${encodeURIComponent(emailTeste.trim())}`, {}, { timeout: 90000 });
+      const msg = res.data.mensagem ?? (res.data.sucesso ? 'Enviado.' : 'Falha.');
+      setMensagemTeste({ tipo: res.data.sucesso ? 'success' : 'error', texto: msg });
+    } catch (err: unknown) {
+      const ax = err as { response?: { data?: { message?: string; mensagem?: string; detail?: string } }; message?: string };
+      const msg = ax.response?.data?.mensagem ?? ax.response?.data?.message ?? ax.response?.data?.detail ?? ax.message ?? 'Erro ao testar envio. Verifique a conexão.';
+      setMensagemTeste({ tipo: 'error', texto: msg });
     } finally {
       setTestando(false);
     }
@@ -224,7 +234,7 @@ const ConfiguracaoEmailPage: React.FC = () => {
           </CardContent>
         </Card>
 
-        <Box display="flex" gap={2}>
+        <Box display="flex" flexWrap="wrap" gap={2} alignItems="center">
           <Button
             variant="contained"
             startIcon={<SaveIcon />}
@@ -233,15 +243,34 @@ const ConfiguracaoEmailPage: React.FC = () => {
           >
             {saving ? 'Salvando...' : 'Salvar Configuração'}
           </Button>
+          <TextField
+            label="E-mail para teste"
+            type="email"
+            value={emailTeste}
+            onChange={(e) => setEmailTeste(e.target.value)}
+            placeholder="email@exemplo.com"
+            size="small"
+            sx={{ minWidth: 260 }}
+          />
           <Button
             variant="outlined"
             startIcon={<SendIcon />}
             onClick={testar}
-            disabled={testando || !config.smtpHost}
+            disabled={testando || !config.smtpHost || !emailTeste.trim()}
           >
             {testando ? 'Enviando...' : 'Enviar E-mail de Teste'}
           </Button>
         </Box>
+
+        {mensagemTeste && (
+          <Alert
+            severity={mensagemTeste.tipo}
+            sx={{ mt: 2 }}
+            onClose={() => setMensagemTeste(null)}
+          >
+            {mensagemTeste.texto}
+          </Alert>
+        )}
       </Paper>
     </Container>
   );

@@ -63,8 +63,8 @@ interface Enquete {
 }
 
 const RelatoriosVotacaoPage: React.FC = () => {
-  const [searchParams] = useSearchParams();
-  const tabFromUrl = parseInt(searchParams.get('tab') || '0', 10);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tabFromUrl = Math.min(2, Math.max(0, parseInt(searchParams.get('tab') || '0', 10) || 0));
   const [tabValue, setTabValue] = useState(tabFromUrl);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -98,6 +98,7 @@ const RelatoriosVotacaoPage: React.FC = () => {
 
   const handleTabChange = (_event: React.SyntheticEvent, newValue: number) => {
     setTabValue(newValue);
+    setSearchParams({ tab: String(newValue) }, { replace: true });
   };
 
   const construirFiltros = () => {
