@@ -7,7 +7,6 @@ import {
   Button,
   Typography,
   Alert,
-  Container,
   IconButton,
   InputAdornment
 } from '@mui/material'
@@ -40,7 +39,23 @@ const LoginPage: React.FC = () => {
     const value = event.target.value
     const formattedCPF = formatCPF(value)
     if (formattedCPF.length <= 14) {
-      setFormData({ ...formData, cpf: formattedCPF })
+      setFormData(prev => ({ ...prev, cpf: formattedCPF }))
+    }
+  }
+
+  // Máscara dd/mm/aaaa - usuário digita e formatamos
+  const formatDataNascimento = (value: string) => {
+    const numbers = value.replace(/\D/g, '')
+    if (numbers.length <= 2) return numbers
+    if (numbers.length <= 4) return `${numbers.slice(0, 2)}/${numbers.slice(2)}`
+    return `${numbers.slice(0, 2)}/${numbers.slice(2, 4)}/${numbers.slice(4, 8)}`
+  }
+
+  const handleDataNascimentoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value
+    const formatted = formatDataNascimento(value)
+    if (formatted.length <= 10) {
+      setFormData(prev => ({ ...prev, dataNascimento: formatted }))
     }
   }
 
@@ -75,23 +90,28 @@ const LoginPage: React.FC = () => {
   }
 
   return (
-      <Container maxWidth="sm">
-        <Box
-          display="flex"
-          flexDirection="column"
-          justifyContent="center"
-          alignItems="center"
-          minHeight="100vh"
-          py={3}
+      <Box
+        sx={{
+          minHeight: '100vh',
+          width: '100%',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          bgcolor: '#f5f5f5',
+          py: 3,
+          px: 2,
+          boxSizing: 'border-box',
+        }}
+      >
+        <Paper
+          elevation={3}
+          sx={{
+            p: 4,
+            width: '100%',
+            maxWidth: 400,
+            flexShrink: 0,
+          }}
         >
-          <Paper
-            elevation={3}
-            sx={{
-              p: 4,
-              width: '100%',
-              maxWidth: 400,
-            }}
-          >
             {/* Header */}
             <Box textAlign="center" mb={3}>
               <HowToVote color="primary" sx={{ fontSize: 48, mb: 1 }} />
@@ -112,7 +132,7 @@ const LoginPage: React.FC = () => {
 
             {/* Formulário */}
             <Box component="form" onSubmit={handleSubmit}>
-              {/* CPF */}
+              {/* CPF - pattern valida formato XXX.XXX.XXX-XX (11 dígitos formatados) */}
               <TextField
                 label="CPF"
                 value={formData.cpf}
@@ -123,24 +143,27 @@ const LoginPage: React.FC = () => {
                 required
                 inputProps={{
                   inputMode: 'numeric',
-                  pattern: '[0-9]*'
+                  maxLength: 14,
+                  pattern: '[0-9]{3}\\.[0-9]{3}\\.[0-9]{3}-[0-9]{2}',
+                  title: 'Digite o CPF no formato 000.000.000-00'
                 }}
               />
 
-              {/* Data de Nascimento */}
+              {/* Data de Nascimento - type=text com dd/mm/aaaa (Brasil); type=date exigia YYYY-MM-DD e gerava "faça corresponder ao formato pedido" quando usuário digitava dd/mm/yyyy */}
               <TextField
                 fullWidth
                 margin="normal"
                 label="Data de Nascimento"
-                type="date"
+                type="text"
                 value={formData.dataNascimento}
-                onChange={(e) => setFormData({ ...formData, dataNascimento: e.target.value })}
+                onChange={handleDataNascimentoChange}
+                placeholder="dd/mm/aaaa"
                 required
-                InputLabelProps={{
-                  shrink: true,
-                }}
                 inputProps={{
-                  max: new Date().toISOString().split('T')[0]
+                  inputMode: 'numeric',
+                  maxLength: 10,
+                  pattern: '(0[1-9]|[12][0-9]|3[01])/(0[1-9]|1[0-2])/[0-9]{4}',
+                  title: 'Digite a data no formato dd/mm/aaaa'
                 }}
               />
 
@@ -187,8 +210,7 @@ const LoginPage: React.FC = () => {
               </Typography>
             </Box>
           </Paper>
-        </Box>
-      </Container>
+      </Box>
   )
 }
 

@@ -34,8 +34,8 @@ public class UsuariosController : ControllerBase
     [HttpPost]
     public async Task<ActionResult<UsuarioListDto>> Criar([FromBody] CreateUsuarioRequest request, CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(request.Email) || string.IsNullOrWhiteSpace(request.Senha))
-            return BadRequest(new { message = "E-mail e senha são obrigatórios." });
+        if (string.IsNullOrWhiteSpace(request.Email))
+            return BadRequest(new { message = "E-mail é obrigatório." });
         var criado = await _service.CriarAsync(request, cancellationToken);
         if (criado is null)
             return Conflict(new { message = "Já existe usuário com este e-mail." });
@@ -59,5 +59,15 @@ public class UsuariosController : ControllerBase
         // Retorna lista vazia - funcionalidade será implementada futuramente
         // Requer criação da tabela HistoricoAcoesUsuario
         return Ok(new List<object>());
+    }
+
+    [HttpPost("{id:guid}/reenviar-senha")]
+    [Authorize(Roles = "Admin")]
+    public async Task<ActionResult<object>> ReenviarSenha(Guid id, CancellationToken cancellationToken = default)
+    {
+        var ok = await _service.ReenviarSenhaAsync(id, cancellationToken);
+        if (!ok)
+            return NotFound();
+        return Ok(new { message = "Nova senha gerada e enviada por e-mail." });
     }
 }

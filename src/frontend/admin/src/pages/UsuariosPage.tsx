@@ -15,9 +15,9 @@ import {
   Chip,
   Avatar,
 } from '@mui/material';
-import { Add, Edit, Delete, Person } from '@mui/icons-material';
+import { Add, Edit, Delete, Person, Email } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
-import { usuariosAPI, type UsuarioListItem } from '../services/api';
+import { usuariosAPI, configuracaoEmailAPI, type UsuarioListItem } from '../services/api';
 import { useToast } from '../contexts/ToastContext';
 
 const getPerfilColor = (role: string): 'primary' | 'default' | 'error' => {
@@ -33,8 +33,31 @@ const UsuariosPage: React.FC = () => {
   const [itens, setItens] = useState<UsuarioListItem[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [emailHabilitado, setEmailHabilitado] = useState(false);
+  const [reenviandoId, setReenviandoId] = useState<string | null>(null);
   const navigate = useNavigate();
   const toast = useToast();
+
+  const carregarStatusEmail = async () => {
+    try {
+      const { habilitado } = await configuracaoEmailAPI.obterStatus();
+      setEmailHabilitado(habilitado);
+    } catch {
+      setEmailHabilitado(false);
+    }
+  };
+
+  const handleReenviarSenha = async (id: string) => {
+    setReenviandoId(id);
+    try {
+      await usuariosAPI.reenviarSenha(id);
+      toast.success('Sucesso', 'Nova senha gerada e enviada por e-mail.');
+    } catch {
+      toast.error('Erro', 'Falha ao reenviar senha. Verifique a configuração de e-mail.');
+    } finally {
+      setReenviandoId(null);
+    }
+  };
 
   const carregar = async () => {
     setLoading(true);
@@ -53,6 +76,7 @@ const UsuariosPage: React.FC = () => {
 
   useEffect(() => {
     carregar();
+    carregarStatusEmail();
   }, []);
 
   return (
@@ -125,6 +149,16 @@ const UsuariosPage: React.FC = () => {
                       >
                         <Edit />
                       </IconButton>
+                      {emailHabilitado && (
+                        <IconButton
+                          onClick={() => handleReenviarSenha(u.id)}
+                          size="small"
+                          title="Reenviar senha por e-mail"
+                          disabled={reenviandoId === u.id}
+                        >
+                          <Email />
+                        </IconButton>
+                      )}
                       <IconButton
                         color="error"
                         size="small"

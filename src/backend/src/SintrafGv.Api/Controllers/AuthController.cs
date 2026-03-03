@@ -66,22 +66,31 @@ public class AuthController : ControllerBase
             string.IsNullOrWhiteSpace(request.MatriculaBancaria))
             return BadRequest(new { message = "CPF, data de nascimento e matrícula bancária são obrigatórios." });
 
-        var cpfLimpo = request.Cpf.Replace(".", "").Replace("-", "").Trim();
+        var cpfLimpo = new string(request.Cpf.Where(char.IsDigit).ToArray());
+        if (string.IsNullOrEmpty(cpfLimpo))
+            return BadRequest(new { message = "CPF inválido." });
         var associado = await _associadoRepository.ObterPorCpfAsync(cpfLimpo, cancellationToken);
 
         if (associado == null || !associado.Ativo)
             return Unauthorized(new { message = "Associado não encontrado ou inativo." });
 
-        if (!DateTime.TryParse(request.DataNascimento, out var dataNascInput))
-            return BadRequest(new { message = "Data de nascimento inválida." });
+        var formatosData = new[] { "yyyy-MM-dd", "dd/MM/yyyy", "d/M/yyyy", "dd-MM-yyyy" };
+        if (!DateTime.TryParseExact(request.DataNascimento.Trim(), formatosData,
+            System.Globalization.CultureInfo.InvariantCulture,
+            System.Globalization.DateTimeStyles.None, out var dataNascInput))
+            return BadRequest(new { message = "Data de nascimento inválida. Use o formato DD/MM/AAAA." });
 
         if (associado.DataNascimento == null ||
             associado.DataNascimento.Value.Date != dataNascInput.Date)
             return Unauthorized(new { message = "Dados de autenticação inválidos." });
 
         var matriculaLimpa = request.MatriculaBancaria.Trim();
-        if (string.IsNullOrEmpty(associado.MatriculaBancaria) ||
-            associado.MatriculaBancaria.Trim() != matriculaLimpa)
+        var matriculaDb = (associado.MatriculaBancaria ?? "").Trim();
+        if (string.IsNullOrEmpty(matriculaDb))
+            return Unauthorized(new { message = "Dados de autenticação inválidos." });
+        var matriculaMatch = matriculaDb == matriculaLimpa ||
+            matriculaDb.TrimStart('0') == matriculaLimpa.TrimStart('0');
+        if (!matriculaMatch)
             return Unauthorized(new { message = "Dados de autenticação inválidos." });
 
         var token = _jwtTokenGenerator.GenerateTokenAssociado(associado);

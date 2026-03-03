@@ -69,11 +69,11 @@ export const usuariosAPI = {
     const response = await api.get(`/api/usuarios/${id}`);
     return response.data;
   },
-  criar: async (data: { nome: string; email: string; senha: string; role: string }) => {
+  criar: async (data: { nome: string; email: string; senha?: string; role: string }) => {
     const response = await api.post('/api/usuarios', {
       nome: data.nome,
       email: data.email,
-      senha: data.senha,
+      senha: data.senha ?? '',
       role: data.role,
     });
     return response.data;
@@ -85,6 +85,17 @@ export const usuariosAPI = {
       role: data.role,
       ativo: data.ativo,
     });
+    return response.data;
+  },
+  reenviarSenha: async (id: string) => {
+    const response = await api.post(`/api/usuarios/${id}/reenviar-senha`);
+    return response.data;
+  },
+};
+
+export const configuracaoEmailAPI = {
+  obterStatus: async (): Promise<{ habilitado: boolean }> => {
+    const response = await api.get('/api/configuracao-email/status');
     return response.data;
   },
 };

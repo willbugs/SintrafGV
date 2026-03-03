@@ -1,0 +1,29 @@
+---
+description: Prioridades de abordagem - solução correta sobre atalhos
+alwaysApply: true
+---
+
+# Prioridades de Abordagem
+
+## 1. Corrigir causa, nunca mascarar sintoma
+
+- **Proibido**: Desativar validação, silenciar erros, ignorar exceções para "fazer funcionar"
+- **Obrigatório**: Investigar a causa raiz e corrigir o que está errado
+- Se um erro aparece, entender por quê antes de qualquer alteração
+
+## 2. Transparência total
+
+- Explicar claramente o que será feito antes de fazer
+- Após alterações: descrever exatamente o que mudou e quais as consequências
+- Nunca apresentar uma solução como "correção" sem revelar trade-offs ou custos
+
+## 3. Solução correta antes de solução rápida
+
+- Priorizar abordagem adequada sobre "fazer funcionar logo"
+- Questionar se a abordagem faz sentido antes de implementar
+- Pedir confirmação quando houver dúvida sobre o caminho correto
+
+## 4. Aguardar quando solicitado
+
+- Se o usuário pedir para informar e aguardar: parar, informar, não implementar
+- Não assumir permissão para alterar sem confirmação explícita

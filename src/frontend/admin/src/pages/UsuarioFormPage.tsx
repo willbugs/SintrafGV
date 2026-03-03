@@ -25,7 +25,6 @@ const UsuarioFormPage: React.FC = () => {
 
   const [nome, setNome] = useState('');
   const [email, setEmail] = useState('');
-  const [senha, setSenha] = useState('');
   const [role, setRole] = useState('Admin');
   const [ativo, setAtivo] = useState(true);
   const [loading, setLoading] = useState(!isNew);
@@ -53,15 +52,11 @@ const UsuarioFormPage: React.FC = () => {
       toast.warning('Atenção', 'Nome e e-mail são obrigatórios.');
       return;
     }
-    if (isNew && !senha.trim()) {
-      toast.warning('Atenção', 'Senha é obrigatória para novo usuário.');
-      return;
-    }
     setSaving(true);
     try {
       if (isNew) {
-        await usuariosAPI.criar({ nome: nome.trim(), email: email.trim(), senha, role });
-        toast.success('Sucesso', 'Usuário criado com sucesso.');
+        await usuariosAPI.criar({ nome: nome.trim(), email: email.trim(), role });
+        toast.success('Sucesso', 'Usuário criado. Credenciais enviadas por e-mail.');
       } else if (id) {
         await usuariosAPI.atualizar(id, { nome: nome.trim(), email: email.trim(), role, ativo });
         toast.success('Sucesso', 'Usuário atualizado com sucesso.');
@@ -112,16 +107,9 @@ const UsuarioFormPage: React.FC = () => {
             required
           />
           {isNew && (
-            <TextField
-              fullWidth
-              label="Senha"
-              type="password"
-              value={senha}
-              onChange={(e) => setSenha(e.target.value)}
-              sx={{ mb: 3 }}
-              required
-              autoComplete="new-password"
-            />
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+              A senha será gerada automaticamente e enviada por e-mail ao usuário. Certifique-se de que a configuração de e-mail está habilitada.
+            </Typography>
           )}
           <FormControl fullWidth sx={{ mb: 3 }}>
             <InputLabel>Perfil</InputLabel>

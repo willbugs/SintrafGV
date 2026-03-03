@@ -15,6 +15,7 @@ public class AppDbContext : DbContext
     public DbSet<Voto> Votos => Set<Voto>();
     public DbSet<VotoDetalhe> VotosDetalhes => Set<VotoDetalhe>();
     public DbSet<ConfiguracaoSindicato> ConfiguracoesSindicato => Set<ConfiguracaoSindicato>();
+    public DbSet<ConfiguracaoEmail> ConfiguracoesEmail => Set<ConfiguracaoEmail>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -134,6 +135,16 @@ public class AppDbContext : DbContext
             e.Property(x => x.AtualizadoPor).HasMaxLength(100);
             
             e.HasIndex(x => x.CNPJ).IsUnique();
+        });
+
+        modelBuilder.Entity<ConfiguracaoEmail>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.SmtpHost).HasMaxLength(200);
+            e.Property(x => x.SmtpUsuario).HasMaxLength(200);
+            e.Property(x => x.SmtpSenha).HasMaxLength(500);
+            e.Property(x => x.EmailRemetente).HasMaxLength(200);
+            e.Property(x => x.NomeRemetente).HasMaxLength(200);
         });
     }
 }

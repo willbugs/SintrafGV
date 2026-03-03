@@ -8,8 +8,13 @@ namespace SintrafGv.Application.Services;
 public class UsuarioService : IUsuarioService
 {
     private readonly IUsuarioRepository _repository;
+    private readonly IEmailService _emailService;
 
-    public UsuarioService(IUsuarioRepository repository) => _repository = repository;
+    public UsuarioService(IUsuarioRepository repository, IEmailService emailService)
+    {
+        _repository = repository;
+        _emailService = emailService;
+    }
 
     public async Task<Usuario?> ObterPorIdAsync(Guid id, CancellationToken cancellationToken = default) =>
         await _repository.ObterPorIdAsync(id, cancellationToken);
@@ -27,17 +32,23 @@ public class UsuarioService : IUsuarioService
     {
         if (await _repository.ObterPorEmailAsync(request.Email, cancellationToken) != null)
             return null;
+
+        var senha = !string.IsNullOrWhiteSpace(request.Senha) ? request.Senha : GerarSenhaTemporaria();
+
         var usuario = new Usuario
         {
             Id = Guid.NewGuid(),
             Nome = request.Nome,
             Email = request.Email.Trim(),
-            SenhaHash = BCrypt.Net.BCrypt.HashPassword(request.Senha),
+            SenhaHash = BCrypt.Net.BCrypt.HashPassword(senha),
             Role = request.Role?.Trim() ?? "Admin",
             Ativo = true,
             CriadoEm = DateTime.UtcNow,
         };
         await _repository.IncluirAsync(usuario, cancellationToken);
+
+        _ = _emailService.EnviarEmailNovoUsuarioAsync(usuario.Email, usuario.Nome, senha, cancellationToken);
+
         return new UsuarioListDto(usuario.Id, usuario.Nome, usuario.Email, usuario.Role, usuario.Ativo, usuario.CriadoEm);
     }
 
@@ -54,5 +65,30 @@ public class UsuarioService : IUsuarioService
         usuario.Ativo = request.Ativo;
         await _repository.AtualizarAsync(usuario, cancellationToken);
         return (new UsuarioListDto(usuario.Id, usuario.Nome, usuario.Email, usuario.Role, usuario.Ativo, usuario.CriadoEm), false);
+    }
+
+    public async Task<bool> ReenviarSenhaAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        var usuario = await _repository.ObterPorIdAsync(id, cancellationToken);
+        if (usuario == null)
+            return false;
+
+        var senhaTemporaria = GerarSenhaTemporaria();
+        usuario.SenhaHash = BCrypt.Net.BCrypt.HashPassword(senhaTemporaria);
+        await _repository.AtualizarAsync(usuario, cancellationToken);
+
+        _ = _emailService.EnviarEmailNovoUsuarioAsync(usuario.Email, usuario.Nome, senhaTemporaria, cancellationToken);
+
+        return true;
+    }
+
+    private static string GerarSenhaTemporaria()
+    {
+        const string chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789!@#$";
+        var random = new Random();
+        var senha = new char[10];
+        for (int i = 0; i < senha.Length; i++)
+            senha[i] = chars[random.Next(chars.Length)];
+        return new string(senha);
     }
 }

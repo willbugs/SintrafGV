@@ -21,6 +21,7 @@ import ResultadosEleicaoPage from './pages/ResultadosEleicaoPage';
 import RelatoriosPage from './pages/RelatoriosPage';
 import RelatorioVisualizarPage from './pages/RelatorioVisualizarPage';
 import ConfiguracaoSindicatoPage from './pages/ConfiguracaoSindicatoPage';
+import ConfiguracaoEmailPage from './pages/ConfiguracaoEmailPage';
 import RelatorioCartorialPage from './pages/RelatorioCartorialPage';
 import RelatoriosVotacaoPage from './pages/RelatoriosVotacaoPage';
 import PerfilPage from './pages/PerfilPage';
@@ -136,6 +137,7 @@ const AppContent: React.FC = () => (
         <Route path="configuracoes" element={<Outlet />}>
           <Route index element={<ConfiguracaoSindicatoPage />} />
           <Route path="sindicato" element={<ConfiguracaoSindicatoPage />} />
+          <Route path="email" element={<ConfiguracaoEmailPage />} />
         </Route>
         <Route path="perfil" element={<PerfilPage />} />
       </Route>

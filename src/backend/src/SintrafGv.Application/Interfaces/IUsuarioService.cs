@@ -10,4 +10,6 @@ public interface IUsuarioService
     Task<UsuarioListDto?> CriarAsync(CreateUsuarioRequest request, CancellationToken cancellationToken = default);
     /// <returns>Dto se ok, null se não encontrado, (null, true) se e-mail já em uso por outro</returns>
     Task<(UsuarioListDto? Dto, bool EmailEmUso)> AtualizarAsync(Guid id, UpdateUsuarioRequest request, CancellationToken cancellationToken = default);
+    /// <summary>Gera nova senha temporária, atualiza o usuário e envia por e-mail. Retorna true se sucesso.</summary>
+    Task<bool> ReenviarSenhaAsync(Guid id, CancellationToken cancellationToken = default);
 }

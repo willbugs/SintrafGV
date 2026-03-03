@@ -14,8 +14,21 @@ public class AssociadoRepository : IAssociadoRepository
     public async Task<Associado?> ObterPorIdAsync(Guid id, CancellationToken cancellationToken = default) =>
         await _context.Associados.FindAsync([id], cancellationToken);
 
-    public async Task<Associado?> ObterPorCpfAsync(string cpf, CancellationToken cancellationToken = default) =>
-        await _context.Associados.FirstOrDefaultAsync(a => a.Cpf == cpf, cancellationToken);
+    public async Task<Associado?> ObterPorCpfAsync(string cpf, CancellationToken cancellationToken = default)
+    {
+        var cpfDigits = new string(cpf.Where(char.IsDigit).ToArray());
+        if (string.IsNullOrEmpty(cpfDigits)) return null;
+        // Tenta match exato primeiro
+        var associado = await _context.Associados.FirstOrDefaultAsync(a => a.Cpf == cpfDigits, cancellationToken);
+        if (associado != null) return associado;
+        // Fallback: CPF no banco pode estar formatado (942.262.026-00)
+        var associados = await _context.Associados
+            .FromSqlRaw(
+                "SELECT * FROM Associados WHERE REPLACE(REPLACE(REPLACE(ISNULL(Cpf,''), '.', ''), '-', ''), ' ', '') = {0}",
+                cpfDigits)
+            .ToListAsync(cancellationToken);
+        return associados.FirstOrDefault();
+    }
 
     public async Task<IReadOnlyList<Associado>> ListarAsync(int skip, int take, bool apenasAtivos = false, CancellationToken cancellationToken = default)
     {

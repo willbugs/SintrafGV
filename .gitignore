@@ -39,6 +39,8 @@ desktop.ini
 # Build outputs
 build/
 publish/
+publish-new/
+publish-temp/
 out/
 
 # Test results

@@ -5,6 +5,7 @@ import {
   AppBar,
   Toolbar,
   List,
+  ListSubheader,
   Typography,
   Divider,
   IconButton,
@@ -30,6 +31,7 @@ import {
   HowToVote,
   Gavel,
   Business,
+  Email,
 } from '@mui/icons-material';
 import { useNavigate, useLocation, Outlet } from 'react-router-dom';
 import type { MenuItem as MenuItemType } from '../../types';
@@ -52,6 +54,7 @@ const menuItems: MenuItemType[] = [
   { id: 'configuracoes', label: 'Configurações', icon: <Settings />, path: '/configuracoes',
     subItems: [
       { id: 'config-sindicato', label: 'Dados do Sindicato', icon: <Business />, path: '/configuracoes/sindicato' },
+      { id: 'config-email', label: 'Configuração de E-mail', icon: <Email />, path: '/configuracoes/email' },
     ]
   },
 ];
@@ -92,26 +95,59 @@ const AdminLayout: React.FC = () => {
       <Divider />
       <List>
         {menuItems.map((item) => (
-          <ListItem key={item.id} disablePadding>
-            <ListItemButton
-              selected={location.pathname === item.path}
-              onClick={() => handleNavigation(item.path)}
-              sx={{
-                '&.Mui-selected': {
-                  backgroundColor: (theme.palette.primary as { main: string }).main + '20',
-                  borderRight: '3px solid ' + (theme.palette.primary as { main: string }).main,
-                },
-              }}
-            >
-              <ListItemIcon sx={{ color: location.pathname === item.path ? 'primary.main' : 'inherit' }}>
-                {item.icon}
-              </ListItemIcon>
-              <ListItemText
-                primary={item.label}
-                sx={{ color: location.pathname === item.path ? 'primary.main' : 'inherit' }}
-              />
-            </ListItemButton>
-          </ListItem>
+          <React.Fragment key={item.id}>
+            {item.subItems && item.subItems.length > 0 ? (
+              <>
+                <ListSubheader sx={{ lineHeight: 2 }}>{item.label}</ListSubheader>
+                {item.subItems.map((sub) => {
+                const isSelected = location.pathname === sub.path;
+                return (
+                  <ListItem key={sub.id} disablePadding sx={{ pl: 2 }}>
+                    <ListItemButton
+                      selected={isSelected}
+                      onClick={() => handleNavigation(sub.path)}
+                      sx={{
+                        '&.Mui-selected': {
+                          backgroundColor: (theme.palette.primary as { main: string }).main + '20',
+                          borderRight: '3px solid ' + (theme.palette.primary as { main: string }).main,
+                        },
+                      }}
+                    >
+                      <ListItemIcon sx={{ color: isSelected ? 'primary.main' : 'inherit', minWidth: 36 }}>
+                        {sub.icon}
+                      </ListItemIcon>
+                      <ListItemText
+                        primary={sub.label}
+                        sx={{ color: isSelected ? 'primary.main' : 'inherit' }}
+                      />
+                    </ListItemButton>
+                  </ListItem>
+                );
+              })}
+              </>
+            ) : (
+              <ListItem disablePadding>
+                <ListItemButton
+                  selected={location.pathname === item.path}
+                  onClick={() => handleNavigation(item.path)}
+                  sx={{
+                    '&.Mui-selected': {
+                      backgroundColor: (theme.palette.primary as { main: string }).main + '20',
+                      borderRight: '3px solid ' + (theme.palette.primary as { main: string }).main,
+                    },
+                  }}
+                >
+                  <ListItemIcon sx={{ color: location.pathname === item.path ? 'primary.main' : 'inherit' }}>
+                    {item.icon}
+                  </ListItemIcon>
+                  <ListItemText
+                    primary={item.label}
+                    sx={{ color: location.pathname === item.path ? 'primary.main' : 'inherit' }}
+                  />
+                </ListItemButton>
+              </ListItem>
+            )}
+          </React.Fragment>
         ))}
       </List>
     </Box>
