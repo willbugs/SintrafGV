@@ -139,37 +139,37 @@ export interface RelatorioResponse<T> {
 const relatoriosEspecificosAPI = {
   // Relatório de Inadimplência
   async obterInadimplencia(request: RelatorioRequest): Promise<RelatorioResponse<InadimplenciaDto>> {
-    const response = await api.post('/relatorios/inadimplencia', request);
+    const response = await api.post('/api/relatorios/inadimplencia', request);
     return response.data;
   },
 
   // Relatório de Movimentação Mensal
   async obterMovimentacaoMensal(request: RelatorioRequest): Promise<RelatorioResponse<MovimentacaoMensalDto>> {
-    const response = await api.post('/relatorios/movimentacao-mensal', request);
+    const response = await api.post('/api/relatorios/movimentacao-mensal', request);
     return response.data;
   },
 
   // Relatório de Participação em Votações
   async obterParticipacaoVotacao(request: RelatorioRequest): Promise<RelatorioResponse<ParticipacaoVotacaoDto>> {
-    const response = await api.post('/relatorios/participacao-votacao', request);
+    const response = await api.post('/api/relatorios/participacao-votacao', request);
     return response.data;
   },
 
   // Relatório de Faixa Etária
   async obterFaixaEtaria(request: RelatorioRequest): Promise<RelatorioResponse<FaixaEtariaDto>> {
-    const response = await api.post('/relatorios/faixa-etaria', request);
+    const response = await api.post('/api/relatorios/faixa-etaria', request);
     return response.data;
   },
 
   // Relatório de Aposentados e Pensionistas
   async obterAposentadosPensionistas(request: RelatorioRequest): Promise<RelatorioResponse<AposentadoPensionistaDto>> {
-    const response = await api.post('/relatorios/aposentados-pensionistas', request);
+    const response = await api.post('/api/relatorios/aposentados-pensionistas', request);
     return response.data;
   },
 
   // Exportação de relatórios específicos
   async exportarRelatorio(request: RelatorioRequest): Promise<Blob> {
-    const response = await api.post('/relatorios/exportar', request, {
+    const response = await api.post('/api/relatorios/exportar', request, {
       responseType: 'blob'
     });
     return response.data;

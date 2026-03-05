@@ -47,13 +47,38 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 
 builder.Services.AddCors(options =>
 {
+    var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
+        ?? new[] { "http://localhost:5173", "http://localhost:5174", "https://admin.sintrafgv.com.br", "https://votacao.sintrafgv.com.br" };
     options.AddDefaultPolicy(policy =>
     {
-        policy.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader();
+        policy.WithOrigins(allowedOrigins)
+            .AllowAnyMethod()
+            .AllowAnyHeader();
     });
 });
 
 var app = builder.Build();
+
+// CORS headers em TODAS as respostas (incluindo erros 500) - evita bloqueio no browser
+var allowedOriginsList = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
+    ?? new[] { "http://localhost:5173", "http://localhost:5174", "https://admin.sintrafgv.com.br", "https://votacao.sintrafgv.com.br" };
+var allowedSet = new HashSet<string>(allowedOriginsList, StringComparer.OrdinalIgnoreCase);
+app.Use(async (context, next) =>
+{
+    var origin = context.Request.Headers.Origin.ToString();
+    if (!string.IsNullOrEmpty(origin) && allowedSet.Contains(origin))
+    {
+        context.Response.Headers.Append("Access-Control-Allow-Origin", origin);
+    }
+    context.Response.Headers.Append("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
+    context.Response.Headers.Append("Access-Control-Allow-Headers", "Content-Type, Authorization");
+    if (context.Request.Method == "OPTIONS")
+    {
+        context.Response.StatusCode = 204;
+        return;
+    }
+    await next();
+});
 
 using (var scope = app.Services.CreateScope())
 {
@@ -75,10 +100,9 @@ using (var scope = app.Services.CreateScope())
     }
 }
 
+app.UseCors();
 app.UseSwagger();
 app.UseSwaggerUI();
-
-app.UseCors();
 app.UseHttpsRedirection();
 app.UseAuthentication();
 app.UseAuthorization();

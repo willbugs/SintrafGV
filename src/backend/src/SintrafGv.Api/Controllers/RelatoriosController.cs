@@ -16,10 +16,12 @@ namespace SintrafGv.Api.Controllers
     public class RelatoriosController : ControllerBase
     {
         private readonly IRelatorioService _relatorioService;
+        private readonly ILogger<RelatoriosController> _logger;
 
-        public RelatoriosController(IRelatorioService relatorioService)
+        public RelatoriosController(IRelatorioService relatorioService, ILogger<RelatoriosController> logger)
         {
             _relatorioService = relatorioService;
+            _logger = logger;
         }
 
         /// <summary>
@@ -166,6 +168,12 @@ namespace SintrafGv.Api.Controllers
             catch (NotImplementedException)
             {
                 return BadRequest(new { message = "Funcionalidade de exportação será implementada na próxima fase" });
+            }
+            catch (Exception ex)
+            {
+                var detail = ex.InnerException != null ? $"{ex.Message} | {ex.InnerException.Message}" : ex.Message;
+                _logger.LogError(ex, "Erro ao exportar relatório: {Detail}", detail);
+                return StatusCode(500, new { message = "Erro ao exportar relatório.", detail });
             }
         }
 

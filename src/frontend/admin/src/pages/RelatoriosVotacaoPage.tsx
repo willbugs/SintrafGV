@@ -28,6 +28,7 @@ import {
 import { Assessment, BarChart, TrendingUp, FilterList } from '@mui/icons-material';
 import relatorioService from '../services/relatorioService';
 import { api } from '../services/api';
+import ExportMenu from '../components/Relatorios/ExportMenu';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -294,14 +295,24 @@ const RelatoriosVotacaoPage: React.FC = () => {
             <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
               Análise do engajamento dos associados nas enquetes
             </Typography>
-            <Button 
-              variant="contained" 
-              onClick={carregarRelatorioParticipacao}
-              disabled={loading}
-              startIcon={loading ? <CircularProgress size={20} /> : <Assessment />}
-            >
-              Gerar Relatório
-            </Button>
+            <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+              <Button 
+                variant="contained" 
+                onClick={carregarRelatorioParticipacao}
+                disabled={loading}
+                startIcon={loading ? <CircularProgress size={20} /> : <Assessment />}
+              >
+                Gerar Relatório
+              </Button>
+              <ExportMenu
+                relatorioRequest={{
+                  tipoRelatorio: 'participacao-votacao',
+                  filtros: construirFiltros(),
+                  formatoExportacao: 'html',
+                }}
+                buttonVariant="outlined"
+              />
+            </Box>
           </Box>
 
           {dadosParticipacao && (
@@ -381,14 +392,24 @@ const RelatoriosVotacaoPage: React.FC = () => {
             <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
               Detalhamento dos resultados por enquete
             </Typography>
-            <Button 
-              variant="contained" 
-              onClick={carregarRelatorioResultados}
-              disabled={loading}
-              startIcon={loading ? <CircularProgress size={20} /> : <BarChart />}
-            >
-              Gerar Relatório
-            </Button>
+            <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+              <Button 
+                variant="contained" 
+                onClick={carregarRelatorioResultados}
+                disabled={loading}
+                startIcon={loading ? <CircularProgress size={20} /> : <BarChart />}
+              >
+                Gerar Relatório
+              </Button>
+              <ExportMenu
+                relatorioRequest={{
+                  tipoRelatorio: 'resultados-eleicao',
+                  filtros: construirFiltros(),
+                  formatoExportacao: 'html',
+                }}
+                buttonVariant="outlined"
+              />
+            </Box>
           </Box>
 
           {dadosResultados && (
@@ -466,14 +487,24 @@ const RelatoriosVotacaoPage: React.FC = () => {
             <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
               Métricas de participação por período
             </Typography>
-            <Button 
-              variant="contained" 
-              onClick={carregarRelatorioEngajamento}
-              disabled={loading}
-              startIcon={loading ? <CircularProgress size={20} /> : <TrendingUp />}
-            >
-              Gerar Relatório
-            </Button>
+            <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+              <Button 
+                variant="contained" 
+                onClick={carregarRelatorioEngajamento}
+                disabled={loading}
+                startIcon={loading ? <CircularProgress size={20} /> : <TrendingUp />}
+              >
+                Gerar Relatório
+              </Button>
+              <ExportMenu
+                relatorioRequest={{
+                  tipoRelatorio: 'engajamento-votacao',
+                  filtros: construirFiltros(),
+                  formatoExportacao: 'html',
+                }}
+                buttonVariant="outlined"
+              />
+            </Box>
           </Box>
 
           {dadosEngajamento && (

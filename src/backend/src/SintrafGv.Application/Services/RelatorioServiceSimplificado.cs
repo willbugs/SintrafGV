@@ -410,6 +410,20 @@ namespace SintrafGv.Application.Services
                     "csv" => await _exportacaoService.ExportarCsvAsync(r6, nomeArquivo, cancellationToken),
                     _ => throw new ArgumentException($"Formato '{request.FormatoExportacao}' não suportado")
                 },
+                RelatorioResponse<ResultadoEleicaoDto> r7 => request.FormatoExportacao switch
+                {
+                    "pdf" => await _exportacaoService.ExportarPdfAsync(r7, nomeArquivo, cancellationToken),
+                    "excel" or "xlsx" => await _exportacaoService.ExportarExcelAsync(r7, nomeArquivo, cancellationToken),
+                    "csv" => await _exportacaoService.ExportarCsvAsync(r7, nomeArquivo, cancellationToken),
+                    _ => throw new ArgumentException($"Formato '{request.FormatoExportacao}' não suportado")
+                },
+                RelatorioResponse<EngajamentoVotacaoDto> r8 => request.FormatoExportacao switch
+                {
+                    "pdf" => await _exportacaoService.ExportarPdfAsync(r8, nomeArquivo, cancellationToken),
+                    "excel" or "xlsx" => await _exportacaoService.ExportarExcelAsync(r8, nomeArquivo, cancellationToken),
+                    "csv" => await _exportacaoService.ExportarCsvAsync(r8, nomeArquivo, cancellationToken),
+                    _ => throw new ArgumentException($"Formato '{request.FormatoExportacao}' não suportado")
+                },
                 _ => throw new ArgumentException($"Tipo de relatório '{request.TipoRelatorio}' não suportado para exportação")
             };
         }

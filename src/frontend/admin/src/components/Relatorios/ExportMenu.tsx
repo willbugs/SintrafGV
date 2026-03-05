@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   Button,
   Menu,
@@ -36,7 +36,7 @@ const ExportMenu: React.FC<ExportMenuProps> = ({
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  
+  const buttonRef = useRef<HTMLButtonElement>(null);
   const open = Boolean(anchorEl);
 
   const handleClick = (event: React.MouseEvent<HTMLElement>) => {
@@ -44,6 +44,7 @@ const ExportMenu: React.FC<ExportMenuProps> = ({
   };
 
   const handleClose = () => {
+    buttonRef.current?.focus();
     setAnchorEl(null);
   };
 
@@ -51,6 +52,7 @@ const ExportMenu: React.FC<ExportMenuProps> = ({
     try {
       setLoading(true);
       setError(null);
+      buttonRef.current?.focus();
       handleClose();
 
       const request = {
@@ -74,9 +76,22 @@ const ExportMenu: React.FC<ExportMenuProps> = ({
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
       
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Erro ao exportar:', err);
-      setError('Erro ao gerar arquivo. Tente novamente.');
+      const ax = err as { response?: { data?: Blob | { message?: string; detail?: string }; status?: number } };
+      let msg = 'Erro ao gerar arquivo. Tente novamente.';
+      if (ax.response?.status === 500 && ax.response.data) {
+        const d = ax.response.data;
+        if (d instanceof Blob && d.type?.includes('json')) {
+          try {
+            const j = JSON.parse(await d.text()) as { message?: string; detail?: string };
+            msg = j.detail || j.message || msg;
+          } catch { /* ignore */ }
+        } else if (typeof d === 'object' && 'detail' in d) {
+          msg = (d as { detail?: string }).detail || (d as { message?: string }).message || msg;
+        }
+      }
+      setError(msg);
     } finally {
       setLoading(false);
     }
@@ -106,6 +121,8 @@ const ExportMenu: React.FC<ExportMenuProps> = ({
   return (
     <>
       <Button
+        id="export-button"
+        ref={buttonRef}
         variant={buttonVariant}
         size={buttonSize}
         startIcon={loading ? <CircularProgress size={16} /> : <GetApp />}
@@ -125,6 +142,7 @@ const ExportMenu: React.FC<ExportMenuProps> = ({
         onClose={handleClose}
         MenuListProps={{
           'aria-labelledby': 'export-button',
+          autoFocusItem: false,
         }}
         anchorOrigin={{
           vertical: 'bottom',

@@ -1,7 +1,10 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -27,16 +30,10 @@ namespace SintrafGv.Application.Services
 
     public class ExportacaoService : IExportacaoService
     {
-        [Obsolete("Obsolete")]
         static ExportacaoService()
         {
-            // Configurar licença do EPPlus uma única vez
-            if (ExcelPackage.LicenseContext == LicenseContext.Commercial)
-            {
-#pragma warning disable CS0618
-                ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
-#pragma warning restore CS0618
-            }
+            // EPPlus 8+: licença obrigatória antes de usar
+            ExcelPackage.License.SetNonCommercialOrganization("SintrafGV");
         }
 
         public async Task<ExportacaoRelatorioDto> ExportarPdfAsync<T>(RelatorioResponse<T> dados, string nomeArquivo, CancellationToken cancellationToken = default)
@@ -58,6 +55,7 @@ namespace SintrafGv.Application.Services
         {
             using var memoryStream = new MemoryStream();
             using var writer = new PdfWriter(memoryStream);
+            writer.SetCloseStream(false);
             using var pdf = new PdfDocument(writer);
             using var document = new Document(pdf);
 
@@ -65,45 +63,49 @@ namespace SintrafGv.Application.Services
             var font = PdfFontFactory.CreateFont(StandardFonts.HELVETICA);
             var boldFont = PdfFontFactory.CreateFont(StandardFonts.HELVETICA_BOLD);
 
-            // Título
-            document.Add(new Paragraph(dados.Metadata.Titulo)
+            // Título (remover acentos - Helvetica não suporta Unicode)
+            document.Add(new Paragraph(RemoverAcentos(dados.Metadata.Titulo))
                 .SetFont(boldFont).SetFontSize(18).SetTextAlignment(TextAlignment.CENTER));
 
             // Subtítulo se existir
             if (!string.IsNullOrEmpty(dados.Metadata.Subtitulo))
             {
-                document.Add(new Paragraph(dados.Metadata.Subtitulo)
+                document.Add(new Paragraph(RemoverAcentos(dados.Metadata.Subtitulo))
                     .SetFont(font).SetFontSize(12).SetTextAlignment(TextAlignment.CENTER));
             }
 
             // Info
-            document.Add(new Paragraph($"Gerado em: {dados.Metadata.DataGeracao:dd/MM/yyyy HH:mm} | Total: {dados.Metadata.TotalRegistros}")
+            document.Add(new Paragraph(RemoverAcentos($"Gerado em: {dados.Metadata.DataGeracao:dd/MM/yyyy HH:mm} | Total: {dados.Metadata.TotalRegistros}"))
                 .SetFont(font).SetFontSize(10).SetTextAlignment(TextAlignment.RIGHT));
 
-            // Tabela (máximo 6 colunas para caber na página)
-            var propriedades = typeof(T).GetProperties().Take(6).ToList();
-            var tabela = new Table(propriedades.Count).UseAllAvailableWidth();
+            // Tabela (máximo 6 colunas para caber na página) - excluir listas e dicionários
+            var propriedades = ObterPropriedadesSimples<T>().Take(6).ToList();
+            if (propriedades.Count == 0)
+                propriedades = typeof(T).GetProperties().Where(p => p.CanRead && p.GetIndexParameters().Length == 0).Take(6).ToList();
+            var tabela = new Table(Math.Max(1, propriedades.Count)).UseAllAvailableWidth();
 
             // Cabeçalhos
             foreach (var prop in propriedades)
             {
                 tabela.AddHeaderCell(new Cell()
-                    .Add(new Paragraph(ObterTituloColuna(prop.Name)))
+                    .Add(new Paragraph(RemoverAcentos(ObterTituloColuna(prop.Name))))
                     .SetFont(boldFont).SetFontSize(10)
                     .SetBackgroundColor(ColorConstants.LIGHT_GRAY)
                     .SetTextAlignment(TextAlignment.CENTER));
             }
+            if (propriedades.Count == 0)
+                tabela.AddHeaderCell(new Cell().Add(new Paragraph("Dados")).SetFont(boldFont).SetFontSize(10).SetBackgroundColor(ColorConstants.LIGHT_GRAY));
 
             // Dados (máximo 100 linhas para performance)
             foreach (var registro in dados.Dados.Take(100))
             {
                 foreach (var prop in propriedades)
                 {
-                    var valor = prop.GetValue(registro)?.ToString() ?? "";
-                    tabela.AddCell(new Cell()
-                        .Add(new Paragraph(valor))
-                        .SetFont(font).SetFontSize(8));
+                    var valor = FormatarValorParaPdf(prop.GetValue(registro));
+                    tabela.AddCell(new Cell().Add(new Paragraph(valor)).SetFont(font).SetFontSize(8));
                 }
+                if (propriedades.Count == 0)
+                    tabela.AddCell(new Cell().Add(new Paragraph("-")).SetFont(font).SetFontSize(8));
             }
 
             document.Add(tabela);
@@ -123,7 +125,8 @@ namespace SintrafGv.Application.Services
         private ExportacaoRelatorioDto GerarExcel<T>(RelatorioResponse<T> dados, string nomeArquivo)
         {
             using var package = new ExcelPackage();
-            var worksheet = package.Workbook.Worksheets.Add(dados.Metadata.Titulo);
+            var nomePlanilha = SanitizarNomePlanilha(dados.Metadata.Titulo);
+            var worksheet = package.Workbook.Worksheets.Add(nomePlanilha);
 
             // Título
             worksheet.Cells[1, 1].Value = dados.Metadata.Titulo;
@@ -132,15 +135,15 @@ namespace SintrafGv.Application.Services
 
             var linha = 3;
 
-            // Cabeçalhos
-            var propriedades = typeof(T).GetProperties().ToList();
+            // Cabeçalhos - excluir listas e dicionários
+            var propriedades = ObterPropriedadesSimples<T>().ToList();
+            if (propriedades.Count == 0)
+                propriedades = typeof(T).GetProperties().Where(p => p.CanRead && p.GetIndexParameters().Length == 0).ToList();
             var coluna = 1;
             foreach (var prop in propriedades)
             {
                 worksheet.Cells[linha, coluna].Value = ObterTituloColuna(prop.Name);
                 worksheet.Cells[linha, coluna].Style.Font.Bold = true;
-                worksheet.Cells[linha, coluna].Style.Fill.PatternType = ExcelFillStyle.Solid;
-                worksheet.Cells[linha, coluna].Style.Fill.BackgroundColor.SetColor(System.Drawing.Color.LightGray);
                 coluna++;
             }
 
@@ -163,6 +166,14 @@ namespace SintrafGv.Application.Services
                         {
                             worksheet.Cells[linha, coluna].Value = boolean ? "Sim" : "Não";
                         }
+                        else if (valor is TimeSpan ts)
+                        {
+                            worksheet.Cells[linha, coluna].Value = ts.ToString(@"hh\:mm\:ss");
+                        }
+                        else if (valor is IEnumerable and not string)
+                        {
+                            worksheet.Cells[linha, coluna].Value = "-";
+                        }
                         else
                         {
                             worksheet.Cells[linha, coluna].Value = valor;
@@ -173,8 +184,9 @@ namespace SintrafGv.Application.Services
                 linha++;
             }
 
-            // Autofit
-            worksheet.Cells[worksheet.Dimension.Address].AutoFitColumns();
+            // Autofit (Dimension pode ser null se planilha vazia)
+            if (worksheet.Dimension != null)
+                worksheet.Cells[worksheet.Dimension.Address].AutoFitColumns();
 
             var conteudo = package.GetAsByteArray();
 
@@ -199,8 +211,10 @@ namespace SintrafGv.Application.Services
             csv.AppendLine($"# Total de registros: {dados.Metadata.TotalRegistros}");
             csv.AppendLine(); // Linha em branco
 
-            // Cabeçalhos das colunas
-            var propriedades = typeof(T).GetProperties().ToList();
+            // Cabeçalhos das colunas - excluir listas e dicionários
+            var propriedades = ObterPropriedadesSimples<T>().ToList();
+            if (propriedades.Count == 0)
+                propriedades = typeof(T).GetProperties().Where(p => p.CanRead && p.GetIndexParameters().Length == 0).ToList();
             var cabecalhos = propriedades.Select(p => ObterTituloColuna(p.Name));
             csv.AppendLine(string.Join(";", cabecalhos));
 
@@ -216,6 +230,8 @@ namespace SintrafGv.Application.Services
                         null => "",
                         DateTime data => data.ToString("dd/MM/yyyy"),
                         bool boolean => boolean ? "Sim" : "Não",
+                        TimeSpan ts => ts.ToString(@"hh\:mm\:ss"),
+                        IEnumerable and not string => "-",
                         _ => valor.ToString()
                     };
                     
@@ -241,6 +257,50 @@ namespace SintrafGv.Application.Services
                 TamanhoBytes = conteudo.Length,
                 DataGeracao = DateTime.Now
             };
+        }
+
+        private static List<PropertyInfo> ObterPropriedadesSimples<T>()
+        {
+            return typeof(T).GetProperties()
+                .Where(p => p.CanRead && p.GetIndexParameters().Length == 0)
+                .Where(p =>
+                {
+                    var t = Nullable.GetUnderlyingType(p.PropertyType) ?? p.PropertyType;
+                    if (typeof(IEnumerable).IsAssignableFrom(p.PropertyType) && p.PropertyType != typeof(string))
+                        return false;
+                    if (typeof(IDictionary).IsAssignableFrom(p.PropertyType))
+                        return false;
+                    return t.IsPrimitive || t == typeof(string) || t == typeof(decimal) || t == typeof(DateTime) || t == typeof(TimeSpan) || t == typeof(Guid);
+                })
+                .ToList();
+        }
+
+        private static string RemoverAcentos(string? texto)
+        {
+            if (string.IsNullOrEmpty(texto)) return "";
+            var normalized = texto.Normalize(NormalizationForm.FormD);
+            var sb = new StringBuilder();
+            foreach (var c in normalized)
+            {
+                if (CharUnicodeInfo.GetUnicodeCategory(c) != UnicodeCategory.NonSpacingMark)
+                    sb.Append(c);
+            }
+            return sb.ToString().Normalize(NormalizationForm.FormC);
+        }
+
+        private static string FormatarValorParaPdf(object? valor)
+        {
+            if (valor == null) return "";
+            if (valor is IEnumerable and not string) return "-";
+            return RemoverAcentos(valor.ToString());
+        }
+
+        private static string SanitizarNomePlanilha(string titulo)
+        {
+            if (string.IsNullOrWhiteSpace(titulo)) return "Relatorio";
+            var invalidos = new[] { '\\', '/', '*', '?', ':', '[', ']' };
+            var sanitizado = new string(titulo.Where(c => !invalidos.Contains(c)).ToArray()).Trim();
+            return sanitizado.Length > 31 ? sanitizado[..31] : sanitizado;
         }
 
         private string ObterTituloColuna(string nomePropriedade)
