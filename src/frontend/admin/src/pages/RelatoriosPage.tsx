@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
   Box,
   Typography,
@@ -9,19 +9,6 @@ import {
   Button,
   IconButton,
   Chip,
-  Stack,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  TextField,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
-  Switch,
-  FormControlLabel,
-  Divider,
 } from '@mui/material';
 import {
   Assessment,
@@ -33,7 +20,6 @@ import {
   Business,
   GetApp,
   Visibility,
-  Close,
   HowToVote,
   TrendingUp,
   Gavel,
@@ -151,21 +137,9 @@ const tiposRelatorios: TipoRelatorio[] = [
 
 const RelatoriosPage: React.FC = () => {
   const navigate = useNavigate();
-  const [dialogAberto, setDialogAberto] = useState(false);
-  const [relatorioSelecionado, setRelatorioSelecionado] = useState<TipoRelatorio | null>(null);
-  const [filtros, setFiltros] = useState({
-    mes: new Date().getMonth() + 1,
-    sexo: '',
-    dataInicio: '',
-    dataFim: '',
-    formato: 'html' as 'html' | 'pdf' | 'excel' | 'csv',
-    incluirInativos: false,
-  });
-
   const categorias = Array.from(new Set(tiposRelatorios.map(r => r.categoria)));
 
   const handleAbrirRelatorio = (tipo: TipoRelatorio) => {
-    // Navegar diretamente para páginas específicas baseadas no tipo
     switch (tipo.id) {
       case 'participacao-votacao':
         navigate('/relatorios/votacao?tab=0');
@@ -180,110 +154,8 @@ const RelatoriosPage: React.FC = () => {
         navigate('/relatorios/cartorial');
         break;
       default:
-        // Para relatórios genéricos, usar o dialog
-        setRelatorioSelecionado(tipo);
-        setDialogAberto(true);
+        navigate(`/relatorios/visualizar?tipo=${tipo.id}`);
         break;
-    }
-  };
-
-  const handleFecharDialog = () => {
-    setDialogAberto(false);
-    setRelatorioSelecionado(null);
-  };
-
-  const handleExecutarRelatorio = () => {
-    if (!relatorioSelecionado) return;
-
-    // Preparar parâmetros do relatório
-    const params = new URLSearchParams({
-      tipo: relatorioSelecionado.id,
-      formato: filtros.formato,
-      incluirInativos: filtros.incluirInativos.toString(),
-    });
-
-    // Adicionar filtros específicos baseados no tipo de relatório
-    if (relatorioSelecionado.id === 'aniversariantes') {
-      params.append('mes', filtros.mes.toString());
-    }
-    
-    if (relatorioSelecionado.id === 'por-sexo' && filtros.sexo) {
-      params.append('sexo', filtros.sexo);
-    }
-    
-    if (relatorioSelecionado.id === 'novos-associados' && filtros.dataInicio && filtros.dataFim) {
-      params.append('dataInicio', filtros.dataInicio);
-      params.append('dataFim', filtros.dataFim);
-    }
-
-    // Navegar para visualização do relatório
-    navigate(`/relatorios/visualizar?${params.toString()}`);
-    handleFecharDialog();
-  };
-
-  const renderFiltrosEspecificos = () => {
-    if (!relatorioSelecionado) return null;
-
-    switch (relatorioSelecionado.id) {
-      case 'aniversariantes':
-        return (
-          <FormControl fullWidth margin="normal">
-            <InputLabel>Mês</InputLabel>
-            <Select
-              value={filtros.mes}
-              onChange={(e) => setFiltros({ ...filtros, mes: Number(e.target.value) })}
-              label="Mês"
-            >
-              {Array.from({ length: 12 }, (_, i) => (
-                <MenuItem key={i + 1} value={i + 1}>
-                  {new Date(0, i).toLocaleString('pt-BR', { month: 'long' })}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-        );
-
-      case 'por-sexo':
-        return (
-          <FormControl fullWidth margin="normal">
-            <InputLabel>Sexo</InputLabel>
-            <Select
-              value={filtros.sexo}
-              onChange={(e) => setFiltros({ ...filtros, sexo: e.target.value })}
-              label="Sexo"
-            >
-              <MenuItem value="M">Masculino</MenuItem>
-              <MenuItem value="F">Feminino</MenuItem>
-            </Select>
-          </FormControl>
-        );
-
-      case 'novos-associados':
-        return (
-          <>
-            <TextField
-              fullWidth
-              margin="normal"
-              label="Data Início"
-              type="date"
-              value={filtros.dataInicio}
-              onChange={(e) => setFiltros({ ...filtros, dataInicio: e.target.value })}
-              InputLabelProps={{ shrink: true }}
-            />
-            <TextField
-              fullWidth
-              margin="normal"
-              label="Data Fim"
-              type="date"
-              value={filtros.dataFim}
-              onChange={(e) => setFiltros({ ...filtros, dataFim: e.target.value })}
-              InputLabelProps={{ shrink: true }}
-            />
-          </>
-        );
-
-      default:
-        return null;
     }
   };
 
@@ -378,75 +250,6 @@ const RelatoriosPage: React.FC = () => {
           </Grid>
         </Box>
       ))}
-
-      {/* Dialog de Configuração do Relatório */}
-      <Dialog 
-        open={dialogAberto} 
-        onClose={handleFecharDialog}
-        maxWidth="sm"
-        fullWidth
-      >
-        <DialogTitle>
-          <Box display="flex" justifyContent="space-between" alignItems="center">
-            <Typography variant="h6">
-              Configurar Relatório: {relatorioSelecionado?.titulo}
-            </Typography>
-            <IconButton onClick={handleFecharDialog} size="small">
-              <Close />
-            </IconButton>
-          </Box>
-        </DialogTitle>
-        
-        <DialogContent>
-          <Typography variant="body2" color="text.secondary" mb={3}>
-            {relatorioSelecionado?.descricao}
-          </Typography>
-
-          <Divider sx={{ mb: 2 }} />
-
-          {/* Formato de Saída */}
-          <FormControl fullWidth margin="normal">
-            <InputLabel>Formato</InputLabel>
-            <Select
-              value={filtros.formato}
-              onChange={(e) => setFiltros({ ...filtros, formato: e.target.value as any })}
-              label="Formato"
-            >
-              <MenuItem value="html">Visualizar na Tela</MenuItem>
-              <MenuItem value="pdf">PDF</MenuItem>
-              <MenuItem value="excel">Excel</MenuItem>
-              <MenuItem value="csv">CSV</MenuItem>
-            </Select>
-          </FormControl>
-
-          {/* Filtros Específicos */}
-          {renderFiltrosEspecificos()}
-
-          {/* Opções Gerais */}
-          <Stack spacing={2} mt={2}>
-            <FormControlLabel
-              control={
-                <Switch
-                  checked={filtros.incluirInativos}
-                  onChange={(e) => setFiltros({ ...filtros, incluirInativos: e.target.checked })}
-                />
-              }
-              label="Incluir associados inativos"
-            />
-          </Stack>
-        </DialogContent>
-
-        <DialogActions>
-          <Button onClick={handleFecharDialog}>Cancelar</Button>
-          <Button
-            variant="contained"
-            onClick={handleExecutarRelatorio}
-            startIcon={<Assessment />}
-          >
-            Gerar Relatório
-          </Button>
-        </DialogActions>
-      </Dialog>
     </Box>
   );
 };

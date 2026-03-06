@@ -1,6 +1,8 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using SintrafGv.Application.DTOs;
@@ -39,6 +41,7 @@ namespace SintrafGv.Application.Services
             var associados = await _associadoRepository.ListarAsync(0, int.MaxValue, false, cancellationToken);
             
             var dados = associados.Select(MapearAssociadoParaDto).ToList();
+            dados = AplicarFiltrosAssociados(dados, request.Filtros);
 
             return new RelatorioResponse<AssociadoRelatorioDto>
             {
@@ -62,6 +65,7 @@ namespace SintrafGv.Application.Services
             var ativos = associados.Where(a => a.Ativo).ToList();
             
             var dados = ativos.Select(MapearAssociadoParaDto).ToList();
+            dados = AplicarFiltrosAssociados(dados, request.Filtros);
 
             return new RelatorioResponse<AssociadoRelatorioDto>
             {
@@ -85,6 +89,7 @@ namespace SintrafGv.Application.Services
             var inativos = associados.Where(a => !a.Ativo).ToList();
             
             var dados = inativos.Select(MapearAssociadoParaDto).ToList();
+            dados = AplicarFiltrosAssociados(dados, request.Filtros);
 
             return new RelatorioResponse<AssociadoRelatorioDto>
             {
@@ -104,14 +109,15 @@ namespace SintrafGv.Application.Services
             RelatorioRequest request, 
             CancellationToken cancellationToken = default)
         {
-            var mes = request.Filtros.ContainsKey("mes") ? 
-                Convert.ToInt32(request.Filtros["mes"]) : DateTime.Now.Month;
+            var filtros = request.Filtros ?? new Dictionary<string, object>();
+            var mes = LerIntFiltro(filtros, "mes") ?? DateTime.Now.Month;
 
             var associados = await _associadoRepository.ListarAsync(0, int.MaxValue, false, cancellationToken);
             var aniversariantes = associados.Where(a => a.DataNascimento.HasValue && 
                                                       a.DataNascimento.Value.Month == mes).ToList();
             
             var dados = aniversariantes.Select(MapearAssociadoParaDto).ToList();
+            dados = AplicarFiltrosAssociados(dados, filtros);
 
             return new RelatorioResponse<AssociadoRelatorioDto>
             {
@@ -121,7 +127,7 @@ namespace SintrafGv.Application.Services
                     Titulo = "Relatório de Aniversariantes",
                     Subtitulo = $"Mês: {ObterNomeMes(mes)}",
                     TotalRegistros = dados.Count,
-                    FiltrosAplicados = request.Filtros
+                    FiltrosAplicados = filtros
                 },
                 Totalizadores = CalcularTotalizadores(dados)
             };
@@ -131,10 +137,9 @@ namespace SintrafGv.Application.Services
             RelatorioRequest request, 
             CancellationToken cancellationToken = default)
         {
-            var dataInicio = request.Filtros.ContainsKey("dataInicio") ? 
-                Convert.ToDateTime(request.Filtros["dataInicio"]) : DateTime.Now.AddMonths(-1);
-            var dataFim = request.Filtros.ContainsKey("dataFim") ? 
-                Convert.ToDateTime(request.Filtros["dataFim"]) : DateTime.Now;
+            var filtros = request.Filtros ?? new Dictionary<string, object>();
+            var dataInicio = LerDataFiltro(filtros, "dataInicio") ?? DateTime.Now.AddMonths(-1);
+            var dataFim = LerDataFiltro(filtros, "dataFim") ?? DateTime.Now;
 
             var associados = await _associadoRepository.ListarAsync(0, int.MaxValue, false, cancellationToken);
             var novos = associados.Where(a => a.DataFiliacao.HasValue && 
@@ -142,6 +147,7 @@ namespace SintrafGv.Application.Services
                                             a.DataFiliacao <= dataFim).ToList();
             
             var dados = novos.Select(MapearAssociadoParaDto).ToList();
+            dados = AplicarFiltrosAssociados(dados, filtros);
 
             return new RelatorioResponse<AssociadoRelatorioDto>
             {
@@ -151,7 +157,7 @@ namespace SintrafGv.Application.Services
                     Titulo = "Relatório de Novos Associados",
                     Subtitulo = $"Período: {dataInicio:dd/MM/yyyy} a {dataFim:dd/MM/yyyy}",
                     TotalRegistros = dados.Count,
-                    FiltrosAplicados = request.Filtros
+                    FiltrosAplicados = filtros
                 },
                 Totalizadores = CalcularTotalizadores(dados)
             };
@@ -161,14 +167,14 @@ namespace SintrafGv.Application.Services
             RelatorioRequest request, 
             CancellationToken cancellationToken = default)
         {
-            if (!request.Filtros.ContainsKey("sexo"))
-                throw new ArgumentException("Filtro 'sexo' é obrigatório para este relatório");
-
-            var sexo = request.Filtros["sexo"].ToString();
             var associados = await _associadoRepository.ListarAsync(0, int.MaxValue, false, cancellationToken);
-            var porSexo = associados.Where(a => a.Sexo == sexo).ToList();
-            
+            var filtros = request.Filtros ?? new Dictionary<string, object>();
+            var sexo = filtros.TryGetValue("sexo", out var v) && v != null ? v.ToString()?.Trim() : null;
+            var porSexo = string.IsNullOrEmpty(sexo)
+                ? associados.ToList()
+                : associados.Where(a => string.Equals(a.Sexo, sexo, StringComparison.OrdinalIgnoreCase)).ToList();
             var dados = porSexo.Select(MapearAssociadoParaDto).ToList();
+            dados = AplicarFiltrosAssociados(dados, request.Filtros);
 
             return new RelatorioResponse<AssociadoRelatorioDto>
             {
@@ -176,9 +182,9 @@ namespace SintrafGv.Application.Services
                 Metadata = new RelatorioMetadata
                 {
                     Titulo = "Relatório por Sexo",
-                    Subtitulo = $"Sexo: {sexo}",
+                    Subtitulo = string.IsNullOrEmpty(sexo) ? "Todos" : $"Sexo: {sexo}",
                     TotalRegistros = dados.Count,
-                    FiltrosAplicados = request.Filtros
+                    FiltrosAplicados = request.Filtros ?? new Dictionary<string, object>()
                 },
                 Totalizadores = CalcularTotalizadores(dados)
             };
@@ -190,6 +196,7 @@ namespace SintrafGv.Application.Services
         {
             var associados = await _associadoRepository.ListarAsync(0, int.MaxValue, false, cancellationToken);
             var dados = associados.Select(MapearAssociadoParaDto).ToList();
+            dados = AplicarFiltrosAssociados(dados, request.Filtros);
 
             return new RelatorioResponse<AssociadoRelatorioDto>
             {
@@ -211,6 +218,7 @@ namespace SintrafGv.Application.Services
         {
             var associados = await _associadoRepository.ListarAsync(0, int.MaxValue, false, cancellationToken);
             var dados = associados.Select(MapearAssociadoParaDto).ToList();
+            dados = AplicarFiltrosAssociados(dados, request.Filtros);
 
             return new RelatorioResponse<AssociadoRelatorioDto>
             {
@@ -668,6 +676,243 @@ namespace SintrafGv.Application.Services
                     intervalos.Add(diff);
             }
             return intervalos.Any() ? TimeSpan.FromSeconds(intervalos.Average()) : TimeSpan.Zero;
+        }
+
+        private List<AssociadoRelatorioDto> AplicarFiltrosAssociados(
+            List<AssociadoRelatorioDto> dados,
+            Dictionary<string, object>? filtros)
+        {
+            if (filtros == null || filtros.Count == 0)
+                return dados;
+
+            var filtrosAvancados = ExtrairFiltrosAvancados(filtros);
+            if (!filtrosAvancados.Any())
+            {
+                filtrosAvancados = filtros
+                    .Where(kvp => !kvp.Key.StartsWith("__", StringComparison.Ordinal))
+                    .Select(kvp => (
+                        Campo: kvp.Key,
+                        Operador: "eq",
+                        Valor: (object?)kvp.Value,
+                        ValorAte: (object?)null,
+                        Condicao: "and"))
+                    .ToList();
+            }
+
+            if (!filtrosAvancados.Any())
+                return dados;
+
+            return dados.Where(item =>
+            {
+                bool acumulado = false;
+                bool primeiro = true;
+                foreach (var (campo, operador, valor, valorAte, condicao) in filtrosAvancados)
+                {
+                    var resultadoFiltro = AvaliarFiltroAssociado(item, campo, operador, valor, valorAte);
+                    if (primeiro)
+                    {
+                        acumulado = resultadoFiltro;
+                        primeiro = false;
+                    }
+                    else
+                    {
+                        acumulado = string.Equals(condicao, "or", StringComparison.OrdinalIgnoreCase)
+                            ? acumulado || resultadoFiltro
+                            : acumulado && resultadoFiltro;
+                    }
+                }
+                return acumulado;
+            }).ToList();
+        }
+
+        private List<(string Campo, string Operador, object? Valor, object? ValorAte, string Condicao)> ExtrairFiltrosAvancados(
+            Dictionary<string, object> filtros)
+        {
+            if (!filtros.TryGetValue("__filtrosAvancados", out var bruto) || bruto == null)
+                return new();
+
+            if (bruto is JsonElement json)
+            {
+                var resultado = new List<(string, string, object?, object?, string)>();
+                if (json.ValueKind == JsonValueKind.Array)
+                {
+                    foreach (var item in json.EnumerateArray())
+                    {
+                        if (item.ValueKind != JsonValueKind.Object) continue;
+                        var campo = item.TryGetProperty("campo", out var c) ? c.GetString() ?? "" : "";
+                        if (string.IsNullOrWhiteSpace(campo)) continue;
+                        var operador = item.TryGetProperty("operador", out var o) ? o.GetString() ?? "eq" : "eq";
+                        var condicao = item.TryGetProperty("condicao", out var cd) ? cd.GetString() ?? "and" : "and";
+                        object? valor = item.TryGetProperty("valor", out var v) ? JsonElementParaObjeto(v) : null;
+                        object? valorAte = item.TryGetProperty("valorAte", out var va) ? JsonElementParaObjeto(va) : null;
+                        resultado.Add((campo, operador, valor, valorAte, condicao));
+                    }
+                }
+                else if (json.ValueKind == JsonValueKind.Object)
+                {
+                    // fallback: recebe um único filtro como objeto
+                    var campo = json.TryGetProperty("campo", out var c) ? c.GetString() ?? "" : "";
+                    if (!string.IsNullOrWhiteSpace(campo))
+                    {
+                        var operador = json.TryGetProperty("operador", out var o) ? o.GetString() ?? "eq" : "eq";
+                        var condicao = json.TryGetProperty("condicao", out var cd) ? cd.GetString() ?? "and" : "and";
+                        object? valor = json.TryGetProperty("valor", out var v) ? JsonElementParaObjeto(v) : null;
+                        object? valorAte = json.TryGetProperty("valorAte", out var va) ? JsonElementParaObjeto(va) : null;
+                        resultado.Add((campo, operador, valor, valorAte, condicao));
+                    }
+                }
+                if (resultado.Any()) return resultado;
+            }
+
+            if (bruto is IEnumerable enumerable and not string)
+            {
+                var resultado = new List<(string, string, object?, object?, string)>();
+                foreach (var item in enumerable)
+                {
+                    if (item == null) continue;
+                    if (TryLerFiltroObj(item, out var filtro))
+                        resultado.Add(filtro);
+                }
+                if (resultado.Any()) return resultado;
+            }
+
+            return new();
+        }
+
+        private static bool TryLerFiltroObj(
+            object item,
+            out (string Campo, string Operador, object? Valor, object? ValorAte, string Condicao) filtro)
+        {
+            filtro = ("", "eq", null, null, "and");
+
+            if (item is JsonElement je && je.ValueKind == JsonValueKind.Object)
+            {
+                var campo = je.TryGetProperty("campo", out var c) ? c.GetString() ?? "" : "";
+                if (string.IsNullOrWhiteSpace(campo)) return false;
+                var operador = je.TryGetProperty("operador", out var o) ? o.GetString() ?? "eq" : "eq";
+                var condicao = je.TryGetProperty("condicao", out var cd) ? cd.GetString() ?? "and" : "and";
+                object? valor = je.TryGetProperty("valor", out var v) ? JsonElementParaObjeto(v) : null;
+                object? valorAte = je.TryGetProperty("valorAte", out var va) ? JsonElementParaObjeto(va) : null;
+                filtro = (campo, operador, valor, valorAte, condicao);
+                return true;
+            }
+
+            return false;
+        }
+
+        private static object? JsonElementParaObjeto(JsonElement element)
+        {
+            return element.ValueKind switch
+            {
+                JsonValueKind.Null => null,
+                JsonValueKind.Undefined => null,
+                JsonValueKind.String => element.GetString(),
+                JsonValueKind.Number when element.TryGetInt64(out var l) => l,
+                JsonValueKind.Number when element.TryGetDecimal(out var d) => d,
+                JsonValueKind.True => true,
+                JsonValueKind.False => false,
+                _ => element.ToString()
+            };
+        }
+
+        private static bool AvaliarFiltroAssociado(
+            AssociadoRelatorioDto item,
+            string campo,
+            string operador,
+            object? valor,
+            object? valorAte)
+        {
+            switch (campo)
+            {
+                case "nome":
+                    return AvaliarString(item.Nome, operador, valor);
+                case "cpf":
+                    return AvaliarString(item.Cpf, operador, valor);
+                case "ativo":
+                    return AvaliarBool(item.Ativo, operador, valor);
+                case "dataNascimento":
+                    return AvaliarData(item.DataNascimento, operador, valor, valorAte);
+                case "dataFiliacao":
+                    return AvaliarData(item.DataFiliacao, operador, valor, valorAte);
+                default:
+                    return true;
+            }
+        }
+
+        private static bool AvaliarString(string? atual, string operador, object? valor)
+        {
+            var a = atual ?? "";
+            var b = valor?.ToString() ?? "";
+            return operador switch
+            {
+                "eq" => string.Equals(a, b, StringComparison.OrdinalIgnoreCase),
+                "ne" => !string.Equals(a, b, StringComparison.OrdinalIgnoreCase),
+                "contains" => a.Contains(b, StringComparison.OrdinalIgnoreCase),
+                "startswith" => a.StartsWith(b, StringComparison.OrdinalIgnoreCase),
+                "endswith" => a.EndsWith(b, StringComparison.OrdinalIgnoreCase),
+                _ => true
+            };
+        }
+
+        private static bool AvaliarBool(bool atual, string operador, object? valor)
+        {
+            if (!bool.TryParse(valor?.ToString(), out var esperado))
+                return true;
+            return operador switch
+            {
+                "eq" => atual == esperado,
+                "ne" => atual != esperado,
+                _ => true
+            };
+        }
+
+        private static bool AvaliarData(DateTime? atual, string operador, object? valor, object? valorAte)
+        {
+            if (!atual.HasValue) return false;
+            if (!DateTime.TryParse(valor?.ToString(), out var inicio))
+                return true;
+            var dataAtual = atual.Value.Date;
+            var dataInicio = inicio.Date;
+            var dataFim = dataInicio;
+            if (operador == "between" && DateTime.TryParse(valorAte?.ToString(), out var ate))
+                dataFim = ate.Date;
+
+            return operador switch
+            {
+                "eq" => dataAtual == dataInicio,
+                "ne" => dataAtual != dataInicio,
+                "gt" => dataAtual > dataInicio,
+                "lt" => dataAtual < dataInicio,
+                "gte" => dataAtual >= dataInicio,
+                "lte" => dataAtual <= dataInicio,
+                "between" => dataAtual >= dataInicio && dataAtual <= dataFim,
+                _ => true
+            };
+        }
+
+        private static int? LerIntFiltro(Dictionary<string, object> filtros, string chave)
+        {
+            if (!filtros.TryGetValue(chave, out var bruto) || bruto == null)
+                return null;
+            if (bruto is JsonElement je)
+            {
+                if (je.ValueKind == JsonValueKind.Number && je.TryGetInt32(out var n)) return n;
+                if (je.ValueKind == JsonValueKind.String && int.TryParse(je.GetString(), out n)) return n;
+                return null;
+            }
+            return int.TryParse(bruto.ToString(), out var valor) ? valor : null;
+        }
+
+        private static DateTime? LerDataFiltro(Dictionary<string, object> filtros, string chave)
+        {
+            if (!filtros.TryGetValue(chave, out var bruto) || bruto == null)
+                return null;
+            if (bruto is JsonElement je)
+            {
+                if (je.ValueKind == JsonValueKind.String && DateTime.TryParse(je.GetString(), out var d1)) return d1;
+                return null;
+            }
+            return DateTime.TryParse(bruto.ToString(), out var d2) ? d2 : null;
         }
 
         private AssociadoRelatorioDto MapearAssociadoParaDto(Domain.Entities.Associado associado)

@@ -63,7 +63,7 @@ const RelatorioVisualizarPage: React.FC = () => {
   useEffect(() => {
     carregarRelatorio();
     carregarCampos();
-  }, [tipoRelatorio, pagina, tamanhoPagina]);
+  }, [tipoRelatorio, pagina, tamanhoPagina, filtros]);
 
   const carregarCampos = async () => {
     try {
@@ -145,6 +145,7 @@ const RelatorioVisualizarPage: React.FC = () => {
     filtros.forEach((filtro) => {
       filtrosObj[filtro.campo] = filtro.valor;
     });
+    filtrosObj.__filtrosAvancados = filtros;
 
     return filtrosObj;
   };
