@@ -1,11 +1,15 @@
 using System;
 using System.Collections.Generic;
+using System.Text.Json.Serialization;
 
 namespace SintrafGv.Application.DTOs
 {
     public class RelatorioRequest
     {
+        [JsonPropertyName("tipoRelatorio")]
         public string TipoRelatorio { get; set; } = string.Empty;
+
+        [JsonPropertyName("filtros")]
         public Dictionary<string, object> Filtros { get; set; } = new();
         public List<string> CamposSelecionados { get; set; } = new();
         public string FormatoExportacao { get; set; } = "html"; // html, pdf, excel, csv

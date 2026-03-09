@@ -11,7 +11,7 @@ using SintrafGv.Application.Interfaces;
 namespace SintrafGv.Api.Controllers
 {
     [ApiController]
-    [Route("api/[controller]")]
+    [Route("api/relatorios")]
     [Authorize]
     public class RelatoriosController : ControllerBase
     {
@@ -39,7 +39,7 @@ namespace SintrafGv.Api.Controllers
         /// </summary>
         [HttpPost("associados/geral")]
         public async Task<ActionResult<RelatorioResponse<AssociadoRelatorioDto>>> RelatorioAssociadosGeral(
-            RelatorioRequest request, 
+            [FromBody] RelatorioRequest request, 
             CancellationToken cancellationToken)
         {
             var resultado = await _relatorioService.ObterRelatorioAssociadosGeralAsync(request, cancellationToken);
@@ -140,6 +140,26 @@ namespace SintrafGv.Api.Controllers
         {
             var campos = await _relatorioService.ObterCamposDisponiveisAsync(tipoRelatorio, cancellationToken);
             return Ok(campos);
+        }
+
+        /// <summary>
+        /// Lista de cidades para filtro (relatório por cidade)
+        /// </summary>
+        [HttpGet("opcoes/cidades")]
+        public async Task<ActionResult<List<string>>> ObterCidadesParaFiltro(CancellationToken cancellationToken)
+        {
+            var lista = await _relatorioService.ObterCidadesParaFiltroAsync(cancellationToken);
+            return Ok(lista ?? new List<string>());
+        }
+
+        /// <summary>
+        /// Lista de bancos para filtro (relatório por banco)
+        /// </summary>
+        [HttpGet("opcoes/bancos")]
+        public async Task<ActionResult<List<string>>> ObterBancosParaFiltro(CancellationToken cancellationToken)
+        {
+            var lista = await _relatorioService.ObterBancosParaFiltroAsync(cancellationToken);
+            return Ok(lista ?? new List<string>());
         }
 
         /// <summary>

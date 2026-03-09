@@ -39,19 +39,22 @@ namespace SintrafGv.Application.Services
             CancellationToken cancellationToken = default)
         {
             var associados = await _associadoRepository.ListarAsync(0, int.MaxValue, false, cancellationToken);
-            
+            var filtros = request.Filtros ?? new Dictionary<string, object>();
             var dados = associados.Select(MapearAssociadoParaDto).ToList();
-            dados = AplicarFiltrosAssociados(dados, request.Filtros);
+            dados = AplicarFiltrosAssociados(dados, filtros);
+            var (paginaAtual, totalPaginas, paginados) = AplicarPaginacao(dados, request.Pagina, request.TamanhoPagina);
 
             return new RelatorioResponse<AssociadoRelatorioDto>
             {
-                Dados = dados,
+                Dados = paginados,
                 Metadata = new RelatorioMetadata
                 {
                     Titulo = "Relatório Geral de Associados",
                     Subtitulo = "Todos os associados",
                     TotalRegistros = dados.Count,
-                    FiltrosAplicados = request.Filtros
+                    PaginaAtual = paginaAtual,
+                    TotalPaginas = totalPaginas,
+                    FiltrosAplicados = filtros
                 },
                 Totalizadores = CalcularTotalizadores(dados)
             };
@@ -63,19 +66,21 @@ namespace SintrafGv.Application.Services
         {
             var associados = await _associadoRepository.ListarAsync(0, int.MaxValue, false, cancellationToken);
             var ativos = associados.Where(a => a.Ativo).ToList();
-            
             var dados = ativos.Select(MapearAssociadoParaDto).ToList();
-            dados = AplicarFiltrosAssociados(dados, request.Filtros);
+            dados = AplicarFiltrosAssociados(dados, request.Filtros ?? new Dictionary<string, object>());
+            var (paginaAtual, totalPaginas, paginados) = AplicarPaginacao(dados, request.Pagina, request.TamanhoPagina);
 
             return new RelatorioResponse<AssociadoRelatorioDto>
             {
-                Dados = dados,
+                Dados = paginados,
                 Metadata = new RelatorioMetadata
                 {
                     Titulo = "Relatório de Associados Ativos",
                     Subtitulo = "Apenas associados ativos",
                     TotalRegistros = dados.Count,
-                    FiltrosAplicados = request.Filtros
+                    PaginaAtual = paginaAtual,
+                    TotalPaginas = totalPaginas,
+                    FiltrosAplicados = request.Filtros ?? new Dictionary<string, object>()
                 },
                 Totalizadores = CalcularTotalizadores(dados)
             };
@@ -87,19 +92,21 @@ namespace SintrafGv.Application.Services
         {
             var associados = await _associadoRepository.ListarAsync(0, int.MaxValue, false, cancellationToken);
             var inativos = associados.Where(a => !a.Ativo).ToList();
-            
             var dados = inativos.Select(MapearAssociadoParaDto).ToList();
-            dados = AplicarFiltrosAssociados(dados, request.Filtros);
+            dados = AplicarFiltrosAssociados(dados, request.Filtros ?? new Dictionary<string, object>());
+            var (paginaAtual, totalPaginas, paginados) = AplicarPaginacao(dados, request.Pagina, request.TamanhoPagina);
 
             return new RelatorioResponse<AssociadoRelatorioDto>
             {
-                Dados = dados,
+                Dados = paginados,
                 Metadata = new RelatorioMetadata
                 {
                     Titulo = "Relatório de Associados Inativos",
                     Subtitulo = "Apenas associados inativos",
                     TotalRegistros = dados.Count,
-                    FiltrosAplicados = request.Filtros
+                    PaginaAtual = paginaAtual,
+                    TotalPaginas = totalPaginas,
+                    FiltrosAplicados = request.Filtros ?? new Dictionary<string, object>()
                 },
                 Totalizadores = CalcularTotalizadores(dados)
             };
@@ -111,22 +118,31 @@ namespace SintrafGv.Application.Services
         {
             var filtros = request.Filtros ?? new Dictionary<string, object>();
             var mes = LerIntFiltro(filtros, "mes") ?? DateTime.Now.Month;
+            var dia = LerIntFiltro(filtros, "dia");
 
             var associados = await _associadoRepository.ListarAsync(0, int.MaxValue, false, cancellationToken);
-            var aniversariantes = associados.Where(a => a.DataNascimento.HasValue && 
-                                                      a.DataNascimento.Value.Month == mes).ToList();
+            var aniversariantes = associados.Where(a => a.DataNascimento.HasValue &&
+                                                      a.DataNascimento.Value.Month == mes &&
+                                                      (!dia.HasValue || a.DataNascimento.Value.Day == dia.Value)).ToList();
             
             var dados = aniversariantes.Select(MapearAssociadoParaDto).ToList();
             dados = AplicarFiltrosAssociados(dados, filtros);
+            var (paginaAtual, totalPaginas, paginados) = AplicarPaginacao(dados, request.Pagina, request.TamanhoPagina);
+
+            var subtitulo = dia.HasValue
+                ? $"Mês: {ObterNomeMes(mes)}, Dia: {dia.Value}"
+                : $"Mês: {ObterNomeMes(mes)}";
 
             return new RelatorioResponse<AssociadoRelatorioDto>
             {
-                Dados = dados,
+                Dados = paginados,
                 Metadata = new RelatorioMetadata
                 {
                     Titulo = "Relatório de Aniversariantes",
-                    Subtitulo = $"Mês: {ObterNomeMes(mes)}",
+                    Subtitulo = subtitulo,
                     TotalRegistros = dados.Count,
+                    PaginaAtual = paginaAtual,
+                    TotalPaginas = totalPaginas,
                     FiltrosAplicados = filtros
                 },
                 Totalizadores = CalcularTotalizadores(dados)
@@ -148,15 +164,18 @@ namespace SintrafGv.Application.Services
             
             var dados = novos.Select(MapearAssociadoParaDto).ToList();
             dados = AplicarFiltrosAssociados(dados, filtros);
+            var (paginaAtual, totalPaginas, paginados) = AplicarPaginacao(dados, request.Pagina, request.TamanhoPagina);
 
             return new RelatorioResponse<AssociadoRelatorioDto>
             {
-                Dados = dados,
+                Dados = paginados,
                 Metadata = new RelatorioMetadata
                 {
                     Titulo = "Relatório de Novos Associados",
                     Subtitulo = $"Período: {dataInicio:dd/MM/yyyy} a {dataFim:dd/MM/yyyy}",
                     TotalRegistros = dados.Count,
+                    PaginaAtual = paginaAtual,
+                    TotalPaginas = totalPaginas,
                     FiltrosAplicados = filtros
                 },
                 Totalizadores = CalcularTotalizadores(dados)
@@ -174,16 +193,19 @@ namespace SintrafGv.Application.Services
                 ? associados.ToList()
                 : associados.Where(a => string.Equals(a.Sexo, sexo, StringComparison.OrdinalIgnoreCase)).ToList();
             var dados = porSexo.Select(MapearAssociadoParaDto).ToList();
-            dados = AplicarFiltrosAssociados(dados, request.Filtros);
+            dados = AplicarFiltrosAssociados(dados, request.Filtros ?? new Dictionary<string, object>());
+            var (paginaAtual, totalPaginas, paginados) = AplicarPaginacao(dados, request.Pagina, request.TamanhoPagina);
 
             return new RelatorioResponse<AssociadoRelatorioDto>
             {
-                Dados = dados,
+                Dados = paginados,
                 Metadata = new RelatorioMetadata
                 {
                     Titulo = "Relatório por Sexo",
                     Subtitulo = string.IsNullOrEmpty(sexo) ? "Todos" : $"Sexo: {sexo}",
                     TotalRegistros = dados.Count,
+                    PaginaAtual = paginaAtual,
+                    TotalPaginas = totalPaginas,
                     FiltrosAplicados = request.Filtros ?? new Dictionary<string, object>()
                 },
                 Totalizadores = CalcularTotalizadores(dados)
@@ -196,17 +218,20 @@ namespace SintrafGv.Application.Services
         {
             var associados = await _associadoRepository.ListarAsync(0, int.MaxValue, false, cancellationToken);
             var dados = associados.Select(MapearAssociadoParaDto).ToList();
-            dados = AplicarFiltrosAssociados(dados, request.Filtros);
+            dados = AplicarFiltrosAssociados(dados, request.Filtros ?? new Dictionary<string, object>());
+            var (paginaAtual, totalPaginas, paginados) = AplicarPaginacao(dados, request.Pagina, request.TamanhoPagina);
 
             return new RelatorioResponse<AssociadoRelatorioDto>
             {
-                Dados = dados,
+                Dados = paginados,
                 Metadata = new RelatorioMetadata
                 {
                     Titulo = "Relatório por Banco",
                     Subtitulo = "Distribuição por instituição bancária",
                     TotalRegistros = dados.Count,
-                    FiltrosAplicados = request.Filtros
+                    PaginaAtual = paginaAtual,
+                    TotalPaginas = totalPaginas,
+                    FiltrosAplicados = request.Filtros ?? new Dictionary<string, object>()
                 },
                 Totalizadores = CalcularTotalizadores(dados)
             };
@@ -218,17 +243,20 @@ namespace SintrafGv.Application.Services
         {
             var associados = await _associadoRepository.ListarAsync(0, int.MaxValue, false, cancellationToken);
             var dados = associados.Select(MapearAssociadoParaDto).ToList();
-            dados = AplicarFiltrosAssociados(dados, request.Filtros);
+            dados = AplicarFiltrosAssociados(dados, request.Filtros ?? new Dictionary<string, object>());
+            var (paginaAtual, totalPaginas, paginados) = AplicarPaginacao(dados, request.Pagina, request.TamanhoPagina);
 
             return new RelatorioResponse<AssociadoRelatorioDto>
             {
-                Dados = dados,
+                Dados = paginados,
                 Metadata = new RelatorioMetadata
                 {
                     Titulo = "Relatório por Cidade",
                     Subtitulo = "Distribuição geográfica por cidade",
                     TotalRegistros = dados.Count,
-                    FiltrosAplicados = request.Filtros
+                    PaginaAtual = paginaAtual,
+                    TotalPaginas = totalPaginas,
+                    FiltrosAplicados = request.Filtros ?? new Dictionary<string, object>()
                 },
                 Totalizadores = CalcularTotalizadores(dados)
             };
@@ -323,8 +351,16 @@ namespace SintrafGv.Application.Services
                 new() { Nome = "nome", Titulo = "Nome", Tipo = "string", Filtravel = true, Ordenavel = true },
                 new() { Nome = "cpf", Titulo = "CPF", Tipo = "string", Filtravel = true, Ordenavel = true },
                 new() { Nome = "ativo", Titulo = "Ativo", Tipo = "boolean", Filtravel = true },
+                new() { Nome = "sexo", Titulo = "Sexo", Tipo = "string", Filtravel = true, Ordenavel = true },
+                new() { Nome = "cidade", Titulo = "Cidade", Tipo = "string", Filtravel = true, Ordenavel = true },
+                new() { Nome = "estado", Titulo = "Estado", Tipo = "string", Filtravel = true, Ordenavel = true },
+                new() { Nome = "bairro", Titulo = "Bairro", Tipo = "string", Filtravel = true, Ordenavel = true },
+                new() { Nome = "nomeBanco", Titulo = "Banco", Tipo = "string", Filtravel = true, Ordenavel = true },
                 new() { Nome = "dataNascimento", Titulo = "Data Nascimento", Tipo = "date", Filtravel = true, Ordenavel = true },
                 new() { Nome = "dataFiliacao", Titulo = "Data Filiação", Tipo = "date", Filtravel = true, Ordenavel = true },
+                new() { Nome = "dataAdmissao", Titulo = "Data Admissão", Tipo = "date", Filtravel = true, Ordenavel = true },
+                new() { Nome = "email", Titulo = "E-mail", Tipo = "string", Filtravel = true, Ordenavel = true },
+                new() { Nome = "celular", Titulo = "Celular", Tipo = "string", Filtravel = true, Ordenavel = true },
             };
             
             return Task.FromResult(campos);
@@ -347,8 +383,18 @@ namespace SintrafGv.Application.Services
             return Task.FromResult(tipos);
         }
 
+        public Task<List<string>> ObterCidadesParaFiltroAsync(CancellationToken cancellationToken = default)
+            => _associadoRepository.ObterCidadesDistintasAsync(cancellationToken);
+
+        public Task<List<string>> ObterBancosParaFiltroAsync(CancellationToken cancellationToken = default)
+            => _associadoRepository.ObterBancosDistintosAsync(cancellationToken);
+
         public async Task<ExportacaoRelatorioDto> ExportarRelatorioAsync(RelatorioRequest request, CancellationToken cancellationToken = default)
         {
+            // Exportação deve trazer todos os registros filtrados (uma única página grande)
+            request.Pagina = 1;
+            request.TamanhoPagina = 10000;
+
             // Obter dados do relatório baseado no tipo
             object dados = request.TipoRelatorio switch
             {
@@ -830,10 +876,28 @@ namespace SintrafGv.Application.Services
                     return AvaliarString(item.Cpf, operador, valor);
                 case "ativo":
                     return AvaliarBool(item.Ativo, operador, valor);
+                case "sexo":
+                    return AvaliarString(item.Sexo, operador, valor);
+                case "cidade":
+                    if (operador == "eq" && string.Equals(valor?.ToString(), "Não informado", StringComparison.OrdinalIgnoreCase))
+                        return string.IsNullOrWhiteSpace(item.Cidade);
+                    return AvaliarString(item.Cidade, operador, valor);
+                case "estado":
+                    return AvaliarString(item.Estado, operador, valor);
+                case "bairro":
+                    return AvaliarString(item.Bairro, operador, valor);
+                case "nomeBanco":
+                    return AvaliarString(item.NomeBanco, operador, valor);
+                case "email":
+                    return AvaliarString(item.Email, operador, valor);
+                case "celular":
+                    return AvaliarString(item.Celular, operador, valor);
                 case "dataNascimento":
                     return AvaliarData(item.DataNascimento, operador, valor, valorAte);
                 case "dataFiliacao":
                     return AvaliarData(item.DataFiliacao, operador, valor, valorAte);
+                case "dataAdmissao":
+                    return AvaliarData(item.DataAdmissao, operador, valor, valorAte);
                 default:
                     return true;
             }
@@ -913,6 +977,25 @@ namespace SintrafGv.Application.Services
                 return null;
             }
             return DateTime.TryParse(bruto.ToString(), out var d2) ? d2 : null;
+        }
+
+        /// <summary>
+        /// Aplica paginação à lista filtrada. Retorna (página atual, total de páginas, lista paginada).
+        /// </summary>
+        private static (int paginaAtual, int totalPaginas, List<AssociadoRelatorioDto> paginados) AplicarPaginacao(
+            List<AssociadoRelatorioDto> dados,
+            int? pagina,
+            int? tamanhoPagina)
+        {
+            var total = dados.Count;
+            var p = Math.Max(1, pagina ?? 1);
+            var t = tamanhoPagina ?? 25;
+            if (t < 1) t = 25;
+            if (t > 10000) t = 10000; // limite alto para permitir exportação com todos os registros
+            var totalPaginas = total == 0 ? 1 : (int)Math.Ceiling(total / (double)t);
+            var skip = (p - 1) * t;
+            var paginados = dados.Skip(skip).Take(t).ToList();
+            return (p, totalPaginas, paginados);
         }
 
         private AssociadoRelatorioDto MapearAssociadoParaDto(Domain.Entities.Associado associado)

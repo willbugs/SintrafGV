@@ -12,4 +12,6 @@ public interface IAssociadoRepository
     Task<List<Associado>> ObterPorIdsAsync(List<Guid> ids, CancellationToken cancellationToken = default);
     Task<Associado> IncluirAsync(Associado associado, CancellationToken cancellationToken = default);
     Task AtualizarAsync(Associado associado, CancellationToken cancellationToken = default);
+    Task<List<string>> ObterCidadesDistintasAsync(CancellationToken cancellationToken = default);
+    Task<List<string>> ObterBancosDistintosAsync(CancellationToken cancellationToken = default);
 }

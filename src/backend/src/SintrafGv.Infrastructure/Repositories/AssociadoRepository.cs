@@ -71,4 +71,40 @@ public class AssociadoRepository : IAssociadoRepository
         _context.Associados.Update(associado);
         await _context.SaveChangesAsync(cancellationToken);
     }
+
+    public async Task<List<string>> ObterCidadesDistintasAsync(CancellationToken cancellationToken = default)
+    {
+        var raw = await _context.Associados
+            .AsNoTracking()
+            .Select(a => a.Cidade)
+            .Distinct()
+            .ToListAsync(cancellationToken);
+
+        var cidades = raw
+            .Where(c => !string.IsNullOrWhiteSpace(c))
+            .Select(c => c!.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(c => c, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        if (raw.Any(c => string.IsNullOrWhiteSpace(c)))
+            cidades.Add("Não informado");
+
+        return cidades.OrderBy(c => c, StringComparer.OrdinalIgnoreCase).ToList();
+    }
+
+    public async Task<List<string>> ObterBancosDistintosAsync(CancellationToken cancellationToken = default)
+    {
+        var raw = await _context.Associados
+            .AsNoTracking()
+            .Select(a => a.Banco)
+            .Distinct()
+            .ToListAsync(cancellationToken);
+
+        return raw
+            .Select(b => string.IsNullOrWhiteSpace(b) ? "Não informado" : b.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(c => c, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
 }

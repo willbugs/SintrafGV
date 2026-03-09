@@ -51,6 +51,9 @@ namespace SintrafGv.Application.Interfaces
 
         Task<List<string>> ObterTiposRelatorioAsync(CancellationToken cancellationToken = default);
 
+        Task<List<string>> ObterCidadesParaFiltroAsync(CancellationToken cancellationToken = default);
+        Task<List<string>> ObterBancosParaFiltroAsync(CancellationToken cancellationToken = default);
+
         // Exportação
         Task<ExportacaoRelatorioDto> ExportarRelatorioAsync(
             RelatorioRequest request, 

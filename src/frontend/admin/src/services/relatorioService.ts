@@ -203,6 +203,16 @@ class RelatorioService {
     return response.data;
   }
 
+  async obterCidadesParaFiltro(): Promise<string[]> {
+    const response = await api.get<string[]>('/api/relatorios/opcoes/cidades');
+    return response.data ?? [];
+  }
+
+  async obterBancosParaFiltro(): Promise<string[]> {
+    const response = await api.get<string[]>('/api/relatorios/opcoes/bancos');
+    return response.data ?? [];
+  }
+
   // Exportação
   async exportarRelatorio(request: RelatorioRequest): Promise<Blob> {
     const response = await api.post('/api/relatorios/exportar', request, {
@@ -264,11 +274,6 @@ class RelatorioService {
     return response.data;
   }
 
-  // Histórico
-  async obterHistoricoRelatorios(limite = 10): Promise<any[]> {
-    const response = await api.get(`/api/relatorios/historico?limite=${limite}`);
-    return response.data;
-  }
 }
 
 export default new RelatorioService();

@@ -35,6 +35,12 @@ interface FiltroAvancadoProps {
   filtros: FiltroItem[];
   onChange: (filtros: FiltroItem[]) => void;
   onLimpar?: () => void;
+  /** Chamado ao clicar em "Aplicar filtros"; aplica os filtros atuais e recarrega o relatório */
+  onAplicar?: () => void;
+  /** Se true, exibe o formulário completo direto (um único clique na página de relatório) */
+  sempreExpandido?: boolean;
+  /** Chamado ao clicar em "Fechar"; fecha o painel na página pai */
+  onFechar?: () => void;
 }
 
 const operadoresPorTipo = {
@@ -74,8 +80,12 @@ const FiltroAvancado: React.FC<FiltroAvancadoProps> = ({
   filtros,
   onChange,
   onLimpar,
+  onAplicar,
+  sempreExpandido = false,
+  onFechar,
 }) => {
-  const [aberto, setAberto] = useState(false);
+  const [aberto, setAberto] = useState(sempreExpandido);
+  const exibirFormulario = sempreExpandido || aberto;
 
   const adicionarFiltro = () => {
     const novoFiltro: FiltroItem = {
@@ -214,7 +224,7 @@ const FiltroAvancado: React.FC<FiltroAvancadoProps> = ({
     }
   };
 
-  if (!aberto) {
+  if (!exibirFormulario) {
     return (
       <Box display="flex" alignItems="center" gap={2} mb={2}>
         <Button
@@ -224,7 +234,6 @@ const FiltroAvancado: React.FC<FiltroAvancadoProps> = ({
         >
           Filtros Avançados
         </Button>
-        
         {filtros.length > 0 && (
           <Box display="flex" alignItems="center" gap={1}>
             <Typography variant="body2" color="text.secondary">
@@ -239,22 +248,36 @@ const FiltroAvancado: React.FC<FiltroAvancadoProps> = ({
     );
   }
 
+  const handleFechar = () => {
+    if (onFechar) onFechar();
+    else setAberto(false);
+  };
+
   return (
     <Paper sx={{ p: 2, mb: 2 }}>
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
         <Typography variant="h6">Filtros Avançados</Typography>
-        <Box>
+        <Box display="flex" alignItems="center" gap={1}>
+          {onAplicar && (
+            <Button
+              variant="contained"
+              size="small"
+              onClick={onAplicar}
+              startIcon={<FilterList />}
+            >
+              Aplicar filtros
+            </Button>
+          )}
           <Button
             size="small"
             onClick={limparFiltros}
             startIcon={<Clear />}
-            sx={{ mr: 1 }}
           >
             Limpar
           </Button>
           <Button
             size="small"
-            onClick={() => setAberto(false)}
+            onClick={handleFechar}
           >
             Fechar
           </Button>

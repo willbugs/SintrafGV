@@ -241,9 +241,9 @@ const RelatorioCartorialPage: React.FC = () => {
                       label="Enquete"
                       value={eleicaoSelecionada}
                       onChange={(e) => handleEleicaoChange(e.target.value)}
-                      SelectProps={{
-                        native: true,
-                      }}
+                      placeholder="Selecione uma enquete..."
+                      InputLabelProps={{ shrink: true }}
+                      SelectProps={{ native: true }}
                     >
                       <option value="">Selecione uma enquete...</option>
                       {eleicoes.map((eleicao) => (
