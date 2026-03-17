@@ -191,6 +191,10 @@ class RelatorioService {
     return response.data;
   }
 
+  async obterRelatorioAssociadosEmPeriodo(request: RelatorioRequest): Promise<RelatorioResponse<AssociadoRelatorio>> {
+    const response = await api.post('/api/relatorios/associados/em-periodo', request);
+    return response.data;
+  }
 
   // Metadata
   async obterCamposDisponiveis(tipoRelatorio: string): Promise<CampoRelatorio[]> {

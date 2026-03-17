@@ -74,6 +74,15 @@ const RelatorioVisualizarPage: React.FC = () => {
     return d.toISOString().slice(0, 10);
   });
   const [dataFimNovos, setDataFimNovos] = useState(() => new Date().toISOString().slice(0, 10));
+  /** Situação (Todos / Ativos / Inativos) – usado em todos os relatórios de associados */
+  const [situacaoFilter, setSituacaoFilter] = useState<'todos' | 'ativos' | 'inativos'>('todos');
+  /** Associados em período: data início e fim */
+  const [dataInicioEmPeriodo, setDataInicioEmPeriodo] = useState(() => {
+    const d = new Date();
+    d.setFullYear(d.getFullYear() - 1);
+    return d.toISOString().slice(0, 10);
+  });
+  const [dataFimEmPeriodo, setDataFimEmPeriodo] = useState(() => new Date().toISOString().slice(0, 10));
   /** Opções para dropdowns (por cidade / por banco) */
   const [opcoesCidades, setOpcoesCidades] = useState<string[]>([]);
   const [opcoesBancos, setOpcoesBancos] = useState<string[]>([]);
@@ -86,7 +95,7 @@ const RelatorioVisualizarPage: React.FC = () => {
 
   useEffect(() => {
     carregarRelatorio();
-  }, [tipoRelatorio, pagina, tamanhoPagina, mesAniversariantes, diaAniversariantes, cidadePorCidade, bancoPorBanco, sexoPorSexo, dataInicioNovos, dataFimNovos]);
+  }, [tipoRelatorio, pagina, tamanhoPagina, mesAniversariantes, diaAniversariantes, cidadePorCidade, bancoPorBanco, sexoPorSexo, dataInicioNovos, dataFimNovos, situacaoFilter, dataInicioEmPeriodo, dataFimEmPeriodo]);
 
   useEffect(() => {
     carregarCampos();
@@ -175,6 +184,9 @@ const RelatorioVisualizarPage: React.FC = () => {
         case 'por-cidade':
           resultado = await relatorioService.obterRelatorioPorCidade(request);
           break;
+        case 'em-periodo':
+          resultado = await relatorioService.obterRelatorioAssociadosEmPeriodo(request);
+          break;
         default:
           resultado = await relatorioService.obterRelatorioAssociadosGeral(request);
       }
@@ -222,9 +234,17 @@ const RelatorioVisualizarPage: React.FC = () => {
     }
   };
 
+  /** Tipos de relatório que usam filtro Situação (Todos/Ativos/Inativos). Ativos/Inativos não entram pois já são fixos. */
+  const relatoriosComSituacao = [
+    'associados-geral', 'aniversariantes', 'novos-associados', 'por-sexo', 'por-banco', 'por-cidade', 'em-periodo'
+  ];
+
   /** Monta o objeto de filtros enviado à API (só filtros específicos do relatório). */
   const construirFiltros = (): Record<string, unknown> => {
     const filtrosObj: Record<string, unknown> = {};
+    if (relatoriosComSituacao.includes(tipoRelatorio)) {
+      filtrosObj.situacao = situacaoFilter;
+    }
     if (tipoRelatorio === 'aniversariantes') {
       filtrosObj.mes = mesAniversariantes;
       if (diaAniversariantes != null) filtrosObj.dia = diaAniversariantes;
@@ -237,6 +257,9 @@ const RelatorioVisualizarPage: React.FC = () => {
     } else if (tipoRelatorio === 'novos-associados') {
       filtrosObj.dataInicio = dataInicioNovos;
       filtrosObj.dataFim = dataFimNovos;
+    } else if (tipoRelatorio === 'em-periodo') {
+      filtrosObj.dataInicio = dataInicioEmPeriodo;
+      filtrosObj.dataFim = dataFimEmPeriodo;
     }
     return filtrosObj;
   };
@@ -392,6 +415,56 @@ const RelatorioVisualizarPage: React.FC = () => {
           </Card>
         </Grid>
       </Grid>
+
+      {/* Filtro Situação (Todos / Ativos / Inativos) – todos os relatórios de associados */}
+      {relatoriosComSituacao.includes(tipoRelatorio) && (
+        <Paper sx={{ p: 2, mb: 2 }}>
+          <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+            Situação
+          </Typography>
+          <FormControl size="small" sx={{ minWidth: 160 }}>
+            <InputLabel>Situação</InputLabel>
+            <Select
+              value={situacaoFilter}
+              label="Situação"
+              onChange={(e) => { setSituacaoFilter(e.target.value as 'todos' | 'ativos' | 'inativos'); setPagina(0); }}
+            >
+              <MenuItem value="todos">Todos</MenuItem>
+              <MenuItem value="ativos">Ativos</MenuItem>
+              <MenuItem value="inativos">Inativos</MenuItem>
+            </Select>
+          </FormControl>
+        </Paper>
+      )}
+
+      {/* Filtro específico: Associados em período (data início / fim) */}
+      {tipoRelatorio === 'em-periodo' && (
+        <Paper sx={{ p: 2, mb: 2 }}>
+          <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+            Período em que a pessoa era associada (DataFiliação e DataDesligamento)
+          </Typography>
+          <Stack direction="row" spacing={2} alignItems="center" flexWrap="wrap">
+            <TextField
+              size="small"
+              label="Data início"
+              type="date"
+              value={dataInicioEmPeriodo}
+              onChange={(e) => { setDataInicioEmPeriodo(e.target.value); setPagina(0); }}
+              InputLabelProps={{ shrink: true }}
+              sx={{ minWidth: 160 }}
+            />
+            <TextField
+              size="small"
+              label="Data fim"
+              type="date"
+              value={dataFimEmPeriodo}
+              onChange={(e) => { setDataFimEmPeriodo(e.target.value); setPagina(0); }}
+              InputLabelProps={{ shrink: true }}
+              sx={{ minWidth: 160 }}
+            />
+          </Stack>
+        </Paper>
+      )}
 
       {/* Filtro específico: Aniversariantes (Mês + Dia) */}
       {tipoRelatorio === 'aniversariantes' && (

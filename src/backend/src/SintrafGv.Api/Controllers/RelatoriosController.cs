@@ -131,6 +131,18 @@ namespace SintrafGv.Api.Controllers
         }
 
         /// <summary>
+        /// Relatório de associados em período (quem era associado entre data início e data fim)
+        /// </summary>
+        [HttpPost("associados/em-periodo")]
+        public async Task<ActionResult<RelatorioResponse<AssociadoRelatorioDto>>> RelatorioAssociadosEmPeriodo(
+            [FromBody] RelatorioRequest request,
+            CancellationToken cancellationToken)
+        {
+            var resultado = await _relatorioService.ObterRelatorioAssociadosEmPeriodoAsync(request, cancellationToken);
+            return Ok(resultado);
+        }
+
+        /// <summary>
         /// Obtém campos disponíveis para um tipo de relatório
         /// </summary>
         [HttpGet("campos/{tipoRelatorio}")]

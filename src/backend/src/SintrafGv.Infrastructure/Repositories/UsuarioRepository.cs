@@ -28,8 +28,36 @@ public class UsuarioRepository : IUsuarioRepository
             .Take(take)
             .ToListAsync(cancellationToken);
 
+    public async Task<IReadOnlyList<Usuario>> ListarAsync(int skip, int take, string? busca, string? role, bool? ativo, CancellationToken cancellationToken = default)
+    {
+        var query = AplicarFiltros(_context.Usuarios.AsNoTracking(), busca, role, ativo);
+        return await query.OrderBy(u => u.Nome).Skip(skip).Take(take).ToListAsync(cancellationToken);
+    }
+
     public async Task<int> ContarAsync(CancellationToken cancellationToken = default) =>
         await _context.Usuarios.CountAsync(cancellationToken);
+
+    public async Task<int> ContarAsync(string? busca, string? role, bool? ativo, CancellationToken cancellationToken = default)
+    {
+        var query = AplicarFiltros(_context.Usuarios.AsNoTracking(), busca, role, ativo);
+        return await query.CountAsync(cancellationToken);
+    }
+
+    private static IQueryable<Usuario> AplicarFiltros(IQueryable<Usuario> query, string? busca, string? role, bool? ativo)
+    {
+        if (!string.IsNullOrWhiteSpace(busca))
+        {
+            var termo = busca.Trim();
+            query = query.Where(u =>
+                (u.Nome != null && u.Nome.Contains(termo)) ||
+                (u.Email != null && u.Email.Contains(termo)));
+        }
+        if (!string.IsNullOrWhiteSpace(role))
+            query = query.Where(u => u.Role == role);
+        if (ativo.HasValue)
+            query = query.Where(u => u.Ativo == ativo.Value);
+        return query;
+    }
 
     public async Task<Usuario> IncluirAsync(Usuario usuario, CancellationToken cancellationToken = default)
     {

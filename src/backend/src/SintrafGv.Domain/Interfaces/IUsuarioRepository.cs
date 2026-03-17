@@ -8,7 +8,9 @@ public interface IUsuarioRepository
     Task<Usuario?> ObterPorEmailAsync(string email, CancellationToken cancellationToken = default);
     Task<Usuario?> ObterPorEmailExcluindoIdAsync(string email, Guid excluirId, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<Usuario>> ListarAsync(int skip, int take, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<Usuario>> ListarAsync(int skip, int take, string? busca, string? role, bool? ativo, CancellationToken cancellationToken = default);
     Task<int> ContarAsync(CancellationToken cancellationToken = default);
+    Task<int> ContarAsync(string? busca, string? role, bool? ativo, CancellationToken cancellationToken = default);
     Task<Usuario> IncluirAsync(Usuario usuario, CancellationToken cancellationToken = default);
     Task AtualizarAsync(Usuario usuario, CancellationToken cancellationToken = default);
 }

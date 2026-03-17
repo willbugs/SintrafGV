@@ -38,12 +38,40 @@ public class AssociadoRepository : IAssociadoRepository
         return await query.OrderBy(x => x.Nome).Skip(skip).Take(take).ToListAsync(cancellationToken);
     }
 
+    public async Task<IReadOnlyList<Associado>> ListarAsync(int skip, int take, string? busca, bool? statusAtivo, CancellationToken cancellationToken = default)
+    {
+        var query = AplicarFiltros(_context.Associados.AsNoTracking(), busca, statusAtivo);
+        return await query.OrderBy(x => x.Nome).Skip(skip).Take(take).ToListAsync(cancellationToken);
+    }
+
     public async Task<int> ContarAsync(bool apenasAtivos = false, CancellationToken cancellationToken = default)
     {
         var query = _context.Associados.AsNoTracking();
         if (apenasAtivos)
             query = query.Where(x => x.Ativo);
         return await query.CountAsync(cancellationToken);
+    }
+
+    public async Task<int> ContarAsync(string? busca, bool? statusAtivo, CancellationToken cancellationToken = default)
+    {
+        var query = AplicarFiltros(_context.Associados.AsNoTracking(), busca, statusAtivo);
+        return await query.CountAsync(cancellationToken);
+    }
+
+    private static IQueryable<Associado> AplicarFiltros(IQueryable<Associado> query, string? busca, bool? statusAtivo)
+    {
+        if (!string.IsNullOrWhiteSpace(busca))
+        {
+            var termo = busca.Trim();
+            var cpfDigits = new string(termo.Where(char.IsDigit).ToArray());
+            query = query.Where(a =>
+                (a.Nome != null && a.Nome.Contains(termo)) ||
+                (a.Cpf != null && (a.Cpf.Contains(termo) || (cpfDigits.Length >= 3 && a.Cpf.Contains(cpfDigits)))) ||
+                (a.Email != null && a.Email.Contains(termo)));
+        }
+        if (statusAtivo.HasValue)
+            query = query.Where(x => x.Ativo == statusAtivo.Value);
+        return query;
     }
 
     public async Task<Associado> IncluirAsync(Associado associado, CancellationToken cancellationToken = default)

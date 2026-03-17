@@ -28,6 +28,15 @@ public class UsuarioService : IUsuarioService
         return (dtos, total);
     }
 
+    public async Task<(IReadOnlyList<UsuarioListDto> Itens, int Total)> ListarAsync(int pagina, int porPagina, string? busca, string? role, bool? ativo, CancellationToken cancellationToken = default)
+    {
+        var skip = (pagina - 1) * porPagina;
+        var total = await _repository.ContarAsync(busca?.Trim(), string.IsNullOrWhiteSpace(role) ? null : role?.Trim(), ativo, cancellationToken);
+        var itens = await _repository.ListarAsync(skip, porPagina, busca?.Trim(), string.IsNullOrWhiteSpace(role) ? null : role?.Trim(), ativo, cancellationToken);
+        var dtos = itens.Select(u => new UsuarioListDto(u.Id, u.Nome, u.Email, u.Role, u.Ativo, u.CriadoEm)).ToList();
+        return (dtos, total);
+    }
+
     public async Task<UsuarioListDto?> CriarAsync(CreateUsuarioRequest request, CancellationToken cancellationToken = default)
     {
         if (await _repository.ObterPorEmailAsync(request.Email, cancellationToken) != null)

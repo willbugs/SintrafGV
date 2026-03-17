@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Box,
   Typography,
@@ -14,8 +14,14 @@ import {
   IconButton,
   Chip,
   Avatar,
+  TextField,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  InputAdornment,
 } from '@mui/material';
-import { Add, Edit, Delete, Person, Email } from '@mui/icons-material';
+import { Add, Edit, Delete, Person, Email, Search, Clear } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { usuariosAPI, configuracaoEmailAPI, type UsuarioListItem } from '../services/api';
 import { useToast } from '../contexts/ToastContext';
@@ -29,14 +35,35 @@ const getStatusColor = (ativo: boolean): 'success' | 'default' | 'error' => {
   return ativo ? 'success' : 'default';
 };
 
+const PERFIL_OPCOES = [
+  { value: 'Todos', label: 'Todos' },
+  { value: 'Admin', label: 'Administrador' },
+  { value: 'Usuario', label: 'Usuário' },
+] as const;
+
+const STATUS_OPCOES = [
+  { value: 'Todos', label: 'Todos' },
+  { value: 'Ativo', label: 'Ativo' },
+  { value: 'Inativo', label: 'Inativo' },
+] as const;
+
 const UsuariosPage: React.FC = () => {
   const [itens, setItens] = useState<UsuarioListItem[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [emailHabilitado, setEmailHabilitado] = useState(false);
   const [reenviandoId, setReenviandoId] = useState<string | null>(null);
+  const [busca, setBusca] = useState('');
+  const [filtroPerfil, setFiltroPerfil] = useState<string>('Todos');
+  const [filtroStatus, setFiltroStatus] = useState<string>('Todos');
   const navigate = useNavigate();
   const toast = useToast();
+  const refBusca = useRef(busca);
+  const refPerfil = useRef(filtroPerfil);
+  const refStatus = useRef(filtroStatus);
+  refBusca.current = busca;
+  refPerfil.current = filtroPerfil;
+  refStatus.current = filtroStatus;
 
   const carregarStatusEmail = async () => {
     try {
@@ -59,10 +86,26 @@ const UsuariosPage: React.FC = () => {
     }
   };
 
-  const carregar = async () => {
+  const ativoFromStatus = (s: string): boolean | null =>
+    s === 'Ativo' ? true : s === 'Inativo' ? false : null;
+
+  const carregar = async (
+    buscaAtual: string,
+    perfilAtual: string,
+    statusAtual: string
+  ) => {
     setLoading(true);
     try {
-      const data = await usuariosAPI.listar(1, 50);
+      const a = ativoFromStatus(statusAtual);
+      const temFiltro =
+        buscaAtual.trim() !== '' || perfilAtual !== 'Todos' || a !== null;
+      const data = temFiltro
+        ? await usuariosAPI.listar(1, 50, {
+            busca: buscaAtual.trim() || undefined,
+            role: perfilAtual !== 'Todos' ? perfilAtual : undefined,
+            ativo: a,
+          })
+        : await usuariosAPI.listar(1, 50);
       setItens(data.itens ?? []);
       setTotal(data.total ?? 0);
     } catch {
@@ -75,9 +118,21 @@ const UsuariosPage: React.FC = () => {
   };
 
   useEffect(() => {
-    carregar();
+    carregar(refBusca.current, refPerfil.current, refStatus.current);
     carregarStatusEmail();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- apenas no mount
   }, []);
+
+  const handleBuscar = () => {
+    carregar(refBusca.current, refPerfil.current, refStatus.current);
+  };
+
+  const handleLimpar = () => {
+    setBusca('');
+    setFiltroPerfil('Todos');
+    setFiltroStatus('Todos');
+    setTimeout(() => carregar('', 'Todos', 'Todos'), 0);
+  };
 
   return (
     <Box sx={{ width: '100%' }}>
@@ -91,6 +146,58 @@ const UsuariosPage: React.FC = () => {
           onClick={() => navigate('/usuarios/novo')}
         >
           Novo Usuário
+        </Button>
+      </Box>
+
+      <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', mb: 2, flexWrap: 'wrap' }}>
+        <TextField
+          size="small"
+          placeholder="Buscar por nome ou e-mail..."
+          value={busca}
+          onChange={(e) => setBusca(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleBuscar())}
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <Search fontSize="small" />
+              </InputAdornment>
+            ),
+          }}
+          sx={{ minWidth: 280 }}
+        />
+        <FormControl size="small" sx={{ minWidth: 140 }}>
+          <InputLabel>Perfil</InputLabel>
+          <Select
+            value={filtroPerfil}
+            label="Perfil"
+            onChange={(e) => setFiltroPerfil(e.target.value)}
+          >
+            {PERFIL_OPCOES.map((opt) => (
+              <MenuItem key={opt.value} value={opt.value}>
+                {opt.label}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+        <FormControl size="small" sx={{ minWidth: 140 }}>
+          <InputLabel>Status</InputLabel>
+          <Select
+            value={filtroStatus}
+            label="Status"
+            onChange={(e) => setFiltroStatus(e.target.value)}
+          >
+            {STATUS_OPCOES.map((opt) => (
+              <MenuItem key={opt.value} value={opt.value}>
+                {opt.label}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+        <Button variant="contained" onClick={handleBuscar} startIcon={<Search />}>
+          Buscar
+        </Button>
+        <Button variant="outlined" onClick={handleLimpar} startIcon={<Clear />}>
+          Limpar
         </Button>
       </Box>
 

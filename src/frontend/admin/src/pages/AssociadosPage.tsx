@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Box,
   Typography,
@@ -14,24 +14,45 @@ import {
   IconButton,
   Chip,
   Avatar,
+  TextField,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  InputAdornment,
 } from '@mui/material';
-import { Add, Edit, Person } from '@mui/icons-material';
+import { Add, Edit, Person, Search, Clear } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { associadosAPI } from '../services/api';
 import type { Associado } from '../types';
 import { useToast } from '../contexts/ToastContext';
 
+const STATUS_OPCOES = [
+  { value: 'Todos', label: 'Todos' },
+  { value: 'Ativo', label: 'Ativo' },
+  { value: 'Inativo', label: 'Inativo' },
+] as const;
+
 const AssociadosPage: React.FC = () => {
   const [itens, setItens] = useState<Associado[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [busca, setBusca] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'Todos' | 'Ativo' | 'Inativo'>('Todos');
   const navigate = useNavigate();
   const toast = useToast();
+  const refBusca = useRef(busca);
+  const refStatus = useRef(statusFilter);
+  refBusca.current = busca;
+  refStatus.current = statusFilter;
 
-  const carregar = async () => {
+  const carregar = async (buscaAtual: string, statusAtual: 'Todos' | 'Ativo' | 'Inativo') => {
     setLoading(true);
     try {
-      const data = await associadosAPI.listar(1, 50);
+      const temFiltro = buscaAtual.trim() !== '' || statusAtual !== 'Todos';
+      const data = temFiltro
+        ? await associadosAPI.listar(1, 50, { busca: buscaAtual.trim() || '', status: statusAtual })
+        : await associadosAPI.listar(1, 50);
       setItens(data.itens ?? []);
       setTotal(data.total ?? 0);
     } catch {
@@ -44,8 +65,21 @@ const AssociadosPage: React.FC = () => {
   };
 
   useEffect(() => {
-    carregar();
+    carregar(refBusca.current, refStatus.current);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- apenas no mount
   }, []);
+
+  const handleBuscar = () => {
+    const b = refBusca.current;
+    const s = refStatus.current;
+    carregar(b, s);
+  };
+
+  const handleLimpar = () => {
+    setBusca('');
+    setStatusFilter('Todos');
+    setTimeout(() => carregar('', 'Todos'), 0);
+  };
 
   return (
     <Box sx={{ width: '100%' }}>
@@ -59,6 +93,49 @@ const AssociadosPage: React.FC = () => {
           onClick={() => navigate('/associados/novo')}
         >
           Novo Associado
+        </Button>
+      </Box>
+
+      <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', mb: 2, flexWrap: 'wrap' }}>
+        <TextField
+          size="small"
+          placeholder="Buscar por nome, CPF ou e-mail..."
+          value={busca}
+          onChange={(e) => setBusca(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleBuscar())}
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <Search fontSize="small" />
+              </InputAdornment>
+            ),
+          }}
+          sx={{ minWidth: 280 }}
+        />
+        <FormControl size="small" sx={{ minWidth: 140 }}>
+          <InputLabel>Status</InputLabel>
+          <Select
+            value={statusFilter}
+            label="Status"
+            onChange={(e) => {
+              const v = e.target.value as 'Todos' | 'Ativo' | 'Inativo';
+              setStatusFilter(v);
+              refStatus.current = v;
+              carregar(refBusca.current, v);
+            }}
+          >
+            {STATUS_OPCOES.map((opt) => (
+              <MenuItem key={opt.value} value={opt.value}>
+                {opt.label}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+        <Button variant="contained" onClick={handleBuscar} startIcon={<Search />}>
+          Buscar
+        </Button>
+        <Button variant="outlined" onClick={handleLimpar} startIcon={<Clear />}>
+          Limpar
         </Button>
       </Box>
 

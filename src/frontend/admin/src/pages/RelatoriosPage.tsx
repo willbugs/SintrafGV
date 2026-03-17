@@ -100,6 +100,14 @@ const tiposRelatorios: TipoRelatorio[] = [
     categoria: 'Demográficos',
     cor: '#FF5722'
   },
+  {
+    id: 'em-periodo',
+    titulo: 'Associados em Período',
+    descricao: 'Quem era associado entre duas datas (DataFiliação e DataDesligamento)',
+    icone: <People />,
+    categoria: 'Associados',
+    cor: '#00BCD4'
+  },
   // Relatórios de Votações/Eleições
   {
     id: 'participacao-votacao',

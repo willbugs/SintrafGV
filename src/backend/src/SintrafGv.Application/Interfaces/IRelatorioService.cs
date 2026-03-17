@@ -41,6 +41,10 @@ namespace SintrafGv.Application.Interfaces
             RelatorioRequest request, 
             CancellationToken cancellationToken = default);
 
+        Task<RelatorioResponse<AssociadoRelatorioDto>> ObterRelatorioAssociadosEmPeriodoAsync(
+            RelatorioRequest request,
+            CancellationToken cancellationToken = default);
+
         // Dashboard
         Task<DashboardKpiDto> ObterDashboardKpisAsync(CancellationToken cancellationToken = default);
 

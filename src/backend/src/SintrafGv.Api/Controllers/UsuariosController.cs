@@ -25,10 +25,26 @@ public class UsuariosController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<ActionResult<object>> Listar([FromQuery] int pagina = 1, [FromQuery] int porPagina = 20, CancellationToken cancellationToken = default)
+    public async Task<ActionResult<object>> Listar(
+        [FromQuery] int pagina = 1,
+        [FromQuery] int porPagina = 20,
+        [FromQuery] string? busca = null,
+        [FromQuery] string? role = null,
+        [FromQuery] string? ativo = null,
+        CancellationToken cancellationToken = default)
     {
-        var (itens, total) = await _service.ListarAsync(pagina, porPagina, cancellationToken);
-        return Ok(new { itens, total });
+        var buscaTrim = string.IsNullOrWhiteSpace(busca) ? null : busca!.Trim();
+        var roleNorm = string.IsNullOrWhiteSpace(role) || string.Equals(role!.Trim(), "Todos", StringComparison.OrdinalIgnoreCase) ? null : role.Trim();
+        bool? ativoFiltro = null;
+        if (!string.IsNullOrWhiteSpace(ativo) && bool.TryParse(ativo.Trim(), out var ativoVal))
+            ativoFiltro = ativoVal;
+        if (!string.IsNullOrEmpty(buscaTrim) || roleNorm != null || ativoFiltro.HasValue)
+        {
+            var (itens, total) = await _service.ListarAsync(pagina, porPagina, buscaTrim, roleNorm, ativoFiltro, cancellationToken);
+            return Ok(new { itens, total });
+        }
+        var (itensLegado, totalLegado) = await _service.ListarAsync(pagina, porPagina, cancellationToken);
+        return Ok(new { itens = itensLegado, total = totalLegado });
     }
 
     [HttpPost]

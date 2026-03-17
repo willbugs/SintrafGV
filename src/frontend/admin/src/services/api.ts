@@ -61,11 +61,20 @@ export interface UsuarioListItem {
 }
 
 export const usuariosAPI = {
-  listar: async (pagina = 1, porPagina = 20) => {
-    const params = new URLSearchParams();
-    params.set('pagina', String(pagina));
-    params.set('porPagina', String(porPagina));
-    const response = await api.get(`/api/usuarios?${params.toString()}`);
+  listar: async (
+    pagina = 1,
+    porPagina = 20,
+    filtros?: { busca?: string; role?: string; ativo?: boolean | null }
+  ) => {
+    const q = new URLSearchParams();
+    q.set('pagina', String(pagina));
+    q.set('porPagina', String(porPagina));
+    q.set('_', String(Date.now()));
+    if (filtros?.busca?.trim()) q.set('busca', filtros.busca.trim());
+    if (filtros?.role?.trim()) q.set('role', filtros.role.trim());
+    if (filtros?.ativo !== undefined && filtros?.ativo !== null)
+      q.set('ativo', String(filtros.ativo));
+    const response = await api.get(`/api/usuarios?${q.toString()}`);
     return response.data;
   },
   obter: async (id: string) => {
@@ -104,12 +113,24 @@ export const configuracaoEmailAPI = {
 };
 
 export const associadosAPI = {
-  listar: async (pagina = 1, porPagina = 20, apenasAtivos = false) => {
-    const params = new URLSearchParams();
-    params.set('pagina', String(pagina));
-    params.set('porPagina', String(porPagina));
-    if (apenasAtivos) params.set('apenasAtivos', 'true');
-    const response = await api.get(`/api/associados?${params.toString()}`);
+  listar: async (
+    pagina = 1,
+    porPagina = 20,
+    apenasAtivosOrFiltros?: boolean | { busca?: string; status?: 'Todos' | 'Ativo' | 'Inativo' }
+  ) => {
+    const q = new URLSearchParams();
+    q.set('pagina', String(pagina));
+    q.set('porPagina', String(porPagina));
+    q.set('_', String(Date.now()));
+    if (typeof apenasAtivosOrFiltros === 'object' && apenasAtivosOrFiltros !== null) {
+      const b = apenasAtivosOrFiltros.busca?.trim();
+      if (b) q.set('busca', b);
+      const s = apenasAtivosOrFiltros.status;
+      if (s && s !== 'Todos') q.set('status', s);
+    } else if (apenasAtivosOrFiltros === true) {
+      q.set('apenasAtivos', 'true');
+    }
+    const response = await api.get(`/api/associados?${q.toString()}`);
     return response.data;
   },
   obter: async (id: string) => {

@@ -1,0 +1,18 @@
+---
+description: Caminho de publish e regras de release - NAO alterar pastas sem permissao
+alwaysApply: true
+---
+
+# Release e Deploy
+
+## Pasta de publish do backend (IIS)
+
+- **Unica pasta correta:** `D:\progs\Sintrafgv\src\backend\publish`
+- O site da API no IIS aponta para esta pasta. Nao usar `d:\progs\Sintrafgv\publish` nem outra.
+- Ao fazer release: `dotnet publish ... -o D:\progs\Sintrafgv\src\backend\publish`
+
+## Regras
+
+- **Proibido** renomear a pasta publish, criar subpastas de publish ou alterar caminhos sem permissao explicita do usuario.
+- **Obrigatorio** parar o pool IIS ("SintrafGv Api") antes de publicar o backend; iniciar o pool apos publicar.
+- Script de release: `scripts/release.ps1` (usa a pasta correta e nao altera estrutura de pastas).

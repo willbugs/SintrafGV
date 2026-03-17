@@ -1,6 +1,8 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using SintrafGv.Application.DTOs;
+using SintrafGv.Application.Exceptions;
 using SintrafGv.Application.Services;
 using SintrafGv.Domain.Entities;
 
@@ -25,10 +27,22 @@ public class AssociadosController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<ActionResult<object>> Listar([FromQuery] int pagina = 1, [FromQuery] int porPagina = 20, [FromQuery] bool apenasAtivos = false, CancellationToken cancellationToken = default)
+    public async Task<ActionResult<object>> Listar(
+        [FromQuery] int pagina = 1,
+        [FromQuery] int porPagina = 20,
+        [FromQuery] bool apenasAtivos = false,
+        CancellationToken cancellationToken = default)
     {
-        var (itens, total) = await _service.ListarAsync(pagina, porPagina, apenasAtivos, cancellationToken);
-        return Ok(new { itens = itens.Select(ToDto), total });
+        // Leitura explícita da query (ToString() em StringValues retorna "" quando ausente)
+        var buscaTrim = string.IsNullOrWhiteSpace(Request.Query["busca"].ToString()) ? null : Request.Query["busca"].ToString()!.Trim();
+        var statusTrim = string.IsNullOrWhiteSpace(Request.Query["status"].ToString()) ? null : Request.Query["status"].ToString()!.Trim();
+        if (!string.IsNullOrEmpty(buscaTrim) || !string.IsNullOrEmpty(statusTrim))
+        {
+            var (itens, total) = await _service.ListarAsync(pagina, porPagina, buscaTrim, statusTrim, cancellationToken);
+            return Ok(new { itens = itens.Select(ToDto), total });
+        }
+        var (itensLegado, totalLegado) = await _service.ListarAsync(pagina, porPagina, apenasAtivos, cancellationToken);
+        return Ok(new { itens = itensLegado.Select(ToDto), total = totalLegado });
     }
 
     [HttpPost]
@@ -66,8 +80,23 @@ public class AssociadosController : ControllerBase
             Ativo = request.Ativo,
             Aposentado = request.Aposentado
         };
-        var criado = await _service.CriarAsync(associado, cancellationToken);
-        return CreatedAtAction(nameof(ObterPorId), new { id = criado.Id }, ToDto(criado));
+        try
+        {
+            var criado = await _service.CriarAsync(associado, cancellationToken);
+            return CreatedAtAction(nameof(ObterPorId), new { id = criado.Id }, ToDto(criado));
+        }
+        catch (CpfDuplicadoException)
+        {
+            return Conflict(new { message = "Já existe um associado cadastrado com este CPF." });
+        }
+        catch (ArgumentException ex) when (ex.ParamName == "associado")
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+        catch (DbUpdateException ex) when (IsUniqueConstraintViolation(ex))
+        {
+            return Conflict(new { message = "Já existe um associado cadastrado com este CPF." });
+        }
     }
 
     [HttpPut("{id:guid}")]
@@ -107,8 +136,35 @@ public class AssociadosController : ControllerBase
         associado.Ativo = request.Ativo;
         associado.Aposentado = request.Aposentado;
 
-        await _service.AtualizarAsync(associado, cancellationToken);
-        return NoContent();
+        try
+        {
+            await _service.AtualizarAsync(associado, cancellationToken);
+            return NoContent();
+        }
+        catch (CpfDuplicadoException)
+        {
+            return Conflict(new { message = "Já existe um associado cadastrado com este CPF." });
+        }
+        catch (ArgumentException ex) when (ex.ParamName == "associado")
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+        catch (DbUpdateException ex) when (IsUniqueConstraintViolation(ex))
+        {
+            return Conflict(new { message = "Já existe um associado cadastrado com este CPF." });
+        }
+    }
+
+    /// <summary>Detecta violação de índice/constraint único no SQL Server (2627, 2601).</summary>
+    private static bool IsUniqueConstraintViolation(DbUpdateException ex)
+    {
+        for (var e = ex.InnerException; e != null; e = e.InnerException)
+        {
+            if (e is Microsoft.Data.SqlClient.SqlException sqlEx &&
+                (sqlEx.Number == 2627 || sqlEx.Number == 2601))
+                return true;
+        }
+        return false;
     }
 
     private static AssociadoDto ToDto(Associado a) => new(

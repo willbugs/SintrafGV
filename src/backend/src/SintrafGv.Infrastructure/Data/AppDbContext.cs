@@ -28,7 +28,6 @@ public class AppDbContext : DbContext
             e.Property(x => x.MatriculaBancaria).HasMaxLength(50);
             e.Property(x => x.Email).HasMaxLength(200);
             e.Property(x => x.Celular).HasMaxLength(20);
-            e.HasIndex(x => x.Cpf);
         });
 
         modelBuilder.Entity<Usuario>(e =>

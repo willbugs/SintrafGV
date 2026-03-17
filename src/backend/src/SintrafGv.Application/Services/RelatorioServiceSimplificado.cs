@@ -40,6 +40,8 @@ namespace SintrafGv.Application.Services
         {
             var associados = await _associadoRepository.ListarAsync(0, int.MaxValue, false, cancellationToken);
             var filtros = request.Filtros ?? new Dictionary<string, object>();
+            var situacao = LerSituacaoFiltro(filtros);
+            associados = AplicarFiltroSituacao(associados.ToList(), situacao);
             var dados = associados.Select(MapearAssociadoParaDto).ToList();
             dados = AplicarFiltrosAssociados(dados, filtros);
             var (paginaAtual, totalPaginas, paginados) = AplicarPaginacao(dados, request.Pagina, request.TamanhoPagina);
@@ -119,8 +121,10 @@ namespace SintrafGv.Application.Services
             var filtros = request.Filtros ?? new Dictionary<string, object>();
             var mes = LerIntFiltro(filtros, "mes") ?? DateTime.Now.Month;
             var dia = LerIntFiltro(filtros, "dia");
+            var situacao = LerSituacaoFiltro(filtros);
 
             var associados = await _associadoRepository.ListarAsync(0, int.MaxValue, false, cancellationToken);
+            associados = AplicarFiltroSituacao(associados.ToList(), situacao);
             var aniversariantes = associados.Where(a => a.DataNascimento.HasValue &&
                                                       a.DataNascimento.Value.Month == mes &&
                                                       (!dia.HasValue || a.DataNascimento.Value.Day == dia.Value)).ToList();
@@ -156,11 +160,15 @@ namespace SintrafGv.Application.Services
             var filtros = request.Filtros ?? new Dictionary<string, object>();
             var dataInicio = LerDataFiltro(filtros, "dataInicio") ?? DateTime.Now.AddMonths(-1);
             var dataFim = LerDataFiltro(filtros, "dataFim") ?? DateTime.Now;
+            var dataInicioDate = dataInicio.Date;
+            var dataFimDate = dataFim.Date;
+            var situacao = LerSituacaoFiltro(filtros);
 
             var associados = await _associadoRepository.ListarAsync(0, int.MaxValue, false, cancellationToken);
-            var novos = associados.Where(a => a.DataFiliacao.HasValue && 
-                                            a.DataFiliacao >= dataInicio && 
-                                            a.DataFiliacao <= dataFim).ToList();
+            associados = AplicarFiltroSituacao(associados.ToList(), situacao);
+            var novos = associados.Where(a => a.DataFiliacao.HasValue &&
+                                            a.DataFiliacao.Value.Date >= dataInicioDate &&
+                                            a.DataFiliacao.Value.Date <= dataFimDate).ToList();
             
             var dados = novos.Select(MapearAssociadoParaDto).ToList();
             dados = AplicarFiltrosAssociados(dados, filtros);
@@ -188,6 +196,8 @@ namespace SintrafGv.Application.Services
         {
             var associados = await _associadoRepository.ListarAsync(0, int.MaxValue, false, cancellationToken);
             var filtros = request.Filtros ?? new Dictionary<string, object>();
+            var situacao = LerSituacaoFiltro(filtros);
+            associados = AplicarFiltroSituacao(associados.ToList(), situacao);
             var sexo = filtros.TryGetValue("sexo", out var v) && v != null ? v.ToString()?.Trim() : null;
             var porSexo = string.IsNullOrEmpty(sexo)
                 ? associados.ToList()
@@ -217,6 +227,9 @@ namespace SintrafGv.Application.Services
             CancellationToken cancellationToken = default)
         {
             var associados = await _associadoRepository.ListarAsync(0, int.MaxValue, false, cancellationToken);
+            var filtros = request.Filtros ?? new Dictionary<string, object>();
+            var situacao = LerSituacaoFiltro(filtros);
+            associados = AplicarFiltroSituacao(associados.ToList(), situacao);
             var dados = associados.Select(MapearAssociadoParaDto).ToList();
             dados = AplicarFiltrosAssociados(dados, request.Filtros ?? new Dictionary<string, object>());
             var (paginaAtual, totalPaginas, paginados) = AplicarPaginacao(dados, request.Pagina, request.TamanhoPagina);
@@ -242,6 +255,9 @@ namespace SintrafGv.Application.Services
             CancellationToken cancellationToken = default)
         {
             var associados = await _associadoRepository.ListarAsync(0, int.MaxValue, false, cancellationToken);
+            var filtros = request.Filtros ?? new Dictionary<string, object>();
+            var situacao = LerSituacaoFiltro(filtros);
+            associados = AplicarFiltroSituacao(associados.ToList(), situacao);
             var dados = associados.Select(MapearAssociadoParaDto).ToList();
             dados = AplicarFiltrosAssociados(dados, request.Filtros ?? new Dictionary<string, object>());
             var (paginaAtual, totalPaginas, paginados) = AplicarPaginacao(dados, request.Pagina, request.TamanhoPagina);
@@ -257,6 +273,47 @@ namespace SintrafGv.Application.Services
                     PaginaAtual = paginaAtual,
                     TotalPaginas = totalPaginas,
                     FiltrosAplicados = request.Filtros ?? new Dictionary<string, object>()
+                },
+                Totalizadores = CalcularTotalizadores(dados)
+            };
+        }
+
+        public async Task<RelatorioResponse<AssociadoRelatorioDto>> ObterRelatorioAssociadosEmPeriodoAsync(
+            RelatorioRequest request,
+            CancellationToken cancellationToken = default)
+        {
+            var filtros = request.Filtros ?? new Dictionary<string, object>();
+            var dataInicio = request.DataInicio ?? LerDataFiltro(filtros, "dataInicio") ?? DateTime.Today.AddYears(-1);
+            var dataFim = request.DataFim ?? LerDataFiltro(filtros, "dataFim") ?? DateTime.Today;
+            var situacao = LerSituacaoFiltro(filtros);
+
+            var associados = await _associadoRepository.ListarAsync(0, int.MaxValue, false, cancellationToken);
+            // Era associado em [dataInicio, dataFim]: DataFiliacao <= dataFim e (DataDesligamento null ou DataDesligamento >= dataInicio)
+            var emPeriodo = associados
+                .Where(a => a.DataFiliacao.HasValue && a.DataFiliacao.Value.Date <= dataFim.Date &&
+                           (!a.DataDesligamento.HasValue || a.DataDesligamento.Value.Date >= dataInicio.Date))
+                .ToList();
+            // Situação na data fim: ativo na data fim = ainda não desligado em dataFim; inativo = já desligado em dataFim
+            if (situacao == "ativos")
+                emPeriodo = emPeriodo.Where(a => !a.DataDesligamento.HasValue || a.DataDesligamento.Value.Date > dataFim.Date).ToList();
+            else if (situacao == "inativos")
+                emPeriodo = emPeriodo.Where(a => a.DataDesligamento.HasValue && a.DataDesligamento.Value.Date <= dataFim.Date).ToList();
+
+            var dados = emPeriodo.Select(MapearAssociadoParaDto).ToList();
+            dados = AplicarFiltrosAssociados(dados, filtros);
+            var (paginaAtual, totalPaginas, paginados) = AplicarPaginacao(dados, request.Pagina, request.TamanhoPagina);
+
+            return new RelatorioResponse<AssociadoRelatorioDto>
+            {
+                Dados = paginados,
+                Metadata = new RelatorioMetadata
+                {
+                    Titulo = "Associados em Período",
+                    Subtitulo = $"Quem era associado entre {dataInicio:dd/MM/yyyy} e {dataFim:dd/MM/yyyy}",
+                    TotalRegistros = dados.Count,
+                    PaginaAtual = paginaAtual,
+                    TotalPaginas = totalPaginas,
+                    FiltrosAplicados = filtros
                 },
                 Totalizadores = CalcularTotalizadores(dados)
             };
@@ -377,7 +434,8 @@ namespace SintrafGv.Application.Services
                 "novos-associados",
                 "por-sexo",
                 "por-banco",
-                "por-cidade"
+                "por-cidade",
+                "em-periodo"
             };
             
             return Task.FromResult(tipos);
@@ -406,6 +464,7 @@ namespace SintrafGv.Application.Services
                 "por-sexo" => await ObterRelatorioPorSexoAsync(request, cancellationToken),
                 "por-banco" => await ObterRelatorioPorBancoAsync(request, cancellationToken),
                 "por-cidade" => await ObterRelatorioPorCidadeAsync(request, cancellationToken),
+                "em-periodo" => await ObterRelatorioAssociadosEmPeriodoAsync(request, cancellationToken),
                 
                 // Relatórios de votação implementados com novos endpoints específicos
                 "participacao-votacao" => await ObterRelatorioParticipacaoVotacaoAsync(request, cancellationToken),
@@ -952,6 +1011,24 @@ namespace SintrafGv.Application.Services
                 "between" => dataAtual >= dataInicio && dataAtual <= dataFim,
                 _ => true
             };
+        }
+
+        /// <summary>Lê filtro situacao dos filtros: "todos" | "ativos" | "inativos" (ausente ou inválido = todos).</summary>
+        private static string? LerSituacaoFiltro(Dictionary<string, object> filtros)
+        {
+            if (!filtros.TryGetValue("situacao", out var v) || v == null) return null;
+            var s = v is JsonElement je ? je.GetString() : v.ToString();
+            return string.IsNullOrWhiteSpace(s) ? null : s.Trim().ToLowerInvariant();
+        }
+
+        private static List<Domain.Entities.Associado> AplicarFiltroSituacao(
+            List<Domain.Entities.Associado> associados,
+            string? situacao)
+        {
+            if (string.IsNullOrEmpty(situacao) || situacao == "todos") return associados;
+            if (situacao == "ativos") return associados.Where(a => a.Ativo).ToList();
+            if (situacao == "inativos") return associados.Where(a => !a.Ativo).ToList();
+            return associados;
         }
 
         private static int? LerIntFiltro(Dictionary<string, object> filtros, string chave)
