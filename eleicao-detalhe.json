@@ -1,0 +1,50 @@
+﻿{
+    "id":  "2c369c97-ae0a-4084-94fa-9c434084181f",
+    "titulo":  "Teste de carga votacao",
+    "descricao":  "Enquete para validar backend e frontend",
+    "arquivoAnexo":  null,
+    "inicioVotacao":  "2026-03-18T00:00:00",
+    "fimVotacao":  "2026-12-31T23:59:59",
+    "tipo":  1,
+    "status":  2,
+    "apenasAssociados":  true,
+    "apenasAtivos":  true,
+    "bancoId":  null,
+    "criadoEm":  "2026-03-18T15:21:02.5241777",
+    "totalPerguntas":  1,
+    "totalVotos":  0,
+    "perguntas":  [
+                      {
+                          "id":  "d76b21ed-3a74-4a13-92c3-14379397f691",
+                          "eleicaoId":  "2c369c97-ae0a-4084-94fa-9c434084181f",
+                          "ordem":  1,
+                          "texto":  "Voce aprova?",
+                          "descricao":  null,
+                          "tipo":  1,
+                          "maxVotos":  null,
+                          "permiteBranco":  true,
+                          "opcoes":  [
+                                         {
+                                             "id":  "a1afca33-eb15-4131-b4b6-5785205d7ae4",
+                                             "perguntaId":  "d76b21ed-3a74-4a13-92c3-14379397f691",
+                                             "ordem":  1,
+                                             "texto":  "Sim",
+                                             "descricao":  null,
+                                             "foto":  null,
+                                             "associadoId":  null,
+                                             "associadoNome":  null
+                                         },
+                                         {
+                                             "id":  "c9f71d8b-cdff-4fbe-84ff-f0aa52fe2763",
+                                             "perguntaId":  "d76b21ed-3a74-4a13-92c3-14379397f691",
+                                             "ordem":  2,
+                                             "texto":  "Nao",
+                                             "descricao":  null,
+                                             "foto":  null,
+                                             "associadoId":  null,
+                                             "associadoNome":  null
+                                         }
+                                     ]
+                      }
+                  ]
+}
