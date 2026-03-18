@@ -53,7 +53,16 @@ const ComprovantePage: React.FC = () => {
     try {
       setLoading(true)
       const response = await api.get(`/api/eleicoes/comprovante/${votoId}`)
-      setComprovante(response.data)
+      const d = response.data
+      setComprovante({
+        id: d.id ?? d.Id ?? votoId ?? '',
+        eleicaoTitulo: d.eleicaoTitulo ?? d.EleicaoTitulo ?? '',
+        dataHoraVoto: d.dataHoraVoto ?? d.DataHoraVoto ?? '',
+        hashVoto: d.hashVoto ?? d.HashVoto ?? '',
+        numeroComprovante: d.numeroComprovante ?? d.NumeroComprovante ?? d.codigo ?? d.Codigo ?? '',
+        associadoNome: d.associadoNome ?? d.AssociadoNome ?? associado?.nome ?? '',
+        totalPerguntas: d.totalPerguntas ?? d.TotalPerguntas ?? 0
+      })
     } catch (err) {
       setError('Erro ao carregar comprovante')
       console.error('Erro ao carregar comprovante:', err)
@@ -176,10 +185,10 @@ Hash: ${comprovante.hashVoto}`
                     👤 DADOS DO VOTANTE
                   </Typography>
                   <Typography variant="body2" gutterBottom>
-                    <strong>Nome:</strong> {comprovante.associadoNome}
+                    <strong>Nome:</strong> {comprovante.associadoNome || associado?.nome || '—'}
                   </Typography>
                   <Typography variant="body2" gutterBottom>
-                    <strong>CPF:</strong> {associado?.cpf}
+                    <strong>CPF:</strong> {associado?.cpf ?? '—'}
                   </Typography>
                 </Paper>
               </Grid>
@@ -195,7 +204,7 @@ Hash: ${comprovante.hashVoto}`
                   <Typography variant="body2" gutterBottom>
                     <strong>Nº Comprovante:</strong> 
                     <Chip 
-                      label={comprovante.numeroComprovante}
+                      label={comprovante.numeroComprovante || '—'}
                       color="primary"
                       size="small"
                       sx={{ ml: 1, fontFamily: 'monospace' }}
@@ -204,6 +213,7 @@ Hash: ${comprovante.hashVoto}`
                 </Paper>
               </Grid>
 
+              {comprovante.hashVoto && (
               <Grid item xs={12}>
                 <Paper variant="outlined" sx={{ p: 2, bgcolor: 'grey.50' }}>
                   <Box display="flex" alignItems="center" mb={1}>
@@ -227,6 +237,7 @@ Hash: ${comprovante.hashVoto}`
                   </Typography>
                 </Paper>
               </Grid>
+              )}
             </Grid>
 
             {/* QR Code Placeholder */}

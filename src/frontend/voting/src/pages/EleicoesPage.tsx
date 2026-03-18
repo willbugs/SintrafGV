@@ -54,7 +54,19 @@ const EleicoesPage: React.FC = () => {
     try {
       setLoading(true)
       const response = await api.get('/api/eleicoes/ativas')
-      setEleicoes(response.data)
+      const raw = response.data ?? []
+      // API pode retornar PascalCase (PodeVotar, JaVotou) ou camelCase; /ativas = só abertas, então se não vier flag assume pode votar
+      setEleicoes(raw.map((e: any) => ({
+        id: e.id ?? e.Id,
+        titulo: e.titulo ?? e.Titulo ?? '',
+        descricao: e.descricao ?? e.Descricao ?? '',
+        inicioVotacao: e.inicioVotacao ?? e.InicioVotacao ?? '',
+        fimVotacao: e.fimVotacao ?? e.FimVotacao ?? '',
+        status: (e.status ?? e.Status ?? 'Aberta') as Eleicao['status'],
+        totalPerguntas: e.totalPerguntas ?? e.TotalPerguntas ?? 0,
+        podeVotar: e.podeVotar ?? e.PodeVotar ?? true,
+        jaVotou: e.jaVotou ?? e.JaVotou ?? false
+      })))
     } catch (err) {
       setError('Erro ao carregar eleições disponíveis')
       console.error('Erro ao carregar eleições:', err)
@@ -155,8 +167,8 @@ const EleicoesPage: React.FC = () => {
                       {eleicao.descricao}
                     </Typography>
                     <Chip
-                      label={eleicao.status}
-                      color={eleicao.status === 'Aberta' ? 'success' : 'default'}
+                      label={(eleicao.status as string | number) === 2 || eleicao.status === 'Aberta' ? 'Aberta' : String(eleicao.status)}
+                      color={(eleicao.status as string | number) === 2 || eleicao.status === 'Aberta' ? 'success' : 'default'}
                       size="small"
                     />
                   </CardContent>

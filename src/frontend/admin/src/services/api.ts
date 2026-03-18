@@ -147,11 +147,13 @@ export const associadosAPI = {
 };
 
 export const eleicoesAPI = {
-  listar: async (pagina = 1, porPagina = 20, status?: number) => {
+  listar: async (pagina = 1, porPagina = 20, filtros?: { busca?: string; status?: number; tipo?: number }) => {
     const params = new URLSearchParams();
     params.set('pagina', String(pagina));
     params.set('porPagina', String(porPagina));
-    if (status != null) params.set('status', String(status));
+    if (filtros?.busca) params.set('busca', filtros.busca);
+    if (filtros?.status != null) params.set('status', String(filtros.status));
+    if (filtros?.tipo != null) params.set('tipo', String(filtros.tipo));
     const response = await api.get(`/api/eleicoes?${params.toString()}`);
     return response.data;
   },

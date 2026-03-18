@@ -1,3 +1,6 @@
+using System.Globalization;
+using System.Security.Cryptography;
+using System.Text;
 using SintrafGv.Application.DTOs;
 using SintrafGv.Domain.Interfaces;
 using SintrafGv.Domain.Entities;
@@ -8,18 +11,27 @@ public class EleicaoService : IEleicaoService
 {
     private readonly IEleicaoRepository _repository;
     private readonly IAssociadoRepository _associadoRepository;
+    private readonly IVotoRepository _votoRepository;
 
-    public EleicaoService(IEleicaoRepository repository, IAssociadoRepository associadoRepository)
+    public EleicaoService(IEleicaoRepository repository, IAssociadoRepository associadoRepository, IVotoRepository votoRepository)
     {
         _repository = repository;
         _associadoRepository = associadoRepository;
+        _votoRepository = votoRepository;
     }
 
-    public async Task<(IReadOnlyList<EleicaoResumoDto> Itens, int Total)> ListarResumoAsync(int pagina, int porPagina, StatusEleicao? status, CancellationToken cancellationToken = default)
+    public async Task<(IReadOnlyList<EleicaoResumoDto> Itens, int Total)> ListarResumoAsync(
+        int pagina, 
+        int porPagina, 
+        StatusEleicao? status,
+        string? busca,
+        DateTimeOffset? dataInicio,
+        DateTimeOffset? dataFim,
+        CancellationToken cancellationToken = default)
     {
         var skip = (pagina - 1) * porPagina;
-        var itens = await _repository.ListarAsync(skip, porPagina, status, cancellationToken);
-        var total = await _repository.ContarAsync(status, cancellationToken);
+        var itens = await _repository.ListarAsync(skip, porPagina, status, busca, dataInicio, dataFim, cancellationToken);
+        var total = await _repository.ContarAsync(status, busca, dataInicio, dataFim, cancellationToken);
         var ids = itens.Select(e => e.Id).ToList();
         var votosPorId = ids.Count > 0 ? await _repository.ContarVotosPorEleicaoAsync(ids, cancellationToken) : new Dictionary<Guid, int>();
         var dtos = itens.Select(e => new EleicaoResumoDto
@@ -37,6 +49,53 @@ public class EleicaoService : IEleicaoService
         return (dtos, total);
     }
 
+    public async Task<IReadOnlyList<EleicaoAtivaDto>> ListarAtivasParaAssociadoAsync(Guid associadoId, CancellationToken cancellationToken = default)
+    {
+        var itens = await _repository.ListarAsync(0, 100, StatusEleicao.Aberta, null, null, null, cancellationToken);
+        var ids = itens.Select(e => e.Id).ToList();
+        var votosPorId = ids.Count > 0 ? await _repository.ContarVotosPorEleicaoAsync(ids, cancellationToken) : new Dictionary<Guid, int>();
+        var now = DateTime.UtcNow;
+        var result = new List<EleicaoAtivaDto>();
+        foreach (var e in itens)
+        {
+            var jaVotou = await _repository.AssociadoJaVotouAsync(e.Id, associadoId, cancellationToken);
+            var dentroPeriodo = now >= e.InicioVotacao && now <= e.FimVotacao;
+            var podeVotar = dentroPeriodo && !jaVotou;
+            result.Add(new EleicaoAtivaDto
+            {
+                Id = e.Id,
+                Titulo = e.Titulo,
+                Descricao = e.Descricao,
+                Tipo = e.Tipo,
+                Status = e.Status,
+                InicioVotacao = e.InicioVotacao,
+                FimVotacao = e.FimVotacao,
+                TotalPerguntas = e.Perguntas?.Count ?? 0,
+                TotalVotos = votosPorId.GetValueOrDefault(e.Id, 0),
+                PodeVotar = podeVotar,
+                JaVotou = jaVotou
+            });
+        }
+        return result;
+    }
+
+    public async Task<ComprovanteVotoDto?> ObterComprovanteAsync(Guid votoId, Guid associadoId, CancellationToken cancellationToken = default)
+    {
+        var voto = await _votoRepository.ObterVotoPorIdComEleicaoAsync(votoId, cancellationToken);
+        if (voto is null || voto.AssociadoId != associadoId)
+            return null;
+        return new ComprovanteVotoDto
+        {
+            Id = voto.Id,
+            EleicaoTitulo = voto.Eleicao?.Titulo ?? string.Empty,
+            DataHoraVoto = voto.DataHoraVoto,
+            HashVoto = voto.HashVoto ?? string.Empty,
+            NumeroComprovante = voto.CodigoComprovante ?? string.Empty,
+            AssociadoNome = voto.Associado?.Nome ?? string.Empty,
+            TotalPerguntas = voto.Eleicao?.Perguntas?.Count ?? 0
+        };
+    }
+
     public async Task<EleicaoDto?> ObterPorIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
         var e = await _repository.ObterPorIdComPerguntasAsync(id, cancellationToken);
@@ -47,14 +106,16 @@ public class EleicaoService : IEleicaoService
 
     public async Task<EleicaoDto> CriarAsync(CreateEleicaoRequest request, Guid? criadoPorId, CancellationToken cancellationToken = default)
     {
+        var inicio = ParseDataVotacao(request.InicioVotacao, nameof(request.InicioVotacao));
+        var fim = ParseDataVotacao(request.FimVotacao, nameof(request.FimVotacao));
         var eleicao = new Eleicao
         {
             Id = Guid.NewGuid(),
             Titulo = request.Titulo,
             Descricao = request.Descricao,
             ArquivoAnexo = request.ArquivoAnexo,
-            InicioVotacao = request.InicioVotacao,
-            FimVotacao = request.FimVotacao,
+            InicioVotacao = inicio,
+            FimVotacao = fim,
             Tipo = request.Tipo,
             Status = StatusEleicao.Rascunho,
             ApenasAssociados = request.ApenasAssociados,
@@ -63,7 +124,7 @@ public class EleicaoService : IEleicaoService
             CriadoEm = DateTime.UtcNow,
             CriadoPorId = criadoPorId
         };
-        foreach (var pr in request.Perguntas.OrderBy(p => p.Ordem))
+        foreach (var pr in (request.Perguntas ?? new List<CreatePerguntaRequest>()).OrderBy(p => p.Ordem))
         {
             var pergunta = new Pergunta
             {
@@ -76,7 +137,7 @@ public class EleicaoService : IEleicaoService
                 MaxVotos = pr.MaxVotos,
                 PermiteBranco = pr.PermiteBranco
             };
-            foreach (var op in pr.Opcoes.OrderBy(o => o.Ordem))
+            foreach (var op in (pr.Opcoes ?? new List<CreateOpcaoRequest>()).OrderBy(o => o.Ordem))
             {
                 pergunta.Opcoes.Add(new Opcao
                 {
@@ -102,8 +163,8 @@ public class EleicaoService : IEleicaoService
         e.Titulo = request.Titulo;
         e.Descricao = request.Descricao;
         e.ArquivoAnexo = request.ArquivoAnexo;
-        e.InicioVotacao = request.InicioVotacao;
-        e.FimVotacao = request.FimVotacao;
+        e.InicioVotacao = ParseDataVotacao(request.InicioVotacao, nameof(request.InicioVotacao));
+        e.FimVotacao = ParseDataVotacao(request.FimVotacao, nameof(request.FimVotacao));
         e.Tipo = request.Tipo;
         e.ApenasAssociados = request.ApenasAssociados;
         e.ApenasAtivos = request.ApenasAtivos;
@@ -269,16 +330,23 @@ public class EleicaoService : IEleicaoService
         }
 
         // Criar voto
+        var dataHora = DateTime.UtcNow;
         var codigoComprovante = Guid.NewGuid().ToString("N")[..8].ToUpper();
+        var payloadHash = $"{eleicaoId}:{associadoId}:{dataHora:O}:{codigoComprovante}";
+        var hashVoto = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(payloadHash)));
         var voto = new Voto
         {
             Id = Guid.NewGuid(),
             EleicaoId = eleicaoId,
             AssociadoId = associadoId,
-            DataHoraVoto = DateTime.UtcNow,
+            DataHoraVoto = dataHora,
             IpOrigem = ipOrigem,
             UserAgent = userAgent,
-            CodigoComprovante = codigoComprovante
+            CodigoComprovante = codigoComprovante,
+            HashVoto = hashVoto,
+            TimestampPreciso = dataHora.ToString("yyyy-MM-ddTHH:mm:ss.fffZ", CultureInfo.InvariantCulture),
+            RespostaCriptografada = string.Empty,
+            ChaveCriptografia = string.Empty
         };
 
         var detalhes = request.Respostas.Select(r => new VotoDetalhe
@@ -294,10 +362,21 @@ public class EleicaoService : IEleicaoService
 
         return new VotoDto
         {
+            Id = voto.Id,
             EleicaoId = eleicaoId,
             CodigoComprovante = codigoComprovante,
             DataHoraVoto = voto.DataHoraVoto,
             Respostas = request.Respostas
         };
+    }
+
+    /// <summary>Converte string ISO 8601 (ex: 2026-03-18T13:00:00.000Z) em DateTime (UTC).</summary>
+    private static DateTime ParseDataVotacao(string? value, string nomeCampo)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            throw new ArgumentException($"Data de votação inválida: {nomeCampo} é obrigatório.", nomeCampo);
+        if (DateTime.TryParse(value, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var dt))
+            return dt.Kind == DateTimeKind.Unspecified ? DateTime.SpecifyKind(dt, DateTimeKind.Utc) : dt.ToUniversalTime();
+        throw new ArgumentException($"Data de votação inválida: {nomeCampo} deve estar em formato ISO 8601 (ex: 2026-03-18T13:00:00.000Z).", nomeCampo);
     }
 }

@@ -1,7 +1,11 @@
+using System.Text.Json.Serialization;
+
 namespace SintrafGv.Application.DTOs;
 
 public class VotoDto
 {
+    [JsonPropertyName("votoId")]
+    public Guid Id { get; set; }
     public Guid EleicaoId { get; set; }
     public DateTime DataHoraVoto { get; set; }
     public string? CodigoComprovante { get; set; }
@@ -22,7 +26,11 @@ public class VotoDetalheRequest
 
 public class ComprovanteVotoDto
 {
-    public string Codigo { get; set; } = string.Empty;
-    public DateTime DataHoraVoto { get; set; }
+    public Guid Id { get; set; }
     public string EleicaoTitulo { get; set; } = string.Empty;
+    public DateTime DataHoraVoto { get; set; }
+    public string HashVoto { get; set; } = string.Empty;
+    public string NumeroComprovante { get; set; } = string.Empty;
+    public string AssociadoNome { get; set; } = string.Empty;
+    public int TotalPerguntas { get; set; }
 }

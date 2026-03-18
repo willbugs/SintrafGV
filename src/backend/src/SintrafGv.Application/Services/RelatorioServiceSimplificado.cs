@@ -334,8 +334,8 @@ namespace SintrafGv.Application.Services
                 AssociadosInativos = associados.Count(a => !a.Ativo),
                 NovosMesAtual = associados.Count(a => a.DataFiliacao >= inicioMes && a.DataFiliacao <= fimMes),
                 DesligadosMesAtual = associados.Count(a => a.DataDesligamento >= inicioMes && a.DataDesligamento <= fimMes),
-                EnquetesAbertas = await _eleicaoRepository.ContarAsync(Domain.Entities.StatusEleicao.Aberta, cancellationToken),
-                EnquetesEncerradas = await _eleicaoRepository.ContarAsync(Domain.Entities.StatusEleicao.Encerrada, cancellationToken)
+                EnquetesAbertas = await _eleicaoRepository.ContarAsync(Domain.Entities.StatusEleicao.Aberta, null, null, null, cancellationToken),
+                EnquetesEncerradas = await _eleicaoRepository.ContarAsync(Domain.Entities.StatusEleicao.Encerrada, null, null, null, cancellationToken)
             };
 
             // Calcular crescimento
@@ -483,58 +483,58 @@ namespace SintrafGv.Application.Services
             {
                 RelatorioResponse<AssociadoRelatorioDto> r1 => request.FormatoExportacao switch
                 {
-                    "pdf" => await _exportacaoService.ExportarPdfAsync(r1, nomeArquivo, cancellationToken),
-                    "excel" or "xlsx" => await _exportacaoService.ExportarExcelAsync(r1, nomeArquivo, cancellationToken),
-                    "csv" => await _exportacaoService.ExportarCsvAsync(r1, nomeArquivo, cancellationToken),
+                    "pdf" => await _exportacaoService.ExportarPdfAsync(r1, nomeArquivo),
+                    "excel" or "xlsx" => await _exportacaoService.ExportarExcelAsync(r1, nomeArquivo),
+                    "csv" => await _exportacaoService.ExportarCsvAsync(r1, nomeArquivo),
                     _ => throw new ArgumentException($"Formato '{request.FormatoExportacao}' não suportado")
                 },
                 RelatorioResponse<InadimplenciaDto> r2 => request.FormatoExportacao switch
                 {
-                    "pdf" => await _exportacaoService.ExportarPdfAsync(r2, nomeArquivo, cancellationToken),
-                    "excel" or "xlsx" => await _exportacaoService.ExportarExcelAsync(r2, nomeArquivo, cancellationToken),
-                    "csv" => await _exportacaoService.ExportarCsvAsync(r2, nomeArquivo, cancellationToken),
+                    "pdf" => await _exportacaoService.ExportarPdfAsync(r2, nomeArquivo),
+                    "excel" or "xlsx" => await _exportacaoService.ExportarExcelAsync(r2, nomeArquivo),
+                    "csv" => await _exportacaoService.ExportarCsvAsync(r2, nomeArquivo),
                     _ => throw new ArgumentException($"Formato '{request.FormatoExportacao}' não suportado")
                 },
                 RelatorioResponse<MovimentacaoMensalDto> r3 => request.FormatoExportacao switch
                 {
-                    "pdf" => await _exportacaoService.ExportarPdfAsync(r3, nomeArquivo, cancellationToken),
-                    "excel" or "xlsx" => await _exportacaoService.ExportarExcelAsync(r3, nomeArquivo, cancellationToken),
-                    "csv" => await _exportacaoService.ExportarCsvAsync(r3, nomeArquivo, cancellationToken),
+                    "pdf" => await _exportacaoService.ExportarPdfAsync(r3, nomeArquivo),
+                    "excel" or "xlsx" => await _exportacaoService.ExportarExcelAsync(r3, nomeArquivo),
+                    "csv" => await _exportacaoService.ExportarCsvAsync(r3, nomeArquivo),
                     _ => throw new ArgumentException($"Formato '{request.FormatoExportacao}' não suportado")
                 },
                 RelatorioResponse<ParticipacaoVotacaoDto> r4 => request.FormatoExportacao switch
                 {
-                    "pdf" => await _exportacaoService.ExportarPdfAsync(r4, nomeArquivo, cancellationToken),
-                    "excel" or "xlsx" => await _exportacaoService.ExportarExcelAsync(r4, nomeArquivo, cancellationToken),
-                    "csv" => await _exportacaoService.ExportarCsvAsync(r4, nomeArquivo, cancellationToken),
+                    "pdf" => await _exportacaoService.ExportarPdfAsync(r4, nomeArquivo),
+                    "excel" or "xlsx" => await _exportacaoService.ExportarExcelAsync(r4, nomeArquivo),
+                    "csv" => await _exportacaoService.ExportarCsvAsync(r4, nomeArquivo),
                     _ => throw new ArgumentException($"Formato '{request.FormatoExportacao}' não suportado")
                 },
                 RelatorioResponse<FaixaEtariaDto> r5 => request.FormatoExportacao switch
                 {
-                    "pdf" => await _exportacaoService.ExportarPdfAsync(r5, nomeArquivo, cancellationToken),
-                    "excel" or "xlsx" => await _exportacaoService.ExportarExcelAsync(r5, nomeArquivo, cancellationToken),
-                    "csv" => await _exportacaoService.ExportarCsvAsync(r5, nomeArquivo, cancellationToken),
+                    "pdf" => await _exportacaoService.ExportarPdfAsync(r5, nomeArquivo),
+                    "excel" or "xlsx" => await _exportacaoService.ExportarExcelAsync(r5, nomeArquivo),
+                    "csv" => await _exportacaoService.ExportarCsvAsync(r5, nomeArquivo),
                     _ => throw new ArgumentException($"Formato '{request.FormatoExportacao}' não suportado")
                 },
                 RelatorioResponse<AposentadoPensionistaDto> r6 => request.FormatoExportacao switch
                 {
-                    "pdf" => await _exportacaoService.ExportarPdfAsync(r6, nomeArquivo, cancellationToken),
-                    "excel" or "xlsx" => await _exportacaoService.ExportarExcelAsync(r6, nomeArquivo, cancellationToken),
-                    "csv" => await _exportacaoService.ExportarCsvAsync(r6, nomeArquivo, cancellationToken),
+                    "pdf" => await _exportacaoService.ExportarPdfAsync(r6, nomeArquivo),
+                    "excel" or "xlsx" => await _exportacaoService.ExportarExcelAsync(r6, nomeArquivo),
+                    "csv" => await _exportacaoService.ExportarCsvAsync(r6, nomeArquivo),
                     _ => throw new ArgumentException($"Formato '{request.FormatoExportacao}' não suportado")
                 },
                 RelatorioResponse<ResultadoEleicaoDto> r7 => request.FormatoExportacao switch
                 {
-                    "pdf" => await _exportacaoService.ExportarPdfAsync(r7, nomeArquivo, cancellationToken),
-                    "excel" or "xlsx" => await _exportacaoService.ExportarExcelAsync(r7, nomeArquivo, cancellationToken),
-                    "csv" => await _exportacaoService.ExportarCsvAsync(r7, nomeArquivo, cancellationToken),
+                    "pdf" => await _exportacaoService.ExportarPdfAsync(r7, nomeArquivo),
+                    "excel" or "xlsx" => await _exportacaoService.ExportarExcelAsync(r7, nomeArquivo),
+                    "csv" => await _exportacaoService.ExportarCsvAsync(r7, nomeArquivo),
                     _ => throw new ArgumentException($"Formato '{request.FormatoExportacao}' não suportado")
                 },
                 RelatorioResponse<EngajamentoVotacaoDto> r8 => request.FormatoExportacao switch
                 {
-                    "pdf" => await _exportacaoService.ExportarPdfAsync(r8, nomeArquivo, cancellationToken),
-                    "excel" or "xlsx" => await _exportacaoService.ExportarExcelAsync(r8, nomeArquivo, cancellationToken),
-                    "csv" => await _exportacaoService.ExportarCsvAsync(r8, nomeArquivo, cancellationToken),
+                    "pdf" => await _exportacaoService.ExportarPdfAsync(r8, nomeArquivo),
+                    "excel" or "xlsx" => await _exportacaoService.ExportarExcelAsync(r8, nomeArquivo),
+                    "csv" => await _exportacaoService.ExportarCsvAsync(r8, nomeArquivo),
                     _ => throw new ArgumentException($"Formato '{request.FormatoExportacao}' não suportado")
                 },
                 _ => throw new ArgumentException($"Tipo de relatório '{request.TipoRelatorio}' não suportado para exportação")
@@ -558,7 +558,7 @@ namespace SintrafGv.Application.Services
         {
             // Buscar associados e eleições
             var associados = await _associadoRepository.ListarAsync(0, int.MaxValue, false, cancellationToken);
-            var eleicoes = await _eleicaoRepository.ListarAsync(0, int.MaxValue, null, cancellationToken);
+            var eleicoes = await _eleicaoRepository.ListarAsync(0, int.MaxValue, null, null, null, null, cancellationToken);
             var votos = await _votoRepository.ListarTodosAsync(cancellationToken);
 
             var dados = associados.Select(associado =>
@@ -616,7 +616,7 @@ namespace SintrafGv.Application.Services
             RelatorioRequest request,
             CancellationToken cancellationToken = default)
         {
-            var eleicoes = await _eleicaoRepository.ListarAsync(0, int.MaxValue, null, cancellationToken);
+            var eleicoes = await _eleicaoRepository.ListarAsync(0, int.MaxValue, null, null, null, null, cancellationToken);
             var associados = await _associadoRepository.ListarAsync(0, int.MaxValue, false, cancellationToken);
             
             if (request.DataInicio.HasValue)
@@ -688,7 +688,7 @@ namespace SintrafGv.Application.Services
             RelatorioRequest request,
             CancellationToken cancellationToken = default)
         {
-            var eleicoes = await _eleicaoRepository.ListarAsync(0, int.MaxValue, null, cancellationToken);
+            var eleicoes = await _eleicaoRepository.ListarAsync(0, int.MaxValue, null, null, null, null, cancellationToken);
             var associados = await _associadoRepository.ListarAsync(0, int.MaxValue, false, cancellationToken);
             var totalElegiveis = associados.Count(a => a.Ativo);
             

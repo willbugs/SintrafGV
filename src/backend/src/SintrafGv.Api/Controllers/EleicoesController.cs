@@ -21,18 +21,48 @@ public class EleicoesController : ControllerBase
         [FromQuery] int pagina = 1,
         [FromQuery] int porPagina = 20,
         [FromQuery] StatusEleicao? status = null,
+        [FromQuery] string? busca = null,
+        [FromQuery] DateTimeOffset? dataInicio = null,
+        [FromQuery] DateTimeOffset? dataFim = null,
         CancellationToken cancellationToken = default)
     {
-        var (itens, total) = await _service.ListarResumoAsync(pagina, porPagina, status, cancellationToken);
+        var buscaTrim = string.IsNullOrWhiteSpace(busca) ? null : busca!.Trim();
+        var (itens, total) = await _service.ListarResumoAsync(
+            pagina, 
+            porPagina, 
+            status, 
+            buscaTrim,
+            dataInicio,
+            dataFim,
+            cancellationToken);
         return Ok(new { itens, total });
     }
 
-    /// <summary>Lista eleições ativas disponíveis para votação (usado pelo PWA)</summary>
+    /// <summary>Lista eleições ativas disponíveis para votação (usado pelo PWA). Com token de associado retorna PodeVotar e JaVotou.</summary>
     [HttpGet("ativas")]
     public async Task<ActionResult<object>> ListarAtivas(CancellationToken cancellationToken = default)
     {
-        var (itens, _) = await _service.ListarResumoAsync(1, 100, StatusEleicao.Aberta, cancellationToken);
+        var associadoIdClaim = User.FindFirst("AssociadoId")?.Value ?? User.FindFirst("sub")?.Value;
+        if (associadoIdClaim is { } sid && Guid.TryParse(sid, out var associadoId))
+        {
+            var ativas = await _service.ListarAtivasParaAssociadoAsync(associadoId, cancellationToken);
+            return Ok(ativas);
+        }
+        var (itens, _) = await _service.ListarResumoAsync(1, 100, StatusEleicao.Aberta, null, null, null, cancellationToken);
         return Ok(itens);
+    }
+
+    /// <summary>Obtém comprovante do voto (apenas o associado dono do voto).</summary>
+    [HttpGet("comprovante/{votoId:guid}")]
+    public async Task<ActionResult<ComprovanteVotoDto>> ObterComprovante(Guid votoId, CancellationToken cancellationToken = default)
+    {
+        var associadoIdClaim = User.FindFirst("AssociadoId")?.Value ?? User.FindFirst("sub")?.Value;
+        if (string.IsNullOrEmpty(associadoIdClaim) || !Guid.TryParse(associadoIdClaim, out var associadoId))
+            return Unauthorized("Token de associado necessário.");
+        var dto = await _service.ObterComprovanteAsync(votoId, associadoId, cancellationToken);
+        if (dto is null)
+            return NotFound("Comprovante não encontrado ou você não tem permissão para visualizá-lo.");
+        return Ok(dto);
     }
 
     [HttpGet("{id:guid}")]

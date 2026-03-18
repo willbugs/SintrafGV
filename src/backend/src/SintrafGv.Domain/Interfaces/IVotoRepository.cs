@@ -8,6 +8,7 @@ namespace SintrafGv.Domain.Interfaces
     {
         Task<List<Voto>> ObterVotosPorEleicaoAsync(Guid eleicaoId, CancellationToken cancellationToken = default);
         Task<Voto?> ObterVotoPorIdAsync(Guid votoId, CancellationToken cancellationToken = default);
+        Task<Voto?> ObterVotoPorIdComEleicaoAsync(Guid votoId, CancellationToken cancellationToken = default);
         Task<bool> VerificarVotoExistenteAsync(Guid eleicaoId, Guid associadoId, CancellationToken cancellationToken = default);
         Task<Voto> SalvarVotoAsync(Voto voto, CancellationToken cancellationToken = default);
         Task<int> ContarVotosPorEleicaoAsync(Guid eleicaoId, CancellationToken cancellationToken = default);

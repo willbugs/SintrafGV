@@ -40,6 +40,29 @@ interface PerguntaForm {
   opcoes: OpcaoForm[];
 }
 
+// Formato BR: dd/mm/aaaa hh:mm (sistema brasileiro)
+function isoToBrDateTime(iso: string): string {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  const day = String(d.getDate()).padStart(2, '0');
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const year = d.getFullYear();
+  const h = String(d.getHours()).padStart(2, '0');
+  const m = String(d.getMinutes()).padStart(2, '0');
+  return `${day}/${month}/${year} ${h}:${m}`;
+}
+function parseBrDateTimeToIso(br: string): string {
+  const trimmed = br.trim();
+  if (!trimmed) return '';
+  const [datePart, timePart] = trimmed.split(/\s+/);
+  const [d, M, y] = (datePart ?? '').split('/').map(Number);
+  const [h, m] = (timePart ?? '00:00').split(':').map(Number);
+  if (!y || !M || !d) return '';
+  const date = new Date(y, M - 1, d, h || 0, m || 0);
+  return date.toISOString();
+}
+
 const EleicaoFormPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -77,8 +100,8 @@ const EleicaoFormPage: React.FC = () => {
           setTipo((data.tipo ?? data.Tipo ?? TipoEleicao.Enquete) as TipoEleicaoVal);
           const inicio = (data.inicioVotacao ?? data.InicioVotacao ?? '') as string;
           const fim = (data.fimVotacao ?? data.FimVotacao ?? '') as string;
-          setInicioVotacao(inicio ? inicio.slice(0, 16) : '');
-          setFimVotacao(fim ? fim.slice(0, 16) : '');
+          setInicioVotacao(inicio ? isoToBrDateTime(inicio) : '');
+          setFimVotacao(fim ? isoToBrDateTime(fim) : '');
           setApenasAssociados((data.apenasAssociados ?? data.ApenasAssociados ?? true) as boolean);
           setApenasAtivos((data.apenasAtivos ?? data.ApenasAtivos ?? true) as boolean);
           const rawPerguntas = (data.perguntas ?? data.Perguntas ?? []) as Record<string, unknown>[];
@@ -220,8 +243,8 @@ const EleicaoFormPage: React.FC = () => {
         descricao,
         arquivoAnexo,
         tipo,
-        inicioVotacao: new Date(inicioVotacao).toISOString(),
-        fimVotacao: new Date(fimVotacao).toISOString(),
+        inicioVotacao: parseBrDateTimeToIso(inicioVotacao) || new Date(inicioVotacao).toISOString(),
+        fimVotacao: parseBrDateTimeToIso(fimVotacao) || new Date(fimVotacao).toISOString(),
         apenasAssociados,
         apenasAtivos,
         perguntas: perguntas.map(p => ({
@@ -400,25 +423,29 @@ const EleicaoFormPage: React.FC = () => {
             <Grid item xs={12} md={6}>
               <TextField
                 label="Início da Votação"
-                type="datetime-local"
+                type="text"
                 fullWidth
+                placeholder="dd/mm/aaaa hh:mm"
                 value={inicioVotacao}
                 onChange={(e) => setInicioVotacao(e.target.value)}
-                InputLabelProps={{ shrink: true }}
+                inputProps={{ maxLength: 16, title: 'Formato: dd/mm/aaaa hh:mm (Brasil)' }}
                 required
                 sx={{ mb: 2 }}
+                helperText="Formato brasileiro: dia/mês/ano hora:minuto"
               />
             </Grid>
             <Grid item xs={12} md={6}>
               <TextField
                 label="Fim da Votação"
-                type="datetime-local"
+                type="text"
                 fullWidth
+                placeholder="dd/mm/aaaa hh:mm"
                 value={fimVotacao}
                 onChange={(e) => setFimVotacao(e.target.value)}
-                InputLabelProps={{ shrink: true }}
+                inputProps={{ maxLength: 16, title: 'Formato: dd/mm/aaaa hh:mm (Brasil)' }}
                 required
                 sx={{ mb: 2 }}
+                helperText="Formato brasileiro: dia/mês/ano hora:minuto"
               />
             </Grid>
           </Grid>

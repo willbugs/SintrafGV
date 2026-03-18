@@ -13,8 +13,20 @@ import {
   CircularProgress,
   IconButton,
   Chip,
+  TextField,
+  InputLabel,
+  Select,
+  MenuItem,
+  FormControl,
+  InputAdornment,
+  Tooltip,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogContentText,
+  DialogActions
 } from '@mui/material';
-import { Add, Edit, HowToVote, AttachFile, Assessment } from '@mui/icons-material';
+import { Add, Edit, HowToVote, AttachFile, Assessment, Search, Clear, PlayArrow, Stop, CheckCircle, Cancel, HelpOutline } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { eleicoesAPI } from '../services/api';
 import type { EleicaoResumoDto, StatusEleicaoVal } from '../types';
@@ -45,13 +57,49 @@ const EleicoesPage: React.FC = () => {
   const [itens, setItens] = useState<EleicaoResumoDto[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [busca, setBusca] = useState('');
+  const [filtroStatus, setFiltroStatus] = useState<string>('Todos');
+  const [filtroTipo, setFiltroTipo] = useState<string>('Todos');
+  const [alterandoStatusId, setAlterandoStatusId] = useState<string | null>(null);
+  const [confirmacao, setConfirmacao] = useState<{ id: string; titulo: string; acao: string; novoStatus: number } | null>(null);
   const navigate = useNavigate();
   const toast = useToast();
+
+  const abrirConfirmacao = (id: string, titulo: string, novoStatus: number) => {
+    const acao =
+      novoStatus === 2 ? 'Abrir votação' : novoStatus === 3 ? 'Encerrar votação' : novoStatus === 4 ? 'Apurar resultados' : 'Cancelar';
+    setConfirmacao({ id, titulo, acao, novoStatus });
+  };
+
+  const fecharConfirmacao = () => setConfirmacao(null);
+
+  const confirmarAlterarStatus = async () => {
+    if (!confirmacao) return;
+    const { id, acao, novoStatus } = confirmacao;
+    setAlterandoStatusId(id);
+    fecharConfirmacao();
+    try {
+      await eleicoesAPI.atualizarStatus(id, novoStatus);
+      toast.success('Sucesso', `${acao} concluído.`);
+      carregar();
+    } catch {
+      toast.error('Erro', `Não foi possível ${acao.toLowerCase()}.`);
+    } finally {
+      setAlterandoStatusId(null);
+    }
+  };
 
   const carregar = async () => {
     setLoading(true);
     try {
-      const data = await eleicoesAPI.listar(1, 50);
+      const temFiltro = busca.trim() !== '' || filtroStatus !== 'Todos' || filtroTipo !== 'Todos';
+      const data = temFiltro
+        ? await eleicoesAPI.listar(1, 50, {
+            busca: busca.trim(),
+            status: filtroStatus !== 'Todos' ? parseInt(filtroStatus) : undefined,
+            tipo: filtroTipo !== 'Todos' ? parseInt(filtroTipo) : undefined
+          })
+        : await eleicoesAPI.listar(1, 50);
       const raw = data.itens ?? [];
       setItens(
         raw.map((r: Record<string, unknown>) => ({
@@ -99,6 +147,74 @@ const EleicoesPage: React.FC = () => {
           onClick={() => navigate('/eleicoes/novo')}
         >
           Nova enquete
+        </Button>
+      </Box>
+
+      <Box sx={{ display: 'flex', gap: 2, mb: 3, flexWrap: 'wrap' }}>
+        <TextField
+          size="small"
+          placeholder="Buscar por título..."
+          value={busca}
+          onChange={(e) => setBusca(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && carregar()}
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <Search fontSize="small" />
+              </InputAdornment>
+            ),
+          }}
+          sx={{ minWidth: 250 }}
+        />
+        
+        <FormControl size="small" sx={{ minWidth: 120 }}>
+          <InputLabel>Tipo</InputLabel>
+          <Select
+            value={filtroTipo}
+            label="Tipo"
+            onChange={(e) => setFiltroTipo(e.target.value)}
+          >
+            <MenuItem value="Todos">Todos</MenuItem>
+            <MenuItem value="1">Enquete</MenuItem>
+            <MenuItem value="2">Eleição</MenuItem>
+          </Select>
+        </FormControl>
+
+        <FormControl size="small" sx={{ minWidth: 120 }}>
+          <InputLabel>Status</InputLabel>
+          <Select
+            value={filtroStatus}
+            label="Status"
+            onChange={(e) => setFiltroStatus(e.target.value)}
+          >
+            <MenuItem value="Todos">Todos</MenuItem>
+            <MenuItem value="1">Rascunho</MenuItem>
+            <MenuItem value="2">Aberta</MenuItem>
+            <MenuItem value="3">Encerrada</MenuItem>
+            <MenuItem value="4">Apurada</MenuItem>
+            <MenuItem value="5">Cancelada</MenuItem>
+          </Select>
+        </FormControl>
+
+        <Button 
+          variant="contained" 
+          onClick={carregar}
+          startIcon={<Search />}
+        >
+          Filtrar
+        </Button>
+
+        <Button
+          variant="outlined"
+          onClick={() => {
+            setBusca('');
+            setFiltroStatus('Todos');
+            setFiltroTipo('Todos');
+            carregar();
+          }}
+          startIcon={<Clear />}
+        >
+          Limpar
         </Button>
       </Box>
 
@@ -159,24 +275,86 @@ const EleicoesPage: React.FC = () => {
                       <TableCell align="center">{e.totalPerguntas}</TableCell>
                       <TableCell align="center">{e.totalVotos}</TableCell>
                       <TableCell align="right">
-                        {(e.status === 3 || e.status === 4) && ( // Encerrada ou Apurada
-                          <IconButton
-                            onClick={() => navigate(`/eleicoes/${e.id}/resultados`)}
-                            size="small"
-                            title="Ver resultados"
-                            color="primary"
-                            sx={{ mr: 1 }}
-                          >
-                            <Assessment />
-                          </IconButton>
+                        {/* Rascunho: Abrir votação ou Cancelar */}
+                        {e.status === 1 && (
+                          <>
+                            <Tooltip title="Abrir votação">
+                              <IconButton
+                                onClick={() => abrirConfirmacao(e.id, e.titulo, 2)}
+                                size="small"
+                                color="primary"
+                                disabled={alterandoStatusId === e.id}
+                                sx={{ mr: 0.5 }}
+                              >
+                                <PlayArrow />
+                              </IconButton>
+                            </Tooltip>
+                            <Tooltip title="Cancelar enquete">
+                              <IconButton
+                                onClick={() => abrirConfirmacao(e.id, e.titulo, 5)}
+                                size="small"
+                                color="error"
+                                disabled={alterandoStatusId === e.id}
+                                sx={{ mr: 1 }}
+                              >
+                                <Cancel />
+                              </IconButton>
+                            </Tooltip>
+                          </>
                         )}
-                        <IconButton
-                          onClick={() => navigate(`/eleicoes/${e.id}`)}
-                          size="small"
-                          title="Editar enquete"
-                        >
-                          <Edit />
-                        </IconButton>
+                        {/* Aberta: Encerrar votação */}
+                        {e.status === 2 && (
+                          <Tooltip title="Encerrar votação">
+                            <IconButton
+                              onClick={() => abrirConfirmacao(e.id, e.titulo, 3)}
+                              size="small"
+                              color="warning"
+                              disabled={alterandoStatusId === e.id}
+                              sx={{ mr: 1 }}
+                            >
+                              <Stop />
+                            </IconButton>
+                          </Tooltip>
+                        )}
+                        {/* Encerrada: Apurar resultados */}
+                        {e.status === 3 && (
+                          <Tooltip title="Apurar resultados">
+                            <IconButton
+                              onClick={() => abrirConfirmacao(e.id, e.titulo, 4)}
+                              size="small"
+                              color="success"
+                              disabled={alterandoStatusId === e.id}
+                              sx={{ mr: 1 }}
+                            >
+                              <CheckCircle />
+                            </IconButton>
+                          </Tooltip>
+                        )}
+                        {/* Encerrada ou Apurada: Ver resultados */}
+                        {(e.status === 3 || e.status === 4) && (
+                          <Tooltip title="Ver resultados">
+                            <IconButton
+                              onClick={() => navigate(`/eleicoes/${e.id}/resultados`)}
+                              size="small"
+                              color="primary"
+                              sx={{ mr: 1 }}
+                            >
+                              <Assessment />
+                            </IconButton>
+                          </Tooltip>
+                        )}
+                        {/* Editar: somente em Rascunho */}
+                        {e.status === 1 && (
+                          <Tooltip title="Editar enquete">
+                            <IconButton
+                              onClick={() => navigate(`/eleicoes/${e.id}`)}
+                              size="small"
+                              disabled={alterandoStatusId === e.id}
+                            >
+                              <Edit />
+                            </IconButton>
+                          </Tooltip>
+                        )}
                       </TableCell>
                     </TableRow>
                   ))
@@ -193,6 +371,36 @@ const EleicoesPage: React.FC = () => {
           )}
         </Paper>
       )}
+
+      <Dialog
+        open={!!confirmacao}
+        onClose={fecharConfirmacao}
+        maxWidth="xs"
+        fullWidth
+        PaperProps={{ sx: { borderRadius: 2, boxShadow: 4 } }}
+      >
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1, pb: 0 }}>
+          <HelpOutline color="primary" />
+          Confirmar ação
+        </DialogTitle>
+        <DialogContent sx={{ pt: 2 }}>
+          <DialogContentText sx={{ fontSize: '1rem' }}>
+            {confirmacao && (
+              <>
+                Tem certeza que deseja <strong>{confirmacao.acao}</strong> na enquete &quot;{confirmacao.titulo}&quot;?
+              </>
+            )}
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2, pt: 0, gap: 1 }}>
+          <Button onClick={fecharConfirmacao} variant="outlined">
+            Cancelar
+          </Button>
+          <Button onClick={confirmarAlterarStatus} variant="contained" color="primary">
+            Confirmar
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };

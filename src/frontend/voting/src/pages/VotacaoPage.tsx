@@ -82,14 +82,49 @@ const VotacaoPage: React.FC = () => {
     }
   }, [eleicaoId]);
 
+  // Mapeia o formato da API (texto, opcoes) para o formato do componente (titulo, candidatos)
+  const mapEleicaoFromApi = (data: any): Eleicao => {
+    const rawPerguntas = data.perguntas ?? data.Perguntas ?? [];
+    const perguntasArray = Array.isArray(rawPerguntas) ? rawPerguntas : [];
+    return {
+      id: data.id ?? data.Id ?? '',
+      titulo: data.titulo ?? data.Titulo ?? '',
+      descricao: data.descricao ?? data.Descricao ?? '',
+      inicioVotacao: data.inicioVotacao ?? data.InicioVotacao ?? '',
+      fimVotacao: data.fimVotacao ?? data.FimVotacao ?? '',
+      status: data.status ?? data.Status ?? '',
+      perguntas: perguntasArray.map((p: any, pi: number) => {
+        const rawOpcoes = p.opcoes ?? p.Opcoes ?? [];
+        const opcoesArray = Array.isArray(rawOpcoes) ? rawOpcoes : [];
+        return {
+          id: String(p.id ?? p.Id ?? `p-${pi}`),
+          titulo: p.texto ?? p.Texto ?? p.titulo ?? '',
+          descricao: p.descricao ?? p.Descricao,
+          tipo: (p.tipo === 2 || p.tipo === 'MultiploVoto') ? 'MULTIPLA_ESCOLHA' : 'UNICA_ESCOLHA',
+          obrigatoria: true,
+          candidatos: opcoesArray.map((o: any, oi: number) => ({
+            id: String(o.id ?? o.Id ?? `o-${pi}-${oi}`),
+            nome: o.texto ?? o.Texto ?? o.nome ?? `Opção ${oi + 1}`,
+            numero: String(o.ordem ?? o.Ordem ?? oi + 1),
+            partido: o.descricao ?? o.Descricao,
+            foto: o.foto ?? o.Foto,
+            proposta: o.descricao ?? o.Descricao
+          }))
+        };
+      })
+    };
+  };
+
   const carregarEleicao = async () => {
     try {
       setLoading(true);
       const response = await api.get(`/api/eleicoes/${eleicaoId}`);
-      setEleicao(response.data);
+      setEleicao(mapEleicaoFromApi(response.data));
       
-      // Verificar se a eleição está ativa
-      if (response.data.status !== 'Ativa') {
+      // Verificar se a eleição está aberta (API pode retornar status 2 = Aberta ou string 'Aberta')
+      const status = response.data.status ?? response.data.Status;
+      const aberta = status === 'Aberta' || status === 2;
+      if (!aberta) {
         setErro('Esta eleição não está disponível para votação.');
       }
     } catch (error) {
@@ -108,19 +143,19 @@ const VotacaoPage: React.FC = () => {
   };
 
   const proximaEtapa = () => {
-    if (!eleicao) return;
-    
-    const perguntaAtual = eleicao.perguntas[etapaAtual];
-    const resposta = respostas.find(r => r.perguntaId === perguntaAtual.id);
-    
-    if (perguntaAtual.obrigatoria && !resposta) {
+    const lista = eleicao?.perguntas ?? [];
+    if (lista.length === 0) return;
+    const atual = lista[etapaAtual];
+    if (!atual) return;
+
+    const resposta = respostas.find(r => r.perguntaId === atual.id);
+    if (atual.obrigatoria && !resposta) {
       setErro('Esta pergunta é obrigatória. Selecione uma opção.');
       return;
     }
-    
+
     setErro(null);
-    
-    if (etapaAtual < eleicao.perguntas.length - 1) {
+    if (etapaAtual < lista.length - 1) {
       setEtapaAtual(prev => prev + 1);
     } else {
       setShowConfirmacao(true);
@@ -151,19 +186,20 @@ const VotacaoPage: React.FC = () => {
         return;
       }
       
-      // Preparar dados do voto
+      // Preparar dados do voto (API espera respostas: [{ perguntaId, opcaoId, votoBranco }])
       const dadosVoto = {
-        eleicaoId,
-        respostas: respostas.reduce((acc, resposta) => {
-          acc[resposta.perguntaId] = resposta.candidatoId;
-          return acc;
-        }, {} as Record<string, string>)
+        respostas: respostas.map(r => ({
+          perguntaId: r.perguntaId,
+          opcaoId: r.candidatoId,
+          votoBranco: false
+        }))
       };
       
       const response = await api.post(`/api/eleicoes/${eleicaoId}/votar`, dadosVoto);
       
-      // Redirecionar para página de comprovante
-      navigate(`/comprovante/${response.data.votoId}`);
+      // Redirecionar para página de comprovante (API retorna votoId)
+      const votoId = response.data.votoId ?? response.data.id;
+      navigate(`/comprovante/${votoId}`);
       
     } catch (error: any) {
       console.error('Erro ao votar:', error);
@@ -214,8 +250,53 @@ const VotacaoPage: React.FC = () => {
     );
   }
 
-  const perguntaAtual = eleicao.perguntas[etapaAtual];
+  const perguntas = eleicao.perguntas ?? [];
+  if (perguntas.length === 0) {
+    return (
+      <Container maxWidth="md" sx={{ py: 4 }}>
+        <Alert severity="warning">
+          Esta eleição não possui perguntas disponíveis para votação.
+        </Alert>
+        <Button variant="outlined" onClick={() => navigate('/eleicoes')} sx={{ mt: 2 }}>
+          Voltar às Eleições
+        </Button>
+      </Container>
+    );
+  }
+
+  const perguntaAtual = perguntas[etapaAtual];
   const respostaAtual = respostas.find(r => r.perguntaId === perguntaAtual?.id);
+
+  if (!perguntaAtual) {
+    return (
+      <Container maxWidth="md" sx={{ py: 4 }}>
+        <Alert severity="warning">
+          Pergunta não encontrada.
+        </Alert>
+        <Button variant="outlined" onClick={() => navigate('/eleicoes')} sx={{ mt: 2 }}>
+          Voltar às Eleições
+        </Button>
+      </Container>
+    );
+  }
+
+  const candidatos = perguntaAtual.candidatos ?? [];
+  if (candidatos.length === 0) {
+    return (
+      <Container maxWidth="md" sx={{ py: 4 }}>
+        <Paper elevation={3} sx={{ p: 4 }}>
+          <Typography variant="h5" gutterBottom>{eleicao.titulo}</Typography>
+          <Typography variant="h6" color="text.secondary" sx={{ mt: 2 }}>{perguntaAtual.titulo}</Typography>
+          <Alert severity="info" sx={{ mt: 3 }}>
+            Nenhuma opção disponível para esta pergunta.
+          </Alert>
+          <Button variant="outlined" onClick={() => navigate('/eleicoes')} sx={{ mt: 3 }}>
+            Voltar às Eleições
+          </Button>
+        </Paper>
+      </Container>
+    );
+  }
 
   return (
     <Container maxWidth="md" sx={{ py: 4 }}>
@@ -230,7 +311,7 @@ const VotacaoPage: React.FC = () => {
             {eleicao.descricao}
           </Typography>
           <Chip 
-            label={`Pergunta ${etapaAtual + 1} de ${eleicao.perguntas.length}`}
+            label={`Pergunta ${etapaAtual + 1} de ${perguntas.length}`}
             color="primary"
             variant="outlined"
           />
@@ -238,7 +319,7 @@ const VotacaoPage: React.FC = () => {
 
         {/* Stepper */}
         <Stepper activeStep={etapaAtual} sx={{ mb: 4 }}>
-          {eleicao.perguntas.map((pergunta) => (
+          {perguntas.map((pergunta) => (
             <Step key={pergunta.id}>
               <StepLabel>
                 {pergunta.titulo.length > 20 
@@ -277,7 +358,7 @@ const VotacaoPage: React.FC = () => {
                   value={respostaAtual?.candidatoId || ''}
                   onChange={(e) => handleRespostaChange(perguntaAtual.id, e.target.value)}
                 >
-                  {perguntaAtual.candidatos.map((candidato) => (
+                  {candidatos.map((candidato) => (
                     <Card 
                       key={candidato.id} 
                       variant="outlined" 
@@ -349,9 +430,9 @@ const VotacaoPage: React.FC = () => {
             <Button
               variant="contained"
               onClick={proximaEtapa}
-              endIcon={etapaAtual === eleicao.perguntas.length - 1 ? <CheckIcon /> : undefined}
+              endIcon={etapaAtual === perguntas.length - 1 ? <CheckIcon /> : undefined}
             >
-              {etapaAtual === eleicao.perguntas.length - 1 ? 'Finalizar' : 'Próxima'}
+              {etapaAtual === perguntas.length - 1 ? 'Finalizar' : 'Próxima'}
             </Button>
           </Box>
         </Box>
@@ -376,7 +457,7 @@ const VotacaoPage: React.FC = () => {
             Resumo do seu voto:
           </Typography>
           
-          {eleicao.perguntas.map((pergunta) => {
+          {perguntas.map((pergunta) => {
             const resposta = respostas.find(r => r.perguntaId === pergunta.id);
             const candidato = resposta ? pergunta.candidatos.find(c => c.id === resposta.candidatoId) : null;
             

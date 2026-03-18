@@ -34,13 +34,31 @@ public class EleicaoResumoDto
     public int TotalVotos { get; set; }
 }
 
+/// <summary>Resumo de eleição aberta para o PWA, com flags de elegibilidade do associado.</summary>
+public class EleicaoAtivaDto
+{
+    public Guid Id { get; set; }
+    public string Titulo { get; set; } = string.Empty;
+    public string? Descricao { get; set; }
+    public TipoEleicao Tipo { get; set; }
+    public StatusEleicao Status { get; set; }
+    public DateTime InicioVotacao { get; set; }
+    public DateTime FimVotacao { get; set; }
+    public int TotalPerguntas { get; set; }
+    public int TotalVotos { get; set; }
+    public bool PodeVotar { get; set; }
+    public bool JaVotou { get; set; }
+}
+
 public class CreateEleicaoRequest
 {
     public string Titulo { get; set; } = string.Empty;
     public string? Descricao { get; set; }
     public string? ArquivoAnexo { get; set; }
-    public DateTime InicioVotacao { get; set; }
-    public DateTime FimVotacao { get; set; }
+    /// <summary>Data/hora início da votação (ISO 8601, ex: 2026-03-18T13:00:00.000Z).</summary>
+    public string? InicioVotacao { get; set; }
+    /// <summary>Data/hora fim da votação (ISO 8601).</summary>
+    public string? FimVotacao { get; set; }
     public TipoEleicao Tipo { get; set; } = TipoEleicao.Enquete;
     public bool ApenasAssociados { get; set; } = true;
     public bool ApenasAtivos { get; set; } = true;
@@ -53,8 +71,10 @@ public class UpdateEleicaoRequest
     public string Titulo { get; set; } = string.Empty;
     public string? Descricao { get; set; }
     public string? ArquivoAnexo { get; set; }
-    public DateTime InicioVotacao { get; set; }
-    public DateTime FimVotacao { get; set; }
+    /// <summary>Data/hora início da votação (ISO 8601).</summary>
+    public string? InicioVotacao { get; set; }
+    /// <summary>Data/hora fim da votação (ISO 8601).</summary>
+    public string? FimVotacao { get; set; }
     public TipoEleicao Tipo { get; set; }
     public bool ApenasAssociados { get; set; }
     public bool ApenasAtivos { get; set; }

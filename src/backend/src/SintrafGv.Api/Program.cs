@@ -52,8 +52,14 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 
 builder.Services.AddCors(options =>
 {
-    var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
-        ?? new[] { "http://localhost:5173", "http://localhost:5174", "https://admin.sintrafgv.com.br", "https://votacao.sintrafgv.com.br" };
+var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
+    ?? new[] { 
+        "http://localhost:5173", 
+        "http://localhost:5174", 
+        "https://admin.sintrafgv.com.br", 
+        "https://votacao.sintrafgv.com.br",
+        "https://api.sintrafgv.com.br"
+    };
     options.AddDefaultPolicy(policy =>
     {
         policy.WithOrigins(allowedOrigins)
@@ -64,7 +70,10 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
-// CORS headers em TODAS as respostas (incluindo erros 500) - evita bloqueio no browser
+// CORS primeiro: preflight OPTIONS e headers em todas as respostas (incl. erros 500)
+app.UseCors();
+
+// Garantir CORS mesmo quando resposta é enviada por exception handler (headers já no context)
 var allowedOriginsList = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
     ?? new[] { "http://localhost:5173", "http://localhost:5174", "https://admin.sintrafgv.com.br", "https://votacao.sintrafgv.com.br" };
 var allowedSet = new HashSet<string>(allowedOriginsList, StringComparer.OrdinalIgnoreCase);
@@ -72,17 +81,28 @@ app.Use(async (context, next) =>
 {
     var origin = context.Request.Headers.Origin.ToString();
     if (!string.IsNullOrEmpty(origin) && allowedSet.Contains(origin))
-    {
-        context.Response.Headers.Append("Access-Control-Allow-Origin", origin);
-    }
-    context.Response.Headers.Append("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
-    context.Response.Headers.Append("Access-Control-Allow-Headers", "Content-Type, Authorization");
+        context.Response.Headers["Access-Control-Allow-Origin"] = origin;
+    context.Response.Headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, PATCH, DELETE, OPTIONS";
+    context.Response.Headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization";
     if (context.Request.Method == "OPTIONS")
     {
         context.Response.StatusCode = 204;
         return;
     }
-    await next();
+    try
+    {
+        await next();
+    }
+    catch (Exception ex) when (!context.Response.HasStarted)
+    {
+        var logger = context.RequestServices.GetService<Microsoft.Extensions.Logging.ILogger<Program>>();
+        logger?.LogError(ex, "Erro na requisicao {Method} {Path}", context.Request.Method, context.Request.Path);
+        context.Response.StatusCode = 500;
+        context.Response.ContentType = "application/json";
+        var msg = app.Environment.IsDevelopment() ? (ex.Message + "\n" + ex.StackTrace) : "Internal server error";
+        var json = System.Text.Json.JsonSerializer.Serialize(new { error = msg });
+        await context.Response.WriteAsync(json);
+    }
 });
 
 using (var scope = app.Services.CreateScope())
@@ -105,7 +125,6 @@ using (var scope = app.Services.CreateScope())
     }
 }
 
-app.UseCors();
 app.UseSwagger();
 app.UseSwaggerUI();
 app.UseHttpsRedirection();

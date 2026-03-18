@@ -21,11 +21,31 @@ public class EleicaoRepository : IEleicaoRepository
             .ThenInclude(o => o.Associado)
             .FirstOrDefaultAsync(e => e.Id == id, cancellationToken);
 
-    public async Task<IReadOnlyList<Eleicao>> ListarAsync(int skip, int take, StatusEleicao? status, CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<Eleicao>> ListarAsync(
+        int skip, 
+        int take, 
+        StatusEleicao? status,
+        string? busca,
+        DateTimeOffset? dataInicio,
+        DateTimeOffset? dataFim,
+        CancellationToken cancellationToken = default)
     {
         var query = _context.Eleicoes.AsNoTracking();
+        
         if (status.HasValue)
             query = query.Where(e => e.Status == status.Value);
+            
+        if (!string.IsNullOrEmpty(busca))
+            query = query.Where(e => 
+                EF.Functions.Like(e.Titulo, $"%{busca}%") || 
+                EF.Functions.Like(e.Descricao, $"%{busca}%"));
+                
+        if (dataInicio.HasValue)
+            query = query.Where(e => e.CriadoEm >= dataInicio.Value);
+            
+        if (dataFim.HasValue)
+            query = query.Where(e => e.CriadoEm <= dataFim.Value);
+        
         return await query
             .Include(e => e.Perguntas)
             .OrderByDescending(e => e.CriadoEm)
@@ -34,11 +54,29 @@ public class EleicaoRepository : IEleicaoRepository
             .ToListAsync(cancellationToken);
     }
 
-    public async Task<int> ContarAsync(StatusEleicao? status, CancellationToken cancellationToken = default)
+    public async Task<int> ContarAsync(
+        StatusEleicao? status,
+        string? busca,
+        DateTimeOffset? dataInicio,
+        DateTimeOffset? dataFim,
+        CancellationToken cancellationToken = default)
     {
         var query = _context.Eleicoes.AsNoTracking();
+        
         if (status.HasValue)
             query = query.Where(e => e.Status == status.Value);
+            
+        if (!string.IsNullOrEmpty(busca))
+            query = query.Where(e => 
+                EF.Functions.Like(e.Titulo, $"%{busca}%") || 
+                EF.Functions.Like(e.Descricao, $"%{busca}%"));
+                
+        if (dataInicio.HasValue)
+            query = query.Where(e => e.CriadoEm >= dataInicio.Value);
+            
+        if (dataFim.HasValue)
+            query = query.Where(e => e.CriadoEm <= dataFim.Value);
+        
         return await query.CountAsync(cancellationToken);
     }
 

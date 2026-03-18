@@ -34,6 +34,15 @@ namespace SintrafGv.Infrastructure.Repositories
                 .FirstOrDefaultAsync(v => v.Id == votoId, cancellationToken);
         }
 
+        public async Task<Voto?> ObterVotoPorIdComEleicaoAsync(Guid votoId, CancellationToken cancellationToken = default)
+        {
+            return await _context.Votos
+                .Include(v => v.Associado)
+                .Include(v => v.Eleicao)
+                .ThenInclude(e => e!.Perguntas)
+                .FirstOrDefaultAsync(v => v.Id == votoId, cancellationToken);
+        }
+
         public async Task<bool> VerificarVotoExistenteAsync(Guid eleicaoId, Guid associadoId, CancellationToken cancellationToken = default)
         {
             return await _context.Votos
