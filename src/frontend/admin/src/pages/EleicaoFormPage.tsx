@@ -21,6 +21,7 @@ import {
 } from '@mui/material';
 import { Save, ArrowBack, Add, Delete, AttachFile, GetApp } from '@mui/icons-material';
 import { eleicoesAPI } from '../services/api';
+import relatorioService from '../services/relatorioService';
 import { useToast } from '../contexts/ToastContext';
 import { TipoEleicao, TipoPergunta, type TipoEleicaoVal, type TipoPerguntaVal } from '../types';
 
@@ -38,29 +39,6 @@ interface PerguntaForm {
   maxVotos: number | null;
   permiteBranco: boolean;
   opcoes: OpcaoForm[];
-}
-
-// Formato BR: dd/mm/aaaa hh:mm (sistema brasileiro)
-function isoToBrDateTime(iso: string): string {
-  if (!iso) return '';
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return '';
-  const day = String(d.getDate()).padStart(2, '0');
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  const year = d.getFullYear();
-  const h = String(d.getHours()).padStart(2, '0');
-  const m = String(d.getMinutes()).padStart(2, '0');
-  return `${day}/${month}/${year} ${h}:${m}`;
-}
-function parseBrDateTimeToIso(br: string): string {
-  const trimmed = br.trim();
-  if (!trimmed) return '';
-  const [datePart, timePart] = trimmed.split(/\s+/);
-  const [d, M, y] = (datePart ?? '').split('/').map(Number);
-  const [h, m] = (timePart ?? '00:00').split(':').map(Number);
-  if (!y || !M || !d) return '';
-  const date = new Date(y, M - 1, d, h || 0, m || 0);
-  return date.toISOString();
 }
 
 const EleicaoFormPage: React.FC = () => {
@@ -81,6 +59,8 @@ const EleicaoFormPage: React.FC = () => {
   const [fimVotacao, setFimVotacao] = useState('');
   const [apenasAssociados, setApenasAssociados] = useState(true);
   const [apenasAtivos, setApenasAtivos] = useState(true);
+  const [bancoNome, setBancoNome] = useState('');
+  const [opcoesBancos, setOpcoesBancos] = useState<string[]>([]);
   const [perguntas, setPerguntas] = useState<PerguntaForm[]>([]);
 
   useEffect(() => {
@@ -100,10 +80,11 @@ const EleicaoFormPage: React.FC = () => {
           setTipo((data.tipo ?? data.Tipo ?? TipoEleicao.Enquete) as TipoEleicaoVal);
           const inicio = (data.inicioVotacao ?? data.InicioVotacao ?? '') as string;
           const fim = (data.fimVotacao ?? data.FimVotacao ?? '') as string;
-          setInicioVotacao(inicio ? isoToBrDateTime(inicio) : '');
-          setFimVotacao(fim ? isoToBrDateTime(fim) : '');
+          setInicioVotacao(inicio ? inicio.slice(0, 16) : '');
+          setFimVotacao(fim ? fim.slice(0, 16) : '');
           setApenasAssociados((data.apenasAssociados ?? data.ApenasAssociados ?? true) as boolean);
           setApenasAtivos((data.apenasAtivos ?? data.ApenasAtivos ?? true) as boolean);
+          setBancoNome((data.bancoNome ?? data.BancoNome ?? '') as string);
           const rawPerguntas = (data.perguntas ?? data.Perguntas ?? []) as Record<string, unknown>[];
           setPerguntas(rawPerguntas.map((p, idx) => ({
             ordem: (p.ordem ?? p.Ordem ?? idx + 1) as number,
@@ -123,6 +104,10 @@ const EleicaoFormPage: React.FC = () => {
         .finally(() => setLoading(false));
     }
   }, [id, isEdit]);
+
+  useEffect(() => {
+    relatorioService.obterBancosParaFiltro().then((lista) => setOpcoesBancos(Array.isArray(lista) ? lista : [])).catch(() => setOpcoesBancos([]));
+  }, []);
 
   const addPergunta = () => {
     setPerguntas([...perguntas, {
@@ -215,6 +200,12 @@ const EleicaoFormPage: React.FC = () => {
       toast.warning('Atenção', 'Informe as datas de início e fim.');
       return;
     }
+    const dtInicio = new Date(inicioVotacao).getTime();
+    const dtFim = new Date(fimVotacao).getTime();
+    if (dtFim <= dtInicio) {
+      toast.warning('Atenção', 'A data/hora de fim da votação deve ser posterior à data/hora de início.');
+      return;
+    }
     if (perguntas.length === 0) {
       toast.warning('Atenção', 'Adicione pelo menos uma pergunta.');
       return;
@@ -243,10 +234,11 @@ const EleicaoFormPage: React.FC = () => {
         descricao,
         arquivoAnexo,
         tipo,
-        inicioVotacao: parseBrDateTimeToIso(inicioVotacao) || new Date(inicioVotacao).toISOString(),
-        fimVotacao: parseBrDateTimeToIso(fimVotacao) || new Date(fimVotacao).toISOString(),
+        inicioVotacao: new Date(inicioVotacao).toISOString(),
+        fimVotacao: new Date(fimVotacao).toISOString(),
         apenasAssociados,
         apenasAtivos,
+        bancoNome: bancoNome.trim() || undefined,
         perguntas: perguntas.map(p => ({
           ordem: p.ordem,
           texto: p.texto,
@@ -269,8 +261,9 @@ const EleicaoFormPage: React.FC = () => {
         toast.success('Sucesso', 'Enquete criada com sucesso.');
       }
       navigate('/eleicoes');
-    } catch {
-      toast.error('Erro', 'Erro ao salvar enquete.');
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      toast.error('Erro', msg || 'Erro ao salvar enquete.');
     } finally {
       setSaving(false);
     }
@@ -361,6 +354,25 @@ const EleicaoFormPage: React.FC = () => {
             />
           </Box>
 
+          <Box sx={{ mt: 2 }}>
+            <FormControl fullWidth size="medium" sx={{ maxWidth: 400 }}>
+              <InputLabel>Banco (opcional)</InputLabel>
+              <Select
+                value={bancoNome}
+                label="Banco (opcional)"
+                onChange={(e) => setBancoNome(e.target.value)}
+              >
+                <MenuItem value="">Todos os bancos</MenuItem>
+                {opcoesBancos.map((b) => (
+                  <MenuItem key={b} value={b}>{b}</MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+            <Typography variant="caption" display="block" color="text.secondary" sx={{ mt: 0.5 }}>
+              Se escolher um banco, apenas associados deste banco poderão ver e votar nesta enquete.
+            </Typography>
+          </Box>
+
           <Divider sx={{ my: 3 }} />
 
           <Typography variant="h6" gutterBottom>
@@ -423,29 +435,25 @@ const EleicaoFormPage: React.FC = () => {
             <Grid item xs={12} md={6}>
               <TextField
                 label="Início da Votação"
-                type="text"
+                type="datetime-local"
                 fullWidth
-                placeholder="dd/mm/aaaa hh:mm"
                 value={inicioVotacao}
                 onChange={(e) => setInicioVotacao(e.target.value)}
-                inputProps={{ maxLength: 16, title: 'Formato: dd/mm/aaaa hh:mm (Brasil)' }}
+                InputLabelProps={{ shrink: true }}
                 required
                 sx={{ mb: 2 }}
-                helperText="Formato brasileiro: dia/mês/ano hora:minuto"
               />
             </Grid>
             <Grid item xs={12} md={6}>
               <TextField
                 label="Fim da Votação"
-                type="text"
+                type="datetime-local"
                 fullWidth
-                placeholder="dd/mm/aaaa hh:mm"
                 value={fimVotacao}
                 onChange={(e) => setFimVotacao(e.target.value)}
-                inputProps={{ maxLength: 16, title: 'Formato: dd/mm/aaaa hh:mm (Brasil)' }}
+                InputLabelProps={{ shrink: true }}
                 required
                 sx={{ mb: 2 }}
-                helperText="Formato brasileiro: dia/mês/ano hora:minuto"
               />
             </Grid>
           </Grid>

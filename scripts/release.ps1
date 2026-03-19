@@ -32,4 +32,6 @@ Start-WebAppPool -Name $PoolName
 Start-Sleep -Seconds 2
 $state = (Get-Item "IIS:\AppPools\$PoolName").State
 Write-Host "Pool estado: $state" -ForegroundColor Green
-Write-Host "Release concluido. Publish em: $PublishPath" -ForegroundColor Green
+Write-Host "Release concluido. Backend em: $PublishPath" -ForegroundColor Green
+Write-Host "Admin build: D:\progs\Sintrafgv\src\frontend\admin\dist (publique no site do admin)" -ForegroundColor Cyan
+Write-Host "Voting build: D:\progs\Sintrafgv\src\frontend\voting\dist (publique no site da votacao)" -ForegroundColor Cyan

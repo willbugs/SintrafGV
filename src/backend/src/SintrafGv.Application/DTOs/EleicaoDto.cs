@@ -15,6 +15,7 @@ public class EleicaoDto
     public bool ApenasAssociados { get; set; }
     public bool ApenasAtivos { get; set; }
     public Guid? BancoId { get; set; }
+    public string? BancoNome { get; set; }
     public DateTime CriadoEm { get; set; }
     public int TotalPerguntas { get; set; }
     public int TotalVotos { get; set; }
@@ -28,6 +29,8 @@ public class EleicaoResumoDto
     public TipoEleicao Tipo { get; set; }
     public StatusEleicao Status { get; set; }
     public string? ArquivoAnexo { get; set; }
+    /// <summary>Quando preenchido, a votação é restrita a associados deste banco.</summary>
+    public string? BancoNome { get; set; }
     public DateTime InicioVotacao { get; set; }
     public DateTime FimVotacao { get; set; }
     public int TotalPerguntas { get; set; }
@@ -63,6 +66,8 @@ public class CreateEleicaoRequest
     public bool ApenasAssociados { get; set; } = true;
     public bool ApenasAtivos { get; set; } = true;
     public Guid? BancoId { get; set; }
+    /// <summary>Quando preenchido, apenas associados deste banco podem votar.</summary>
+    public string? BancoNome { get; set; }
     public List<CreatePerguntaRequest> Perguntas { get; set; } = new();
 }
 
@@ -79,6 +84,7 @@ public class UpdateEleicaoRequest
     public bool ApenasAssociados { get; set; }
     public bool ApenasAtivos { get; set; }
     public Guid? BancoId { get; set; }
+    public string? BancoNome { get; set; }
 }
 
 public class UpdateStatusEleicaoRequest

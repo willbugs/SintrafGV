@@ -77,9 +77,16 @@ public class EleicoesController : ControllerBase
     [HttpPost]
     public async Task<ActionResult<EleicaoDto>> Criar([FromBody] CreateEleicaoRequest request, CancellationToken cancellationToken = default)
     {
-        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) is { } s && Guid.TryParse(s, out var id) ? id : (Guid?)null;
-        var dto = await _service.CriarAsync(request, userId, cancellationToken);
-        return CreatedAtAction(nameof(ObterPorId), new { id = dto.Id }, dto);
+        try
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) is { } s && Guid.TryParse(s, out var id) ? id : (Guid?)null;
+            var dto = await _service.CriarAsync(request, userId, cancellationToken);
+            return CreatedAtAction(nameof(ObterPorId), new { id = dto.Id }, dto);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
     }
 
     [HttpPut("{id:guid}")]
@@ -90,9 +97,10 @@ public class EleicoesController : ControllerBase
             await _service.AtualizarAsync(id, request, cancellationToken);
             return NoContent();
         }
-        catch (InvalidOperationException)
+        catch (InvalidOperationException ex)
         {
-            return NotFound();
+            if (ex.Message.Contains("não encontrada")) return NotFound();
+            return BadRequest(new { message = ex.Message });
         }
     }
 

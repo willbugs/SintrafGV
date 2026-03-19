@@ -630,8 +630,9 @@ namespace SintrafGv.Application.Services
             {
                 var votos = await _votoRepository.ListarPorEleicaoAsync(eleicao.Id, cancellationToken);
                 
-                // Buscar todas as opções (candidatos) da eleição através das perguntas
-                var opcoes = eleicao.Perguntas?.SelectMany(p => p.Opcoes ?? new List<Domain.Entities.Opcao>()).ToList() ?? new List<Domain.Entities.Opcao>();
+                // Carregar eleição com perguntas e opções para ter os nomes das opções (ListarAsync não inclui Opcoes)
+                var eleicaoCompleta = await _eleicaoRepository.ObterPorIdComPerguntasAsync(eleicao.Id, cancellationToken);
+                var opcoes = eleicaoCompleta?.Perguntas?.SelectMany(p => p.Opcoes ?? new List<Domain.Entities.Opcao>()).ToList() ?? new List<Domain.Entities.Opcao>();
                 
                 var resultadoCandidatos = opcoes.Select(opcao => 
                 {

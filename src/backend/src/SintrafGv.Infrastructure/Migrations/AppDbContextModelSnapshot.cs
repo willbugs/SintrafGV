@@ -340,6 +340,10 @@ namespace SintrafGv.Infrastructure.Migrations
                     b.Property<Guid?>("BancoId")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<string>("BancoNome")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
                     b.Property<DateTime>("CriadoEm")
                         .HasColumnType("datetime2");
 

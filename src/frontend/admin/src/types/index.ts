@@ -149,6 +149,8 @@ export interface EleicaoResumoDto {
   tipo: TipoEleicaoVal;
   status: StatusEleicaoVal;
   arquivoAnexo?: string | null;
+  /** Quando preenchido, a votação é restrita a associados deste banco. */
+  bancoNome?: string | null;
   inicioVotacao: string;
   fimVotacao: string;
   totalPerguntas: number;

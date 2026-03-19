@@ -41,6 +41,7 @@ public class EleicaoService : IEleicaoService
             Tipo = e.Tipo,
             Status = e.Status,
             ArquivoAnexo = e.ArquivoAnexo,
+            BancoNome = e.BancoNome,
             InicioVotacao = e.InicioVotacao,
             FimVotacao = e.FimVotacao,
             TotalPerguntas = e.Perguntas?.Count ?? 0,
@@ -55,9 +56,13 @@ public class EleicaoService : IEleicaoService
         var ids = itens.Select(e => e.Id).ToList();
         var votosPorId = ids.Count > 0 ? await _repository.ContarVotosPorEleicaoAsync(ids, cancellationToken) : new Dictionary<Guid, int>();
         var now = DateTime.UtcNow;
+        var associado = await _associadoRepository.ObterPorIdAsync(associadoId, cancellationToken);
+        var bancoAssociado = associado?.Banco?.Trim() ?? "";
         var result = new List<EleicaoAtivaDto>();
         foreach (var e in itens)
         {
+            if (!BancoCompativelComAssociado(e.BancoNome, bancoAssociado))
+                continue;
             var jaVotou = await _repository.AssociadoJaVotouAsync(e.Id, associadoId, cancellationToken);
             var dentroPeriodo = now >= e.InicioVotacao && now <= e.FimVotacao;
             var podeVotar = dentroPeriodo && !jaVotou;
@@ -77,6 +82,12 @@ public class EleicaoService : IEleicaoService
             });
         }
         return result;
+    }
+
+    private static bool BancoCompativelComAssociado(string? bancoEnquete, string bancoAssociado)
+    {
+        if (string.IsNullOrWhiteSpace(bancoEnquete)) return true;
+        return string.Equals(bancoAssociado, bancoEnquete.Trim(), StringComparison.OrdinalIgnoreCase);
     }
 
     public async Task<ComprovanteVotoDto?> ObterComprovanteAsync(Guid votoId, Guid associadoId, CancellationToken cancellationToken = default)
@@ -108,6 +119,8 @@ public class EleicaoService : IEleicaoService
     {
         var inicio = ParseDataVotacao(request.InicioVotacao, nameof(request.InicioVotacao));
         var fim = ParseDataVotacao(request.FimVotacao, nameof(request.FimVotacao));
+        if (fim <= inicio)
+            throw new InvalidOperationException("A data/hora de fim da votação deve ser posterior à data/hora de início.");
         var eleicao = new Eleicao
         {
             Id = Guid.NewGuid(),
@@ -121,6 +134,7 @@ public class EleicaoService : IEleicaoService
             ApenasAssociados = request.ApenasAssociados,
             ApenasAtivos = request.ApenasAtivos,
             BancoId = request.BancoId,
+            BancoNome = string.IsNullOrWhiteSpace(request.BancoNome) ? null : request.BancoNome.Trim(),
             CriadoEm = DateTime.UtcNow,
             CriadoPorId = criadoPorId
         };
@@ -160,15 +174,20 @@ public class EleicaoService : IEleicaoService
     {
         var e = await _repository.ObterPorIdAsync(id, cancellationToken);
         if (e is null) throw new InvalidOperationException("Eleição não encontrada.");
+        var inicio = ParseDataVotacao(request.InicioVotacao, nameof(request.InicioVotacao));
+        var fim = ParseDataVotacao(request.FimVotacao, nameof(request.FimVotacao));
+        if (fim <= inicio)
+            throw new InvalidOperationException("A data/hora de fim da votação deve ser posterior à data/hora de início.");
         e.Titulo = request.Titulo;
         e.Descricao = request.Descricao;
         e.ArquivoAnexo = request.ArquivoAnexo;
-        e.InicioVotacao = ParseDataVotacao(request.InicioVotacao, nameof(request.InicioVotacao));
-        e.FimVotacao = ParseDataVotacao(request.FimVotacao, nameof(request.FimVotacao));
+        e.InicioVotacao = inicio;
+        e.FimVotacao = fim;
         e.Tipo = request.Tipo;
         e.ApenasAssociados = request.ApenasAssociados;
         e.ApenasAtivos = request.ApenasAtivos;
         e.BancoId = request.BancoId;
+        e.BancoNome = string.IsNullOrWhiteSpace(request.BancoNome) ? null : request.BancoNome.Trim();
         await _repository.AtualizarAsync(e, cancellationToken);
     }
 
@@ -195,6 +214,7 @@ public class EleicaoService : IEleicaoService
             ApenasAssociados = e.ApenasAssociados,
             ApenasAtivos = e.ApenasAtivos,
             BancoId = e.BancoId,
+            BancoNome = e.BancoNome,
             CriadoEm = e.CriadoEm,
             TotalPerguntas = e.Perguntas?.Count ?? 0,
             TotalVotos = totalVotos
@@ -299,6 +319,14 @@ public class EleicaoService : IEleicaoService
 
         if (await _repository.AssociadoJaVotouAsync(eleicaoId, associadoId, cancellationToken))
             throw new InvalidOperationException("Associado já votou nesta eleição.");
+
+        if (!string.IsNullOrWhiteSpace(eleicao.BancoNome))
+        {
+            var associado = await _associadoRepository.ObterPorIdAsync(associadoId, cancellationToken);
+            var bancoAssociado = associado?.Banco?.Trim() ?? "";
+            if (!BancoCompativelComAssociado(eleicao.BancoNome, bancoAssociado))
+                throw new InvalidOperationException($"Esta votação é restrita ao banco {eleicao.BancoNome}. Seu cadastro está vinculado a outro banco.");
+        }
 
         // Validar respostas
         var respostasAgrupadas = request.Respostas.GroupBy(r => r.PerguntaId).ToList();

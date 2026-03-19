@@ -108,6 +108,7 @@ const EleicoesPage: React.FC = () => {
           tipo: (r.tipo ?? r.Tipo) as number,
           status: (r.status ?? r.Status) as StatusEleicaoVal,
           arquivoAnexo: (r.arquivoAnexo ?? r.ArquivoAnexo) as string | null,
+          bancoNome: (r.bancoNome ?? r.BancoNome) as string | null | undefined,
           inicioVotacao: (r.inicioVotacao ?? r.InicioVotacao) as string,
           fimVotacao: (r.fimVotacao ?? r.FimVotacao) as string,
           totalPerguntas: (r.totalPerguntas ?? r.TotalPerguntas) as number,
@@ -233,6 +234,7 @@ const EleicoesPage: React.FC = () => {
                   <TableCell>Título</TableCell>
                   <TableCell>Tipo</TableCell>
                   <TableCell>Status</TableCell>
+                      <TableCell sx={{ minWidth: 100 }}>Banco</TableCell>
                   <TableCell align="center">Anexo</TableCell>
                   <TableCell>Início</TableCell>
                   <TableCell>Fim</TableCell>
@@ -244,7 +246,7 @@ const EleicoesPage: React.FC = () => {
               <TableBody>
                 {itens.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={9} align="center">
+                    <TableCell colSpan={10} align="center">
                       Nenhuma enquete cadastrada.
                     </TableCell>
                   </TableRow>
@@ -264,6 +266,13 @@ const EleicoesPage: React.FC = () => {
                           color={statusColor[e.status] ?? 'default'}
                           size="small"
                         />
+                      </TableCell>
+                      <TableCell sx={{ minWidth: 100 }}>
+                        {e.bancoNome ? (
+                          <Chip label={e.bancoNome} size="small" variant="outlined" color="primary" />
+                        ) : (
+                          <Typography variant="body2" color="text.secondary">—</Typography>
+                        )}
                       </TableCell>
                       <TableCell align="center">
                         {e.arquivoAnexo && (

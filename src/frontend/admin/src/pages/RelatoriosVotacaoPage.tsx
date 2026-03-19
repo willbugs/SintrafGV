@@ -27,8 +27,20 @@ import {
 } from '@mui/material';
 import { Assessment, BarChart, TrendingUp, FilterList } from '@mui/icons-material';
 import relatorioService from '../services/relatorioService';
-import { api } from '../services/api';
+import { eleicoesAPI } from '../services/api';
 import ExportMenu from '../components/Relatorios/ExportMenu';
+
+const STATUS_ENQUETE: Record<number, string> = {
+  1: 'Rascunho',
+  2: 'Aberta',
+  3: 'Encerrada',
+  4: 'Apurada',
+  5: 'Cancelada',
+};
+
+function statusEnqueteLabel(status: number): string {
+  return STATUS_ENQUETE[status] ?? '—';
+}
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -88,13 +100,33 @@ const RelatoriosVotacaoPage: React.FC = () => {
     setTabValue(tabFromUrl);
   }, [tabFromUrl]);
 
-  const carregarEnquetes = async () => {
+  const carregarEnquetes = async (filtrosParaListagem?: { dataInicio?: string; dataFim?: string; status?: string }) => {
     try {
-      const response = await api.get('/api/eleicoes');
-      setEnquetes(response.data.itens || []);
+      const f = filtrosParaListagem ?? filtros;
+      const response = await eleicoesAPI.listar(1, 500, {
+        dataInicio: f.dataInicio || undefined,
+        dataFim: f.dataFim || undefined,
+        status: f.status ? Number(f.status) : undefined,
+      });
+      const raw = response?.itens ?? [];
+      const itens: Enquete[] = raw.map((e: Record<string, unknown>) => ({
+        id: String(e.id ?? e.Id ?? ''),
+        titulo: String(e.titulo ?? e.Titulo ?? ''),
+        tipo: Number(e.tipo ?? e.Tipo ?? 0),
+        status: Number(e.status ?? e.Status ?? 0),
+      }));
+      setEnquetes(itens);
+      if (filtros.enqueteId && !itens.some((e) => e.id === filtros.enqueteId)) {
+        setFiltros((prev) => ({ ...prev, enqueteId: '' }));
+      }
     } catch (err) {
       console.error('Erro ao carregar enquetes:', err);
+      setEnquetes([]);
     }
+  };
+
+  const aplicarFiltrosDropdown = () => {
+    carregarEnquetes();
   };
 
   const handleTabChange = (_event: React.SyntheticEvent, newValue: number) => {
@@ -159,6 +191,7 @@ const RelatoriosVotacaoPage: React.FC = () => {
       status: '',
       tipo: '',
     });
+    carregarEnquetes({ dataInicio: '', dataFim: '', status: '' });
   };
 
   return (
@@ -196,7 +229,7 @@ const RelatoriosVotacaoPage: React.FC = () => {
                 <MenuItem value="">Todas</MenuItem>
                 {enquetes.map((enquete) => (
                   <MenuItem key={enquete.id} value={enquete.id}>
-                    {enquete.titulo}
+                    {enquete.titulo} – {statusEnqueteLabel(enquete.status)}
                   </MenuItem>
                 ))}
               </Select>
@@ -252,6 +285,16 @@ const RelatoriosVotacaoPage: React.FC = () => {
                 <MenuItem value="2">Eleição</MenuItem>
               </Select>
             </FormControl>
+          </Grid>
+          <Grid item xs={12} md={1}>
+            <Button
+              fullWidth
+              variant="contained"
+              onClick={aplicarFiltrosDropdown}
+              sx={{ height: '56px' }}
+            >
+              Aplicar filtros
+            </Button>
           </Grid>
           <Grid item xs={12} md={1}>
             <Button

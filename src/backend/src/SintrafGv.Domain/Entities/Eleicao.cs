@@ -36,6 +36,8 @@ public class Eleicao
     public bool ApenasAssociados { get; set; } = true;
     public bool ApenasAtivos { get; set; } = true;
     public Guid? BancoId { get; set; }
+    /// <summary>Quando preenchido, apenas associados deste banco podem votar (comparado com Associado.Banco).</summary>
+    public string? BancoNome { get; set; }
     
     public ICollection<Pergunta> Perguntas { get; set; } = new List<Pergunta>();
     public ICollection<Voto> Votos { get; set; } = new List<Voto>();
