@@ -27,7 +27,8 @@ import {
 import {
   HowToVote as VoteIcon,
   CheckCircle as CheckIcon,
-  Warning as WarningIcon
+  Warning as WarningIcon,
+  GetApp as DownloadIcon
 } from '@mui/icons-material';
 import { api } from '../services/api';
 
@@ -56,6 +57,7 @@ interface Eleicao {
   inicioVotacao: string;
   fimVotacao: string;
   status: string;
+  arquivoAnexo?: string | null;
   perguntas: Pergunta[];
 }
 
@@ -75,6 +77,7 @@ const VotacaoPage: React.FC = () => {
   const [etapaAtual, setEtapaAtual] = useState(0);
   const [showConfirmacao, setShowConfirmacao] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
+  const [baixandoAnexo, setBaixandoAnexo] = useState(false);
 
   useEffect(() => {
     if (eleicaoId) {
@@ -93,6 +96,7 @@ const VotacaoPage: React.FC = () => {
       inicioVotacao: data.inicioVotacao ?? data.InicioVotacao ?? '',
       fimVotacao: data.fimVotacao ?? data.FimVotacao ?? '',
       status: data.status ?? data.Status ?? '',
+      arquivoAnexo: data.arquivoAnexo ?? data.ArquivoAnexo ?? null,
       perguntas: perguntasArray.map((p: any, pi: number) => {
         const rawOpcoes = p.opcoes ?? p.Opcoes ?? [];
         const opcoesArray = Array.isArray(rawOpcoes) ? rawOpcoes : [];
@@ -132,6 +136,37 @@ const VotacaoPage: React.FC = () => {
       setErro('Erro ao carregar dados da eleição.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const baixarAnexo = async () => {
+    if (!eleicao || !eleicao.id || !eleicao.arquivoAnexo) return;
+    if (baixandoAnexo) return;
+
+    setBaixandoAnexo(true);
+    try {
+      const response = await api.get(`/api/eleicoes/${eleicao.id}/anexo`, {
+        responseType: 'blob',
+      });
+
+      const blob = response.data;
+      const url = window.URL.createObjectURL(blob);
+
+      let fileName = `anexo_${eleicao.id}`;
+      const contentDisposition = response.headers?.['content-disposition'];
+      const match = contentDisposition?.match(/filename="?([^\";]+)"?/i);
+      if (match?.[1]) fileName = match[1];
+
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = fileName;
+      a.click();
+      window.URL.revokeObjectURL(url);
+    } catch (e: any) {
+      console.error('Erro ao baixar anexo:', e);
+      setErro('Não foi possível baixar o anexo neste momento.');
+    } finally {
+      setBaixandoAnexo(false);
     }
   };
 
@@ -264,6 +299,13 @@ const VotacaoPage: React.FC = () => {
     );
   }
 
+  const podeBaixarAnexo =
+    Boolean(eleicao.arquivoAnexo) &&
+    !Number.isNaN(new Date(eleicao.inicioVotacao).getTime()) &&
+    !Number.isNaN(new Date(eleicao.fimVotacao).getTime()) &&
+    Date.now() >= new Date(eleicao.inicioVotacao).getTime() &&
+    Date.now() <= new Date(eleicao.fimVotacao).getTime();
+
   const perguntaAtual = perguntas[etapaAtual];
   const respostaAtual = respostas.find(r => r.perguntaId === perguntaAtual?.id);
 
@@ -315,6 +357,18 @@ const VotacaoPage: React.FC = () => {
             color="primary"
             variant="outlined"
           />
+
+          {podeBaixarAnexo && (
+            <Button
+              variant="outlined"
+              onClick={baixarAnexo}
+              disabled={baixandoAnexo}
+              startIcon={<DownloadIcon />}
+              sx={{ mt: 2 }}
+            >
+              {baixandoAnexo ? 'Baixando...' : 'Baixar anexo'}
+            </Button>
+          )}
         </Box>
 
         {/* Stepper */}

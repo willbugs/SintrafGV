@@ -74,6 +74,32 @@ public class EleicoesController : ControllerBase
         return Ok(dto);
     }
 
+    /// <summary>
+    /// Baixa o anexo da eleição apenas durante o período de votação (e respeita restrição de banco quando houver associado).
+    /// </summary>
+    [HttpGet("{id:guid}/anexo")]
+    public async Task<IActionResult> ObterAnexoDuranteVotacao(Guid id, CancellationToken cancellationToken = default)
+    {
+        var associadoIdClaim = User.FindFirst("AssociadoId")?.Value ?? User.FindFirst("sub")?.Value;
+        Guid? associadoId = null;
+        if (!string.IsNullOrEmpty(associadoIdClaim) && Guid.TryParse(associadoIdClaim, out var sid))
+            associadoId = sid;
+
+        try
+        {
+            var resultado = await _service.ObterArquivoAnexoDuranteVotacaoAsync(id, associadoId, cancellationToken);
+            if (resultado is null)
+                return NotFound(new { message = "Anexo não encontrado." });
+
+            var (bytes, fileName, contentType) = resultado.Value;
+            return File(bytes, contentType, fileName);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return StatusCode(403, new { message = ex.Message });
+        }
+    }
+
     [HttpPost]
     public async Task<ActionResult<EleicaoDto>> Criar([FromBody] CreateEleicaoRequest request, CancellationToken cancellationToken = default)
     {

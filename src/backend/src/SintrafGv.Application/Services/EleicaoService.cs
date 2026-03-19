@@ -1,6 +1,8 @@
 using System.Globalization;
 using System.Security.Cryptography;
+using System.IO;
 using System.Text;
+using System.Text.RegularExpressions;
 using SintrafGv.Application.DTOs;
 using SintrafGv.Domain.Interfaces;
 using SintrafGv.Domain.Entities;
@@ -90,6 +92,146 @@ public class EleicaoService : IEleicaoService
         return string.Equals(bancoAssociado, bancoEnquete.Trim(), StringComparison.OrdinalIgnoreCase);
     }
 
+    private static readonly string AnexosEleicoesBasePath =
+        Environment.GetEnvironmentVariable("SINTRAFGV_ANEXOS_ELEICOES_PATH")
+        ?? @"D:\progs\Sintrafgv\anexos-eleicoes\";
+
+    private static bool IsArquivoAnexoEmBase64(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return false;
+        value = value.Trim();
+        return value.StartsWith("data:", StringComparison.OrdinalIgnoreCase)
+               || value.Contains(";base64,", StringComparison.OrdinalIgnoreCase)
+               || Regex.IsMatch(value, @"^[A-Za-z0-9+/=\r\n]+$", RegexOptions.Compiled);
+    }
+
+    private static bool TryExtrairBase64(string input, out string mimeType, out string base64)
+    {
+        mimeType = "application/octet-stream";
+        base64 = string.Empty;
+
+        if (string.IsNullOrWhiteSpace(input))
+            return false;
+
+        input = input.Trim();
+
+        // data:[mime];base64,<data>
+        if (input.StartsWith("data:", StringComparison.OrdinalIgnoreCase))
+        {
+            var match = Regex.Match(input,
+                @"^data:(?<mime>[^;]+);base64,(?<data>.+)$",
+                RegexOptions.IgnoreCase | RegexOptions.Singleline);
+
+            if (!match.Success)
+                return false;
+
+            mimeType = match.Groups["mime"].Value;
+            base64 = match.Groups["data"].Value;
+            return true;
+        }
+
+        // raw base64
+        if (!Regex.IsMatch(input, @"^[A-Za-z0-9+/=\r\n]+$", RegexOptions.Compiled))
+            return false;
+
+        // valida decode
+        try
+        {
+            _ = Convert.FromBase64String(input);
+        }
+        catch
+        {
+            return false;
+        }
+
+        base64 = input;
+        return true;
+    }
+
+    private static string ExtensaoPorMime(string mimeType)
+    {
+        mimeType = (mimeType ?? string.Empty).Trim().ToLowerInvariant();
+        return mimeType switch
+        {
+            "application/pdf" => "pdf",
+            "application/msword" => "doc",
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document" => "docx",
+            _ => "bin"
+        };
+    }
+
+    private static string MimeTypePorExtensao(string extensao)
+    {
+        extensao = (extensao ?? string.Empty).Trim().ToLowerInvariant().TrimStart('.');
+        return extensao switch
+        {
+            "pdf" => "application/pdf",
+            "doc" => "application/msword",
+            "docx" => "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            _ => "application/octet-stream"
+        };
+    }
+
+    private static string CaminhoCompletoParaArquivoAnexo(string relativoOuChave)
+    {
+        if (string.IsNullOrWhiteSpace(relativoOuChave))
+            throw new InvalidOperationException("Arquivo anexo inválido.");
+
+        // Evita path traversal: normaliza e força a path ficar dentro da raiz.
+        var raiz = Path.GetFullPath(AnexosEleicoesBasePath);
+        var normalizado = relativoOuChave.Replace('/', Path.DirectorySeparatorChar)
+            .TrimStart(Path.DirectorySeparatorChar);
+        var completo = Path.GetFullPath(Path.Combine(raiz, normalizado));
+
+        if (!completo.StartsWith(raiz, StringComparison.OrdinalIgnoreCase))
+            throw new InvalidOperationException("Arquivo anexo inválido (path fora da pasta permitida).");
+
+        return completo;
+    }
+
+    private static void TryDeleteArquivoAnexo(string relativoOuChave)
+    {
+        try
+        {
+            var path = CaminhoCompletoParaArquivoAnexo(relativoOuChave);
+            if (File.Exists(path))
+                File.Delete(path);
+        }
+        catch
+        {
+            // Não travar o fluxo por falha no delete.
+        }
+    }
+
+    private static string ArquivoAnexoParaKey(Guid eleicaoId, string extensao)
+    {
+        var pasta = eleicaoId.ToString("N");
+        var nome = $"{eleicaoId.ToString("N")}_{Guid.NewGuid():N}.{extensao}";
+        return Path.Combine(pasta, nome).Replace('\\', '/');
+    }
+
+    private async Task<string> ProcessarArquivoAnexoAsync(Guid eleicaoId, string arquivoAnexoInput, CancellationToken cancellationToken)
+    {
+        // Se não parecer base64/dataURL, tratamos como uma referência (key) já salva em disco.
+        if (!IsArquivoAnexoEmBase64(arquivoAnexoInput))
+            return arquivoAnexoInput;
+
+        if (!TryExtrairBase64(arquivoAnexoInput, out var mimeType, out var base64))
+            throw new InvalidOperationException("Arquivo anexo inválido.");
+
+        var bytes = Convert.FromBase64String(base64);
+        var ext = ExtensaoPorMime(mimeType);
+        var key = ArquivoAnexoParaKey(eleicaoId, ext);
+
+        var fullPath = CaminhoCompletoParaArquivoAnexo(key);
+        var dir = Path.GetDirectoryName(fullPath);
+        if (!string.IsNullOrWhiteSpace(dir))
+            Directory.CreateDirectory(dir);
+
+        await File.WriteAllBytesAsync(fullPath, bytes, cancellationToken);
+        return key;
+    }
+
     public async Task<ComprovanteVotoDto?> ObterComprovanteAsync(Guid votoId, Guid associadoId, CancellationToken cancellationToken = default)
     {
         var voto = await _votoRepository.ObterVotoPorIdComEleicaoAsync(votoId, cancellationToken);
@@ -105,6 +247,63 @@ public class EleicaoService : IEleicaoService
             AssociadoNome = voto.Associado?.Nome ?? string.Empty,
             TotalPerguntas = voto.Eleicao?.Perguntas?.Count ?? 0
         };
+    }
+
+    public async Task<(byte[] Bytes, string FileName, string ContentType)?> ObterArquivoAnexoDuranteVotacaoAsync(
+        Guid eleicaoId,
+        Guid? associadoId,
+        CancellationToken cancellationToken = default)
+    {
+        var eleicao = await _repository.ObterPorIdAsync(eleicaoId, cancellationToken);
+        if (eleicao is null)
+            return null;
+
+        // Apenas durante o período de votação
+        var agora = DateTime.UtcNow;
+        var dentroPeriodo = agora >= eleicao.InicioVotacao && agora <= eleicao.FimVotacao;
+        if (!dentroPeriodo)
+            throw new InvalidOperationException("Anexo indisponível fora do período de votação.");
+
+        // Respeitar restrição por banco (somente se houver associado)
+        if (associadoId.HasValue && !string.IsNullOrWhiteSpace(eleicao.BancoNome))
+        {
+            var associado = await _associadoRepository.ObterPorIdAsync(associadoId.Value, cancellationToken);
+            var bancoAssociado = associado?.Banco?.Trim() ?? "";
+            if (!BancoCompativelComAssociado(eleicao.BancoNome, bancoAssociado))
+                throw new InvalidOperationException($"Esta votação é restrita ao banco {eleicao.BancoNome}.");
+        }
+
+        if (string.IsNullOrWhiteSpace(eleicao.ArquivoAnexo))
+            return null;
+
+        var input = eleicao.ArquivoAnexo.Trim();
+
+        // Caso antigo: ainda em base64/dataURL no banco (salvamos em disco na primeira leitura)
+        if (IsArquivoAnexoEmBase64(input))
+        {
+            if (!TryExtrairBase64(input, out var mimeType, out var base64))
+                throw new InvalidOperationException("Arquivo anexo inválido.");
+
+            var bytes = Convert.FromBase64String(base64);
+            var ext = ExtensaoPorMime(mimeType);
+
+            var key = await ProcessarArquivoAnexoAsync(eleicao.Id, input, cancellationToken);
+            eleicao.ArquivoAnexo = key;
+            await _repository.AtualizarAsync(eleicao, cancellationToken);
+
+            var fileName = Path.GetFileName(CaminhoCompletoParaArquivoAnexo(key));
+            return (bytes, fileName, MimeTypePorExtensao(ext == "bin" ? "bin" : ext));
+        }
+
+        var fullPath = CaminhoCompletoParaArquivoAnexo(input);
+        if (!File.Exists(fullPath))
+            throw new InvalidOperationException("Arquivo anexo não encontrado no servidor.");
+
+        var arquivoBytes = await File.ReadAllBytesAsync(fullPath, cancellationToken);
+        var fileExt = Path.GetExtension(fullPath);
+        var contentType = MimeTypePorExtensao(fileExt);
+        var nomeArquivo = Path.GetFileName(fullPath);
+        return (arquivoBytes, nomeArquivo, contentType);
     }
 
     public async Task<EleicaoDto?> ObterPorIdAsync(Guid id, CancellationToken cancellationToken = default)
@@ -126,7 +325,7 @@ public class EleicaoService : IEleicaoService
             Id = Guid.NewGuid(),
             Titulo = request.Titulo,
             Descricao = request.Descricao,
-            ArquivoAnexo = request.ArquivoAnexo,
+            ArquivoAnexo = null,
             InicioVotacao = inicio,
             FimVotacao = fim,
             Tipo = request.Tipo,
@@ -138,6 +337,8 @@ public class EleicaoService : IEleicaoService
             CriadoEm = DateTime.UtcNow,
             CriadoPorId = criadoPorId
         };
+        if (!string.IsNullOrWhiteSpace(request.ArquivoAnexo))
+            eleicao.ArquivoAnexo = await ProcessarArquivoAnexoAsync(eleicao.Id, request.ArquivoAnexo!, cancellationToken);
         foreach (var pr in (request.Perguntas ?? new List<CreatePerguntaRequest>()).OrderBy(p => p.Ordem))
         {
             var pergunta = new Pergunta
@@ -180,7 +381,19 @@ public class EleicaoService : IEleicaoService
             throw new InvalidOperationException("A data/hora de fim da votação deve ser posterior à data/hora de início.");
         e.Titulo = request.Titulo;
         e.Descricao = request.Descricao;
-        e.ArquivoAnexo = request.ArquivoAnexo;
+        if (request.ArquivoAnexo == null)
+        {
+            // Remove o arquivo anterior (se for um arquivo em disco)
+            if (!string.IsNullOrWhiteSpace(e.ArquivoAnexo) && !IsArquivoAnexoEmBase64(e.ArquivoAnexo))
+                TryDeleteArquivoAnexo(e.ArquivoAnexo);
+            e.ArquivoAnexo = null;
+        }
+        else
+        {
+            // Se for base64/dataURL, cria arquivo em disco; se for referência (key), mantém.
+            var arquivoNormalizado = request.ArquivoAnexo;
+            e.ArquivoAnexo = await ProcessarArquivoAnexoAsync(e.Id, arquivoNormalizado!, cancellationToken);
+        }
         e.InicioVotacao = inicio;
         e.FimVotacao = fim;
         e.Tipo = request.Tipo;

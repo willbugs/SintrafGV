@@ -38,7 +38,8 @@ interface Eleicao {
   descricao: string;
   dataInicio: string;
   dataFim: string;
-  status: string;
+  /** Status numérico (1=Rascunho, 2=Aberta, 3=Encerrada, 4=Apurada, 5=Cancelada) */
+  status: number;
   totalVotos: number;
 }
 
@@ -100,8 +101,18 @@ const RelatorioCartorialPage: React.FC = () => {
     try {
       setLoading(true);
       const response = await api.get('/api/eleicoes');
-      const eleicoes = response.data.itens || [];
-      setEleicoes(eleicoes.filter((e: Eleicao) => e.status === 'Encerrada' || e.status === 'Apurada'));
+      const raw = (response.data?.itens ?? []) as any[];
+      const mapeadas: Eleicao[] = raw.map((r) => ({
+        id: r.id ?? r.Id,
+        titulo: r.titulo ?? r.Titulo ?? '',
+        descricao: r.descricao ?? r.Descricao ?? '',
+        dataInicio: r.inicioVotacao ?? r.InicioVotacao ?? '',
+        dataFim: r.fimVotacao ?? r.FimVotacao ?? '',
+        status: (r.status ?? r.Status ?? 0) as number,
+        totalVotos: r.totalVotos ?? r.TotalVotos ?? 0,
+      }));
+      // Apenas eleições encerradas ou apuradas
+      setEleicoes(mapeadas.filter((e) => e.status === 3 || e.status === 4));
     } catch (error) {
       console.error('Erro ao carregar enquetes:', error);
       showToast('Erro ao carregar enquetes', 'error');

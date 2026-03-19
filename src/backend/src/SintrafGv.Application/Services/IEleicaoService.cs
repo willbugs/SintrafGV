@@ -27,4 +27,14 @@ public interface IEleicaoService
 
     /// <summary>Obtém comprovante de voto (apenas para o associado dono do voto).</summary>
     Task<ComprovanteVotoDto?> ObterComprovanteAsync(Guid votoId, Guid associadoId, CancellationToken cancellationToken = default);
+
+    /// <summary>Obtém o anexo (arquivo) da eleição apenas durante o período de votação.</summary>
+    /// <remarks>
+    /// Se <paramref name="associadoId"/> for informado, e a eleição tiver restrição por banco,
+    /// valida compatibilidade de banco antes de liberar o arquivo.
+    /// </remarks>
+    Task<(byte[] Bytes, string FileName, string ContentType)?> ObterArquivoAnexoDuranteVotacaoAsync(
+        Guid eleicaoId,
+        Guid? associadoId,
+        CancellationToken cancellationToken = default);
 }

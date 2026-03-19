@@ -20,7 +20,7 @@ import {
   CircularProgress,
 } from '@mui/material';
 import { Save, ArrowBack, Add, Delete, AttachFile, GetApp } from '@mui/icons-material';
-import { eleicoesAPI } from '../services/api';
+import { api, eleicoesAPI } from '../services/api';
 import relatorioService from '../services/relatorioService';
 import { useToast } from '../contexts/ToastContext';
 import { TipoEleicao, TipoPergunta, type TipoEleicaoVal, type TipoPerguntaVal } from '../types';
@@ -54,6 +54,7 @@ const EleicaoFormPage: React.FC = () => {
   const [descricao, setDescricao] = useState('');
   const [arquivoAnexo, setArquivoAnexo] = useState<string | null>(null);
   const [arquivoAnexoNome, setArquivoAnexoNome] = useState<string | null>(null);
+  const [baixandoArquivoAnexo, setBaixandoArquivoAnexo] = useState(false);
   const [tipo, setTipo] = useState<TipoEleicaoVal>(TipoEleicao.Enquete);
   const [inicioVotacao, setInicioVotacao] = useState('');
   const [fimVotacao, setFimVotacao] = useState('');
@@ -181,12 +182,36 @@ const EleicaoFormPage: React.FC = () => {
     setArquivoAnexoNome(null);
   };
 
-  const downloadArquivo = () => {
-    if (arquivoAnexo && arquivoAnexoNome) {
+  const downloadArquivo = async () => {
+    if (!id || !arquivoAnexo) return;
+    if (baixandoArquivoAnexo) return;
+
+    try {
+      setBaixandoArquivoAnexo(true);
+      const response = await api.get(`/api/eleicoes/${id}/anexo`, {
+        responseType: 'blob',
+      });
+
+      const blob = response.data;
+      const url = window.URL.createObjectURL(blob);
+
+      let fileName = arquivoAnexoNome ?? `anexo_${id}`;
+      const contentDisposition = response.headers?.['content-disposition'];
+      const match = contentDisposition?.match(/filename="?([^\";]+)"?/i);
+      if (match?.[1]) fileName = match[1];
+
       const link = document.createElement('a');
-      link.href = arquivoAnexo;
-      link.download = arquivoAnexoNome;
+      link.href = url;
+      link.download = fileName;
       link.click();
+
+      window.URL.revokeObjectURL(url);
+    } catch (err: unknown) {
+      console.error('Erro ao baixar arquivo anexo:', err);
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      toast.error('Erro', msg || 'Erro ao baixar arquivo anexo.');
+    } finally {
+      setBaixandoArquivoAnexo(false);
     }
   };
 
@@ -407,6 +432,7 @@ const EleicaoFormPage: React.FC = () => {
                     color="primary"
                     onClick={downloadArquivo}
                     title="Baixar arquivo"
+                    disabled={baixandoArquivoAnexo}
                   >
                     <GetApp />
                   </IconButton>
