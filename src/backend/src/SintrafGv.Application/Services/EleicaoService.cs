@@ -375,6 +375,8 @@ public class EleicaoService : IEleicaoService
     {
         var e = await _repository.ObterPorIdAsync(id, cancellationToken);
         if (e is null) throw new InvalidOperationException("Eleição não encontrada.");
+        if (e.Status != StatusEleicao.Rascunho)
+            throw new InvalidOperationException("Apenas enquetes em rascunho podem ser editadas.");
         var inicio = ParseDataVotacao(request.InicioVotacao, nameof(request.InicioVotacao));
         var fim = ParseDataVotacao(request.FimVotacao, nameof(request.FimVotacao));
         if (fim <= inicio)

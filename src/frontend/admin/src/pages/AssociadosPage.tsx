@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   Box,
   Typography,
@@ -37,36 +37,95 @@ const AssociadosPage: React.FC = () => {
   const [itens, setItens] = useState<Associado[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [loadingMais, setLoadingMais] = useState(false);
+  const [paginaAtual, setPaginaAtual] = useState(1);
+  const [hasMore, setHasMore] = useState(false);
   const [busca, setBusca] = useState('');
   const [statusFilter, setStatusFilter] = useState<'Todos' | 'Ativo' | 'Inativo'>('Todos');
   const navigate = useNavigate();
   const toast = useToast();
   const refBusca = useRef(busca);
   const refStatus = useRef(statusFilter);
+  const observerRef = useRef<IntersectionObserver | null>(null);
   refBusca.current = busca;
   refStatus.current = statusFilter;
+  const POR_PAGINA = 50;
 
   const carregar = async (buscaAtual: string, statusAtual: 'Todos' | 'Ativo' | 'Inativo') => {
     setLoading(true);
     try {
       const temFiltro = buscaAtual.trim() !== '' || statusAtual !== 'Todos';
       const data = temFiltro
-        ? await associadosAPI.listar(1, 50, { busca: buscaAtual.trim() || '', status: statusAtual })
-        : await associadosAPI.listar(1, 50);
-      setItens(data.itens ?? []);
-      setTotal(data.total ?? 0);
+        ? await associadosAPI.listar(1, POR_PAGINA, { busca: buscaAtual.trim() || '', status: statusAtual })
+        : await associadosAPI.listar(1, POR_PAGINA);
+      const novosItens = data.itens ?? [];
+      const totalRegistros = data.total ?? 0;
+      setItens(novosItens);
+      setTotal(totalRegistros);
+      setPaginaAtual(1);
+      setHasMore(novosItens.length < totalRegistros);
     } catch {
       toast.error('Erro', 'Erro ao carregar associados. Verifique se a API está rodando.');
       setItens([]);
       setTotal(0);
+      setPaginaAtual(1);
+      setHasMore(false);
     } finally {
       setLoading(false);
     }
   };
 
+  const carregarMais = useCallback(async () => {
+    if (loading || loadingMais || !hasMore) return;
+
+    setLoadingMais(true);
+    try {
+      const proximaPagina = paginaAtual + 1;
+      const buscaAtual = refBusca.current.trim();
+      const statusAtual = refStatus.current;
+      const temFiltro = buscaAtual !== '' || statusAtual !== 'Todos';
+      const data = temFiltro
+        ? await associadosAPI.listar(proximaPagina, POR_PAGINA, { busca: buscaAtual, status: statusAtual })
+        : await associadosAPI.listar(proximaPagina, POR_PAGINA);
+
+      const novosItens = data.itens ?? [];
+      const totalRegistros = data.total ?? total;
+
+      setItens((prev) => [...prev, ...novosItens]);
+      setTotal(totalRegistros);
+      setPaginaAtual(proximaPagina);
+      setHasMore((itens.length + novosItens.length) < totalRegistros);
+    } catch {
+      toast.error('Erro', 'Erro ao carregar mais associados.');
+    } finally {
+      setLoadingMais(false);
+    }
+  }, [hasMore, itens.length, loading, loadingMais, paginaAtual, toast, total]);
+
+  const setSentinelaRef = useCallback((node: HTMLDivElement | null) => {
+    if (observerRef.current) observerRef.current.disconnect();
+    if (!node) return;
+
+    observerRef.current = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) {
+          carregarMais();
+        }
+      },
+      { rootMargin: '200px' }
+    );
+    observerRef.current.observe(node);
+  }, [carregarMais]);
+
   useEffect(() => {
     carregar(refBusca.current, refStatus.current);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- apenas no mount
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (observerRef.current) observerRef.current.disconnect();
+    };
   }, []);
 
   const handleBuscar = () => {
@@ -203,11 +262,17 @@ const AssociadosPage: React.FC = () => {
                 )}
               </TableBody>
             </Table>
+            <Box ref={setSentinelaRef} sx={{ height: 1 }} />
+            {loadingMais && (
+              <Box sx={{ display: 'flex', justifyContent: 'center', my: 2 }}>
+                <CircularProgress size={24} />
+              </Box>
+            )}
           </TableContainer>
           {total > 0 && (
             <Box sx={{ px: 3, py: 2 }}>
               <Typography variant="body2" color="text.secondary">
-                Total: {total} associado(s)
+                Exibindo: {itens.length} de {total} associado(s)
               </Typography>
             </Box>
           )}

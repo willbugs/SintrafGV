@@ -111,8 +111,8 @@ const RelatorioCartorialPage: React.FC = () => {
         status: (r.status ?? r.Status ?? 0) as number,
         totalVotos: r.totalVotos ?? r.TotalVotos ?? 0,
       }));
-      // Apenas eleições encerradas ou apuradas
-      setEleicoes(mapeadas.filter((e) => e.status === 3 || e.status === 4));
+      // Apenas eleições apuradas
+      setEleicoes(mapeadas.filter((e) => e.status === 4));
     } catch (error) {
       console.error('Erro ao carregar enquetes:', error);
       showToast('Erro ao carregar enquetes', 'error');

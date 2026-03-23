@@ -3,6 +3,7 @@ import {
   Box,
   Typography,
   Paper,
+  Collapse,
   Table,
   TableBody,
   TableCell,
@@ -26,7 +27,7 @@ import {
   DialogContentText,
   DialogActions
 } from '@mui/material';
-import { Add, Edit, HowToVote, AttachFile, Assessment, Search, Clear, PlayArrow, Stop, CheckCircle, Cancel, HelpOutline } from '@mui/icons-material';
+import { Add, Edit, HowToVote, AttachFile, Assessment, Search, Clear, PlayArrow, Stop, CheckCircle, Cancel, HelpOutline, KeyboardArrowDown, KeyboardArrowUp } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { eleicoesAPI } from '../services/api';
 import type { EleicaoResumoDto, StatusEleicaoVal } from '../types';
@@ -53,6 +54,15 @@ const tipoLabel: Record<number, string> = {
   2: 'Eleição',
 };
 
+type DetalhesEleicao = {
+  descricao?: string | null;
+  inicioVotacao?: string;
+  fimVotacao?: string;
+  apenasAssociados?: boolean;
+  apenasAtivos?: boolean;
+  bancoNome?: string | null;
+};
+
 const EleicoesPage: React.FC = () => {
   const [itens, setItens] = useState<EleicaoResumoDto[]>([]);
   const [total, setTotal] = useState(0);
@@ -62,6 +72,9 @@ const EleicoesPage: React.FC = () => {
   const [filtroTipo, setFiltroTipo] = useState<string>('Todos');
   const [alterandoStatusId, setAlterandoStatusId] = useState<string | null>(null);
   const [confirmacao, setConfirmacao] = useState<{ id: string; titulo: string; acao: string; novoStatus: number } | null>(null);
+  const [expandidaId, setExpandidaId] = useState<string | null>(null);
+  const [detalhesPorId, setDetalhesPorId] = useState<Record<string, DetalhesEleicao>>({});
+  const [carregandoDetalhesId, setCarregandoDetalhesId] = useState<string | null>(null);
   const navigate = useNavigate();
   const toast = useToast();
 
@@ -135,6 +148,49 @@ const EleicoesPage: React.FC = () => {
       return new Date(s).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
     } catch {
       return s;
+    }
+  };
+
+  const formatDateTime = (s?: string) => {
+    if (!s) return '—';
+    try {
+      return new Date(s).toLocaleString('pt-BR', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      });
+    } catch {
+      return s;
+    }
+  };
+
+  const toggleExpandir = async (id: string) => {
+    if (expandidaId === id) {
+      setExpandidaId(null);
+      return;
+    }
+
+    setExpandidaId(id);
+    if (detalhesPorId[id] || carregandoDetalhesId === id) return;
+
+    try {
+      setCarregandoDetalhesId(id);
+      const r = await eleicoesAPI.obter(id);
+      const detalhes: DetalhesEleicao = {
+        descricao: (r.descricao ?? r.Descricao ?? '') as string,
+        inicioVotacao: (r.inicioVotacao ?? r.InicioVotacao) as string,
+        fimVotacao: (r.fimVotacao ?? r.FimVotacao) as string,
+        apenasAssociados: (r.apenasAssociados ?? r.ApenasAssociados) as boolean,
+        apenasAtivos: (r.apenasAtivos ?? r.ApenasAtivos) as boolean,
+        bancoNome: (r.bancoNome ?? r.BancoNome) as string | null,
+      };
+      setDetalhesPorId((prev) => ({ ...prev, [id]: detalhes }));
+    } catch {
+      toast.error('Erro', 'Não foi possível carregar os detalhes da enquete.');
+    } finally {
+      setCarregandoDetalhesId(null);
     }
   };
 
@@ -231,6 +287,7 @@ const EleicoesPage: React.FC = () => {
             <Table size="medium" sx={{ '& .MuiTableCell-root': { py: 1.5 } }}>
               <TableHead>
                 <TableRow>
+                  <TableCell sx={{ width: 44 }} />
                   <TableCell>Título</TableCell>
                   <TableCell>Tipo</TableCell>
                   <TableCell>Status</TableCell>
@@ -246,44 +303,50 @@ const EleicoesPage: React.FC = () => {
               <TableBody>
                 {itens.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={10} align="center">
+                    <TableCell colSpan={11} align="center">
                       Nenhuma enquete cadastrada.
                     </TableCell>
                   </TableRow>
                 ) : (
                   itens.map((e) => (
-                    <TableRow key={e.id} hover>
-                      <TableCell>
-                        <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                          <HowToVote sx={{ mr: 1, color: 'action.active' }} />
-                          <Typography variant="body2">{e.titulo}</Typography>
-                        </Box>
-                      </TableCell>
-                      <TableCell>{tipoLabel[e.tipo] ?? e.tipo}</TableCell>
-                      <TableCell>
-                        <Chip
-                          label={statusLabel[e.status] ?? '—'}
-                          color={statusColor[e.status] ?? 'default'}
-                          size="small"
-                        />
-                      </TableCell>
-                      <TableCell sx={{ minWidth: 100 }}>
-                        {e.bancoNome ? (
-                          <Chip label={e.bancoNome} size="small" variant="outlined" color="primary" />
-                        ) : (
-                          <Typography variant="body2" color="text.secondary">—</Typography>
-                        )}
-                      </TableCell>
-                      <TableCell align="center">
-                        {e.arquivoAnexo && (
-                          <AttachFile sx={{ color: 'action.active', fontSize: '1.2rem' }} />
-                        )}
-                      </TableCell>
-                      <TableCell>{formatDate(e.inicioVotacao)}</TableCell>
-                      <TableCell>{formatDate(e.fimVotacao)}</TableCell>
-                      <TableCell align="center">{e.totalPerguntas}</TableCell>
-                      <TableCell align="center">{e.totalVotos}</TableCell>
-                      <TableCell align="right">
+                    <React.Fragment key={e.id}>
+                      <TableRow hover>
+                        <TableCell>
+                          <IconButton size="small" onClick={() => toggleExpandir(e.id)}>
+                            {expandidaId === e.id ? <KeyboardArrowUp fontSize="small" /> : <KeyboardArrowDown fontSize="small" />}
+                          </IconButton>
+                        </TableCell>
+                        <TableCell>
+                          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                            <HowToVote sx={{ mr: 1, color: 'action.active' }} />
+                            <Typography variant="body2">{e.titulo}</Typography>
+                          </Box>
+                        </TableCell>
+                        <TableCell>{tipoLabel[e.tipo] ?? e.tipo}</TableCell>
+                        <TableCell>
+                          <Chip
+                            label={statusLabel[e.status] ?? '—'}
+                            color={statusColor[e.status] ?? 'default'}
+                            size="small"
+                          />
+                        </TableCell>
+                        <TableCell sx={{ minWidth: 100 }}>
+                          {e.bancoNome ? (
+                            <Chip label={e.bancoNome} size="small" variant="outlined" color="primary" />
+                          ) : (
+                            <Typography variant="body2" color="text.secondary">—</Typography>
+                          )}
+                        </TableCell>
+                        <TableCell align="center">
+                          {e.arquivoAnexo && (
+                            <AttachFile sx={{ color: 'action.active', fontSize: '1.2rem' }} />
+                          )}
+                        </TableCell>
+                        <TableCell>{formatDate(e.inicioVotacao)}</TableCell>
+                        <TableCell>{formatDate(e.fimVotacao)}</TableCell>
+                        <TableCell align="center">{e.totalPerguntas}</TableCell>
+                        <TableCell align="center">{e.totalVotos}</TableCell>
+                        <TableCell align="right">
                         {/* Rascunho: Abrir votação ou Cancelar */}
                         {e.status === 1 && (
                           <>
@@ -364,8 +427,36 @@ const EleicoesPage: React.FC = () => {
                             </IconButton>
                           </Tooltip>
                         )}
-                      </TableCell>
-                    </TableRow>
+                        </TableCell>
+                      </TableRow>
+                      <TableRow>
+                        <TableCell colSpan={11} sx={{ p: 0, borderBottom: expandidaId === e.id ? undefined : 'none' }}>
+                          <Collapse in={expandidaId === e.id} timeout="auto" unmountOnExit>
+                            <Box sx={{ px: 3, py: 2, bgcolor: 'grey.50' }}>
+                              {carregandoDetalhesId === e.id && !detalhesPorId[e.id] ? (
+                                <Typography variant="body2" color="text.secondary">Carregando detalhes...</Typography>
+                              ) : (
+                                <>
+                                  <Typography variant="subtitle2" sx={{ mb: 1 }}>Detalhes da enquete</Typography>
+                                  <Typography variant="body2" color="text.secondary" sx={{ mb: 0.75 }}>
+                                    <strong>Descrição:</strong> {detalhesPorId[e.id]?.descricao?.trim() || 'Sem descrição'}
+                                  </Typography>
+                                  <Typography variant="body2" color="text.secondary" sx={{ mb: 0.75 }}>
+                                    <strong>Período (data e hora):</strong> {formatDateTime(detalhesPorId[e.id]?.inicioVotacao ?? e.inicioVotacao)} até {formatDateTime(detalhesPorId[e.id]?.fimVotacao ?? e.fimVotacao)}
+                                  </Typography>
+                                  <Typography variant="body2" color="text.secondary" sx={{ mb: 0.75 }}>
+                                    <strong>Acesso:</strong> {detalhesPorId[e.id]?.apenasAssociados === false ? 'Também não associados' : 'Apenas associados'} | {detalhesPorId[e.id]?.apenasAtivos === false ? 'Ativos e inativos' : 'Apenas ativos'}
+                                  </Typography>
+                                  <Typography variant="body2" color="text.secondary">
+                                    <strong>Banco restrito:</strong> {detalhesPorId[e.id]?.bancoNome || e.bancoNome || 'Todos os bancos'}
+                                  </Typography>
+                                </>
+                              )}
+                            </Box>
+                          </Collapse>
+                        </TableCell>
+                      </TableRow>
+                    </React.Fragment>
                   ))
                 )}
               </TableBody>
