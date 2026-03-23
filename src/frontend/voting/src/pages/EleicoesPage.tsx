@@ -21,7 +21,8 @@ import {
 import { 
   HowToVote, 
   AccountCircle, 
-  Logout
+  Logout,
+  AttachFile
 } from '@mui/icons-material'
 import { useAuth } from '../contexts/AuthContext'
 import { api } from '../services/api'
@@ -35,6 +36,10 @@ interface Eleicao {
   status: 'Rascunho' | 'Aberta' | 'Encerrada' | 'Apurada' | 'Cancelada'
   podeVotar: boolean
   jaVotou: boolean
+  arquivoAnexo?: string | null
+  bancoNome?: string | null
+  apenasAssociados?: boolean
+  apenasAtivos?: boolean
   totalPerguntas: number
 }
 
@@ -63,6 +68,10 @@ const EleicoesPage: React.FC = () => {
         inicioVotacao: e.inicioVotacao ?? e.InicioVotacao ?? '',
         fimVotacao: e.fimVotacao ?? e.FimVotacao ?? '',
         status: (e.status ?? e.Status ?? 'Aberta') as Eleicao['status'],
+        arquivoAnexo: e.arquivoAnexo ?? e.ArquivoAnexo ?? null,
+        bancoNome: e.bancoNome ?? e.BancoNome ?? null,
+        apenasAssociados: e.apenasAssociados ?? e.ApenasAssociados ?? true,
+        apenasAtivos: e.apenasAtivos ?? e.ApenasAtivos ?? true,
         totalPerguntas: e.totalPerguntas ?? e.TotalPerguntas ?? 0,
         podeVotar: e.podeVotar ?? e.PodeVotar ?? true,
         jaVotou: e.jaVotou ?? e.JaVotou ?? false
@@ -91,6 +100,18 @@ const EleicoesPage: React.FC = () => {
     handleMenuClose()
     logout()
     navigate('/login')
+  }
+
+  const formatDateTime = (s: string) => {
+    const d = new Date(s)
+    if (Number.isNaN(d.getTime())) return '—'
+    return d.toLocaleString('pt-BR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    })
   }
 
   if (loading) {
@@ -171,6 +192,43 @@ const EleicoesPage: React.FC = () => {
                       color={(eleicao.status as string | number) === 2 || eleicao.status === 'Aberta' ? 'success' : 'default'}
                       size="small"
                     />
+                    <Box sx={{ mt: 1.5, display: 'flex', flexWrap: 'wrap', gap: 0.75 }}>
+                      <Chip
+                        size="small"
+                        variant="outlined"
+                        label={`${eleicao.totalPerguntas} pergunta(s)`}
+                      />
+                      <Chip
+                        size="small"
+                        variant="outlined"
+                        label={eleicao.arquivoAnexo ? 'Com anexo' : 'Sem anexo'}
+                        icon={eleicao.arquivoAnexo ? <AttachFile /> : undefined}
+                      />
+                      <Chip
+                        size="small"
+                        variant="outlined"
+                        label={eleicao.bancoNome ? `Banco: ${eleicao.bancoNome}` : 'Banco: todos'}
+                      />
+                    </Box>
+                    <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 1.5 }}>
+                      Início: {formatDateTime(eleicao.inicioVotacao)}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary" display="block">
+                      Fim: {formatDateTime(eleicao.fimVotacao)}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 0.5 }}>
+                      Acesso: {eleicao.apenasAssociados ? 'Apenas associados' : 'Associados e não associados'} | {eleicao.apenasAtivos ? 'Somente ativos' : 'Ativos e inativos'}
+                    </Typography>
+                    {!eleicao.podeVotar && !eleicao.jaVotou && (
+                      <Alert severity="warning" sx={{ mt: 1.5, py: 0 }}>
+                        Votação indisponível para seu perfil ou fora do período.
+                      </Alert>
+                    )}
+                    {eleicao.jaVotou && (
+                      <Alert severity="info" sx={{ mt: 1.5, py: 0 }}>
+                        Seu voto já foi registrado nesta enquete.
+                      </Alert>
+                    )}
                   </CardContent>
                   <CardActions>
                     <Button

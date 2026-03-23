@@ -43,8 +43,12 @@ public class EleicaoAtivaDto
     public Guid Id { get; set; }
     public string Titulo { get; set; } = string.Empty;
     public string? Descricao { get; set; }
+    public string? ArquivoAnexo { get; set; }
     public TipoEleicao Tipo { get; set; }
     public StatusEleicao Status { get; set; }
+    public bool ApenasAssociados { get; set; }
+    public bool ApenasAtivos { get; set; }
+    public string? BancoNome { get; set; }
     public DateTime InicioVotacao { get; set; }
     public DateTime FimVotacao { get; set; }
     public int TotalPerguntas { get; set; }

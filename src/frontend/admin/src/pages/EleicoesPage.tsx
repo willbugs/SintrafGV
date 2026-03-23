@@ -166,6 +166,12 @@ const EleicoesPage: React.FC = () => {
     }
   };
 
+  const nomeArquivoAnexo = (arquivoAnexo?: string | null) => {
+    if (!arquivoAnexo) return null;
+    const partes = arquivoAnexo.split('/');
+    return partes[partes.length - 1] || arquivoAnexo;
+  };
+
   const toggleExpandir = async (id: string) => {
     if (expandidaId === id) {
       setExpandidaId(null);
@@ -338,8 +344,16 @@ const EleicoesPage: React.FC = () => {
                           )}
                         </TableCell>
                         <TableCell align="center">
-                          {e.arquivoAnexo && (
-                            <AttachFile sx={{ color: 'action.active', fontSize: '1.2rem' }} />
+                          {e.arquivoAnexo ? (
+                            <Chip
+                              size="small"
+                              color="primary"
+                              variant="outlined"
+                              icon={<AttachFile />}
+                              label="Com anexo"
+                            />
+                          ) : (
+                            <Typography variant="body2" color="text.secondary">—</Typography>
                           )}
                         </TableCell>
                         <TableCell>{formatDate(e.inicioVotacao)}</TableCell>
@@ -446,6 +460,9 @@ const EleicoesPage: React.FC = () => {
                                   </Typography>
                                   <Typography variant="body2" color="text.secondary" sx={{ mb: 0.75 }}>
                                     <strong>Acesso:</strong> {detalhesPorId[e.id]?.apenasAssociados === false ? 'Também não associados' : 'Apenas associados'} | {detalhesPorId[e.id]?.apenasAtivos === false ? 'Ativos e inativos' : 'Apenas ativos'}
+                                  </Typography>
+                                  <Typography variant="body2" color="text.secondary" sx={{ mb: 0.75 }}>
+                                    <strong>Anexo:</strong> {e.arquivoAnexo ? `Sim (${nomeArquivoAnexo(e.arquivoAnexo)})` : 'Não'}
                                   </Typography>
                                   <Typography variant="body2" color="text.secondary">
                                     <strong>Banco restrito:</strong> {detalhesPorId[e.id]?.bancoNome || e.bancoNome || 'Todos os bancos'}
