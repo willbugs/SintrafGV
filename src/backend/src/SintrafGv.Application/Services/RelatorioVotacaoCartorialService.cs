@@ -45,9 +45,24 @@ namespace SintrafGv.Application.Services
             CancellationToken cancellationToken = default)
         {
             // Buscar dados da eleição
-            var eleicao = await _eleicaoRepository.ObterPorIdAsync(request.EleicaoId, cancellationToken);
+            var eleicao = await _eleicaoRepository.ObterPorIdComPerguntasAsync(request.EleicaoId, cancellationToken);
             if (eleicao == null)
                 throw new ArgumentException("Eleição não encontrada", nameof(request.EleicaoId));
+
+            var perguntasOrdenadas = (eleicao.Perguntas ?? new List<Domain.Entities.Pergunta>())
+                .OrderBy(p => p.Ordem)
+                .ToList();
+            var perguntaResumo = perguntasOrdenadas.Count switch
+            {
+                0 => "Sem perguntas cadastradas",
+                1 => perguntasOrdenadas[0].Texto,
+                _ => string.Join(" | ", perguntasOrdenadas.Select(p => p.Texto))
+            };
+            var opcoesResumo = perguntasOrdenadas
+                .SelectMany(p => (p.Opcoes ?? new List<Domain.Entities.Opcao>())
+                    .OrderBy(o => o.Ordem)
+                    .Select(o => $"{p.Texto}: {o.Texto}"))
+                .ToList();
 
             // Buscar configuração do sindicato
             var configuracao = await _configuracaoRepository.ObterConfiguracaoAsync(cancellationToken);
@@ -89,8 +104,8 @@ namespace SintrafGv.Application.Services
                     HoraInicio = eleicao.InicioVotacao.ToString("HH:mm:ss"),
                     DataFim = eleicao.FimVotacao,
                     HoraFim = eleicao.FimVotacao.ToString("HH:mm:ss"),
-                    Pergunta = eleicao.Perguntas?.FirstOrDefault()?.Texto ?? "",
-                    Opcoes = eleicao.Perguntas?.FirstOrDefault()?.Opcoes?.Select(o => o.Texto).ToList() ?? new List<string>(),
+                    Pergunta = perguntaResumo,
+                    Opcoes = opcoesResumo,
                     ApenasAssociados = eleicao.ApenasAssociados,
                     ArquivoAnexo = eleicao.ArquivoAnexo
                 }
@@ -304,7 +319,7 @@ namespace SintrafGv.Application.Services
             {
                 // Validar hash do voto
                 var hashCalculado = GerarHashVoto(voto);
-                if (hashCalculado != voto.HashVoto)
+                if (!string.Equals(hashCalculado, voto.HashVoto, StringComparison.OrdinalIgnoreCase))
                     return false;
 
                 // Validar assinatura digital (se presente)
@@ -427,8 +442,12 @@ namespace SintrafGv.Application.Services
 
         private string GerarHashVoto(Domain.Entities.Voto voto)
         {
-            var dados = $"{voto.Id}_{voto.EleicaoId}_{voto.AssociadoId}_{voto.DataHoraVoto:yyyy-MM-dd HH:mm:ss.fff}";
-            return GerarHashSHA256(dados);
+            // Deve seguir exatamente o mesmo payload usado na gravação do voto (EleicaoService.VotarAsync).
+            var dataHoraUtc = voto.DataHoraVoto.Kind == DateTimeKind.Utc
+                ? voto.DataHoraVoto
+                : DateTime.SpecifyKind(voto.DataHoraVoto, DateTimeKind.Utc);
+            var payloadHash = $"{voto.EleicaoId}:{voto.AssociadoId}:{dataHoraUtc:O}:{voto.CodigoComprovante}";
+            return GerarHashSHA256(payloadHash);
         }
 
         private string GerarHashSHA256(string input)
@@ -436,7 +455,7 @@ namespace SintrafGv.Application.Services
             using var sha256 = SHA256.Create();
             var bytes = Encoding.UTF8.GetBytes(input);
             var hash = sha256.ComputeHash(bytes);
-            return Convert.ToHexString(hash).ToLower();
+            return Convert.ToHexString(hash);
         }
 
         private bool ValidarAssinaturaDigital(string hash, string assinatura)
