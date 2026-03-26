@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Manual do Operador - Painel Admin SintrafGV</title>
+  <style>
+    :root {
+      --bg: #f6f8fb;
+      --card: #ffffff;
+      --text: #1f2937;
+      --muted: #6b7280;
+      --line: #e5e7eb;
+      --primary: #0b6bcb;
+      --ok: #0f9d58;
+      --warn: #ef6c00;
+      --danger: #c62828;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", Arial, sans-serif;
+      color: var(--text);
+      background: var(--bg);
+      line-height: 1.5;
+    }
+    .wrap {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 24px;
+    }
+    h1, h2, h3 {
+      line-height: 1.25;
+      margin-top: 0;
+    }
+    h1 { font-size: 28px; margin-bottom: 8px; }
+    h2 {
+      font-size: 22px;
+      margin-top: 32px;
+      margin-bottom: 10px;
+      border-bottom: 2px solid var(--line);
+      padding-bottom: 6px;
+    }
+    h3 { font-size: 18px; margin-top: 24px; margin-bottom: 6px; }
+    p { margin: 8px 0; }
+    .muted { color: var(--muted); }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 16px;
+      margin: 14px 0;
+    }
+    .tag {
+      display: inline-block;
+      border-radius: 999px;
+      padding: 3px 10px;
+      font-size: 12px;
+      font-weight: 600;
+      border: 1px solid transparent;
+      margin-right: 6px;
+    }
+    .ok { background: #e8f5e9; color: #1b5e20; border-color: #c8e6c9; }
+    .warn { background: #fff3e0; color: #e65100; border-color: #ffe0b2; }
+    .danger { background: #ffebee; color: #b71c1c; border-color: #ffcdd2; }
+    .primary { background: #e3f2fd; color: #0d47a1; border-color: #bbdefb; }
+    ul, ol { margin: 8px 0 8px 22px; }
+    li { margin: 4px 0; }
+    code {
+      font-family: Consolas, "Courier New", monospace;
+      background: #f3f4f6;
+      border: 1px solid #e5e7eb;
+      border-radius: 6px;
+      padding: 1px 6px;
+      font-size: 13px;
+    }
+    .kpi {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 12px;
+      margin-top: 10px;
+    }
+    .kpi .item {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 10px;
+      background: #fafafa;
+    }
+    .kpi .item strong { display: block; font-size: 14px; }
+    .small { font-size: 13px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Manual do Operador - Painel Admin SintrafGV</h1>
+    <p class="muted">
+      Versão operacional para uso diário do administrador, com foco em <strong>enquetes</strong>,
+      anexos, status, validações e relatórios cartoriais.
+    </p>
+
+    <div class="card">
+      <span class="tag primary">Objetivo</span>
+      <span class="tag ok">Operação segura</span>
+      <span class="tag warn">Evitar erros de publicação</span>
+      <p>
+        Este manual orienta o operador a criar, revisar, abrir, encerrar e apurar enquetes
+        sem perda de dados e com rastreabilidade para auditoria.
+      </p>
+    </div>
+
+    <h2>1) Acesso e visão geral</h2>
+    <div class="card">
+      <ol>
+        <li>Acesse o <strong>Painel Administrativo</strong> com perfil autorizado.</li>
+        <li>No menu lateral, use:
+          <ul>
+            <li><strong>Enquetes</strong> para criação e operação.</li>
+            <li><strong>Relatórios Cartoriais</strong> para geração de documentação oficial.</li>
+          </ul>
+        </li>
+        <li>Sempre confirme o ambiente correto (produção/homologação) antes de operar.</li>
+      </ol>
+    </div>
+
+    <h2>2) Ciclo de vida da enquete (status)</h2>
+    <div class="card">
+      <p><strong>Fluxo recomendado:</strong> <code>Rascunho</code> -> <code>Aberta</code> -> <code>Encerrada</code> -> <code>Apurada</code></p>
+      <ul>
+        <li><strong>Rascunho:</strong> fase de edição; ajuste título, período, perguntas e anexo.</li>
+        <li><strong>Aberta:</strong> votação liberada para os votantes elegíveis.</li>
+        <li><strong>Encerrada:</strong> votação bloqueada; etapa pronta para apuração.</li>
+        <li><strong>Apurada:</strong> habilita uso nos relatórios cartoriais (dropdown).</li>
+        <li><strong>Cancelada:</strong> enquete desativada por decisão administrativa.</li>
+      </ul>
+      <p class="small muted">
+        Importante: a edição é permitida apenas em <strong>Rascunho</strong>.
+      </p>
+    </div>
+
+    <h2>3) Operação detalhada de enquetes</h2>
+
+    <h3>3.1 Criar enquete</h3>
+    <div class="card">
+      <ol>
+        <li>Entre em <strong>Enquetes</strong> e clique em <strong>Nova enquete</strong>.</li>
+        <li>Preencha:
+          <ul>
+            <li>Título e descrição claros.</li>
+            <li>Data/hora de início e fim (<strong>fim deve ser maior que início</strong>).</li>
+            <li>Regras de acesso: apenas associados / apenas ativos.</li>
+            <li>Banco restrito (se houver regra por banco).</li>
+            <li>Perguntas e opções com ordem correta.</li>
+          </ul>
+        </li>
+        <li>Salve em <strong>Rascunho</strong> e revise na lista.</li>
+      </ol>
+    </div>
+
+    <h3>3.2 Anexar arquivo corretamente</h3>
+    <div class="card">
+      <ul>
+        <li>Adicione o anexo no formulário da enquete em <strong>Rascunho</strong>.</li>
+        <li>Na lista de enquetes, confira a coluna <strong>Anexo</strong>:
+          <ul>
+            <li><span class="tag ok">Com anexo</span> = arquivo vinculado.</li>
+            <li><span class="tag warn">—</span> = sem anexo.</li>
+          </ul>
+        </li>
+        <li>Expanda a linha da enquete para ver <strong>“Anexo: Sim (nome-do-arquivo)”</strong>.</li>
+      </ul>
+      <p class="small muted">
+        O anexo fica disponível ao votante somente durante o período de votação e respeitando restrições de acesso/banco.
+      </p>
+    </div>
+
+    <h3>3.3 Abrir votação (play)</h3>
+    <div class="card">
+      <ol>
+        <li>Na lista de enquetes, localize a enquete em <strong>Rascunho</strong>.</li>
+        <li>Clique no ícone <strong>Abrir votação</strong> (play).</li>
+        <li>Confirme a ação no modal.</li>
+        <li>Valide se o status mudou para <strong>Aberta</strong>.</li>
+      </ol>
+      <p><strong>Checklist antes de abrir:</strong></p>
+      <ul>
+        <li>Período correto.</li>
+        <li>Perguntas/ordem revisadas.</li>
+        <li>Anexo confirmado (se aplicável).</li>
+        <li>Regra de banco conferida (se aplicável).</li>
+      </ul>
+    </div>
+
+    <h3>3.4 Encerrar e apurar</h3>
+    <div class="card">
+      <ol>
+        <li>Com status <strong>Aberta</strong>, clique em <strong>Encerrar votação</strong>.</li>
+        <li>Após Encerrada, clique em <strong>Apurar resultados</strong>.</li>
+        <li>Confirme status final em <strong>Apurada</strong>.</li>
+      </ol>
+      <p class="small muted">
+        Somente enquetes <strong>Apuradas</strong> entram no dropdown de relatórios cartoriais.
+      </p>
+    </div>
+
+    <h2>4) Operação de Relatórios Cartoriais</h2>
+    <div class="card">
+      <ol>
+        <li>Acesse <strong>Relatórios Cartoriais</strong>.</li>
+        <li>Selecione a enquete no dropdown.</li>
+        <li>Verifique o indicador de integridade:
+          <ul>
+            <li><span class="tag ok">Íntegro</span> = pode gerar.</li>
+            <li><span class="tag danger">Problemas</span> = investigar antes de emitir.</li>
+          </ul>
+        </li>
+        <li>Use <strong>Visualizar Relatório</strong> para conferir dados.</li>
+        <li>Use <strong>Baixar PDF</strong> para emissão oficial.</li>
+      </ol>
+    </div>
+
+    <h2>5) Checklist rápido diário (operador)</h2>
+    <div class="card kpi">
+      <div class="item">
+        <strong>1. Enquete correta?</strong>
+        Confirmar título, período e status.
+      </div>
+      <div class="item">
+        <strong>2. Anexo visível?</strong>
+        Deve aparecer como “Com anexo”.
+      </div>
+      <div class="item">
+        <strong>3. Regra de acesso?</strong>
+        Associados/ativos/banco conforme edital.
+      </div>
+      <div class="item">
+        <strong>4. Integridade OK?</strong>
+        Indicador “Íntegro” no cartorial.
+      </div>
+      <div class="item">
+        <strong>5. Relatório conferido?</strong>
+        Perguntas, resultados e autenticação.
+      </div>
+    </div>
+
+    <h2>6) Problemas comuns e ação imediata</h2>
+    <div class="card">
+      <h3>Dropdown cartorial vazio</h3>
+      <ul>
+        <li>Causa comum: não há enquetes <strong>Apuradas</strong>.</li>
+        <li>Ação: encerrar e apurar a enquete desejada.</li>
+      </ul>
+
+      <h3>Anexo “sumiu”</h3>
+      <ul>
+        <li>Conferir na lista se está <strong>Com anexo</strong>.</li>
+        <li>Conferir no detalhe expandido o nome do arquivo.</li>
+        <li>No votação, o download só aparece dentro do período e regras.</li>
+      </ul>
+
+      <h3>Erro de integridade no cartorial</h3>
+      <ul>
+        <li>Não emitir PDF oficial sem validar.</li>
+        <li>Registrar ID da enquete, horário e mensagem de erro para suporte técnico.</li>
+      </ul>
+    </div>
+
+    <h2>7) Boas práticas operacionais</h2>
+    <div class="card">
+      <ul>
+        <li>Nunca abrir enquete sem revisão completa de período e perguntas.</li>
+        <li>Não alterar regras de acesso na última hora sem registro interno.</li>
+        <li>Executar conferência dupla para enquetes com banco restrito.</li>
+        <li>Guardar PDF cartorial em pasta organizada por data e protocolo.</li>
+      </ul>
+    </div>
+
+    <h2>8) Registro de execução (modelo)</h2>
+    <div class="card">
+      <p>Use este padrão no fechamento de operação:</p>
+      <ul>
+        <li><strong>Enquete:</strong> [Título]</li>
+        <li><strong>ID:</strong> [GUID]</li>
+        <li><strong>Status final:</strong> [Apurada]</li>
+        <li><strong>Anexo:</strong> [Sim/Não + nome]</li>
+        <li><strong>Integridade:</strong> [Íntegro/Problemas]</li>
+        <li><strong>Protocolo relatório:</strong> [PROT-...]</li>
+        <li><strong>Operador:</strong> [Nome]</li>
+        <li><strong>Data/Hora:</strong> [dd/mm/aaaa hh:mm]</li>
+      </ul>
+    </div>
+
+    <p class="small muted">
+      Documento: <strong>MANUAL-OPERADOR-ADMIN.html</strong> |
+      Uso interno SintrafGV.
+    </p>
+  </div>
+</body>
+</html>
