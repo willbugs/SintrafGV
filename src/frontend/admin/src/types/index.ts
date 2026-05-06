@@ -66,6 +66,7 @@ export interface Associado {
   // Dados bancários
   banco?: string;
   agencia?: string;
+  cidadeAgencia?: string;
   codAgencia?: string;
   conta?: string;
   // Dados profissionais

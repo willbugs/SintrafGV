@@ -95,6 +95,7 @@ const AssociadoFormPage: React.FC = () => {
 
   const [banco, setBanco] = useState('');
   const [agencia, setAgencia] = useState('');
+  const [cidadeAgencia, setCidadeAgencia] = useState('');
   const [codAgencia, setCodAgencia] = useState('');
   const [conta, setConta] = useState('');
 
@@ -139,6 +140,7 @@ const AssociadoFormPage: React.FC = () => {
           setEstado((a.estado as string) ?? '');
           setBanco((a.banco as string) ?? '');
           setAgencia((a.agencia as string) ?? '');
+          setCidadeAgencia((a.cidadeAgencia as string) ?? '');
           setCodAgencia((a.codAgencia as string) ?? '');
           setConta((a.conta as string) ?? '');
           setFuncao((a.funcao as string) ?? '');
@@ -204,6 +206,7 @@ const AssociadoFormPage: React.FC = () => {
         estado: estado || null,
         banco: banco.trim() || null,
         agencia: agencia.trim() || null,
+        cidadeAgencia: cidadeAgencia.trim() || null,
         codAgencia: codAgencia.trim() || null,
         conta: conta.trim() || null,
         funcao: funcao.trim() || null,
@@ -424,7 +427,7 @@ const AssociadoFormPage: React.FC = () => {
             Dados Bancários
           </Typography>
           <Grid container spacing={2}>
-            <Grid item xs={12} md={3}>
+            <Grid item xs={12} sm={6} md={2}>
               <TextField
                 fullWidth
                 label="Banco"
@@ -433,7 +436,7 @@ const AssociadoFormPage: React.FC = () => {
                 sx={{ mb: 2 }}
               />
             </Grid>
-            <Grid item xs={12} md={3}>
+            <Grid item xs={12} sm={6} md={2}>
               <TextField
                 fullWidth
                 label="Código Agência"
@@ -442,7 +445,7 @@ const AssociadoFormPage: React.FC = () => {
                 sx={{ mb: 2 }}
               />
             </Grid>
-            <Grid item xs={12} md={3}>
+            <Grid item xs={12} sm={6} md={2}>
               <TextField
                 fullWidth
                 label="Agência"
@@ -451,7 +454,16 @@ const AssociadoFormPage: React.FC = () => {
                 sx={{ mb: 2 }}
               />
             </Grid>
-            <Grid item xs={12} md={3}>
+            <Grid item xs={12} sm={6} md={3}>
+              <TextField
+                fullWidth
+                label="Cidade Agência"
+                value={cidadeAgencia}
+                onChange={(e) => setCidadeAgencia(e.target.value)}
+                sx={{ mb: 2 }}
+              />
+            </Grid>
+            <Grid item xs={12} sm={6} md={3}>
               <TextField
                 fullWidth
                 label="Conta"

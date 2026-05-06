@@ -21,6 +21,7 @@ public record AssociadoDto(
     // Dados bancários
     string? Banco,
     string? Agencia,
+    string? CidadeAgencia,
     string? CodAgencia,
     string? Conta,
     // Dados profissionais
@@ -62,6 +63,7 @@ public record CreateAssociadoRequest(
     // Dados bancários
     string? Banco,
     string? Agencia,
+    string? CidadeAgencia,
     string? CodAgencia,
     string? Conta,
     // Dados profissionais
@@ -100,6 +102,7 @@ public record UpdateAssociadoRequest(
     // Dados bancários
     string? Banco,
     string? Agencia,
+    string? CidadeAgencia,
     string? CodAgencia,
     string? Conta,
     // Dados profissionais

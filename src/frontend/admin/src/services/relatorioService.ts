@@ -62,6 +62,7 @@ export interface AssociadoRelatorio {
   email?: string;
   nomeBanco?: string;
   agencia?: string;
+  cidadeAgencia?: string;
   conta?: string;
   ativo: boolean;
   associado: boolean;

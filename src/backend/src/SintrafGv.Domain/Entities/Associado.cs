@@ -31,6 +31,8 @@ public class Associado
     // Dados bancários
     public string? Banco { get; set; }
     public string? Agencia { get; set; }
+    /// <summary>Cidade da agência (texto livre; distinto do endereço do associado).</summary>
+    public string? CidadeAgencia { get; set; }
     public string? CodAgencia { get; set; }
     public string? Conta { get; set; }
 

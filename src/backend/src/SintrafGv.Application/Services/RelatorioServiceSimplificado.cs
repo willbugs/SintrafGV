@@ -413,6 +413,8 @@ namespace SintrafGv.Application.Services
                 new() { Nome = "estado", Titulo = "Estado", Tipo = "string", Filtravel = true, Ordenavel = true },
                 new() { Nome = "bairro", Titulo = "Bairro", Tipo = "string", Filtravel = true, Ordenavel = true },
                 new() { Nome = "nomeBanco", Titulo = "Banco", Tipo = "string", Filtravel = true, Ordenavel = true },
+                new() { Nome = "agencia", Titulo = "Agência", Tipo = "string", Filtravel = true, Ordenavel = true },
+                new() { Nome = "cidadeAgencia", Titulo = "Cidade Agência", Tipo = "string", Filtravel = true, Ordenavel = true },
                 new() { Nome = "dataNascimento", Titulo = "Data Nascimento", Tipo = "date", Filtravel = true, Ordenavel = true },
                 new() { Nome = "dataFiliacao", Titulo = "Data Filiação", Tipo = "date", Filtravel = true, Ordenavel = true },
                 new() { Nome = "dataAdmissao", Titulo = "Data Admissão", Tipo = "date", Filtravel = true, Ordenavel = true },
@@ -948,6 +950,10 @@ namespace SintrafGv.Application.Services
                     return AvaliarString(item.Bairro, operador, valor);
                 case "nomeBanco":
                     return AvaliarString(item.NomeBanco, operador, valor);
+                case "agencia":
+                    return AvaliarString(item.Agencia, operador, valor);
+                case "cidadeAgencia":
+                    return AvaliarString(item.CidadeAgencia, operador, valor);
                 case "email":
                     return AvaliarString(item.Email, operador, valor);
                 case "celular":
@@ -1102,6 +1108,7 @@ namespace SintrafGv.Application.Services
                 Email = associado.Email,
                 NomeBanco = associado.Banco ?? "Não informado",
                 Agencia = associado.Agencia,
+                CidadeAgencia = associado.CidadeAgencia,
                 Conta = associado.Conta,
                 Ativo = associado.Ativo,
                 Associado = associado.Ativo,

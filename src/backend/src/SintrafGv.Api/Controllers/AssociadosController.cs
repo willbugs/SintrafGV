@@ -66,6 +66,7 @@ public class AssociadosController : ControllerBase
             Estado = request.Estado,
             Banco = request.Banco,
             Agencia = request.Agencia,
+            CidadeAgencia = request.CidadeAgencia,
             CodAgencia = request.CodAgencia,
             Conta = request.Conta,
             Funcao = request.Funcao,
@@ -122,6 +123,7 @@ public class AssociadosController : ControllerBase
         associado.Estado = request.Estado;
         associado.Banco = request.Banco;
         associado.Agencia = request.Agencia;
+        associado.CidadeAgencia = request.CidadeAgencia;
         associado.CodAgencia = request.CodAgencia;
         associado.Conta = request.Conta;
         associado.Funcao = request.Funcao;
@@ -185,6 +187,7 @@ public class AssociadosController : ControllerBase
         a.Estado,
         a.Banco,
         a.Agencia,
+        a.CidadeAgencia,
         a.CodAgencia,
         a.Conta,
         a.Funcao,

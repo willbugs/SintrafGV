@@ -76,6 +76,7 @@ namespace SintrafGv.Application.DTOs
         public string? Email { get; set; }
         public string? NomeBanco { get; set; }
         public string? Agencia { get; set; }
+        public string? CidadeAgencia { get; set; }
         public string? Conta { get; set; }
         public bool Ativo { get; set; }
         public bool Associado { get; set; }

@@ -34,6 +34,7 @@ BEGIN
         [DataUltimaAtualizacao] datetime2 NULL,
         [CriadoEm] datetime2 NOT NULL,
         [Agencia] nvarchar(max) NULL,
+        [CidadeAgencia] nvarchar(max) NULL,
         [Aposentado] bit NOT NULL DEFAULT 0,
         [Banco] nvarchar(max) NULL,
         [Cep] nvarchar(max) NULL,
