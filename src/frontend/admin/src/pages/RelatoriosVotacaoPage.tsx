@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
   Container,
@@ -27,7 +27,7 @@ import {
 } from '@mui/material';
 import { Assessment, BarChart, TrendingUp, FilterList } from '@mui/icons-material';
 import relatorioService from '../services/relatorioService';
-import { eleicoesAPI } from '../services/api';
+import { enquetesAPI } from '../services/api';
 import ExportMenu from '../components/Relatorios/ExportMenu';
 
 const STATUS_ENQUETE: Record<number, string> = {
@@ -103,7 +103,7 @@ const RelatoriosVotacaoPage: React.FC = () => {
   const carregarEnquetes = async (filtrosParaListagem?: { dataInicio?: string; dataFim?: string; status?: string }) => {
     try {
       const f = filtrosParaListagem ?? filtros;
-      const response = await eleicoesAPI.listar(1, 500, {
+      const response = await enquetesAPI.listar(1, 500, {
         dataInicio: f.dataInicio || undefined,
         dataFim: f.dataFim || undefined,
         status: f.status ? Number(f.status) : undefined,
@@ -136,7 +136,7 @@ const RelatoriosVotacaoPage: React.FC = () => {
 
   const construirFiltros = () => {
     const filtrosObj: any = {};
-    if (filtros.enqueteId) filtrosObj.eleicaoId = filtros.enqueteId;
+    if (filtros.enqueteId) filtrosObj.enqueteId = filtros.enqueteId;
     if (filtros.dataInicio) filtrosObj.dataInicio = filtros.dataInicio;
     if (filtros.dataFim) filtrosObj.dataFim = filtros.dataFim;
     if (filtros.status) filtrosObj.status = filtros.status;
@@ -282,7 +282,7 @@ const RelatoriosVotacaoPage: React.FC = () => {
               >
                 <MenuItem value="">Todos</MenuItem>
                 <MenuItem value="1">Enquete</MenuItem>
-                <MenuItem value="2">Eleição</MenuItem>
+                <MenuItem value="2">Assembleia</MenuItem>
               </Select>
             </FormControl>
           </Grid>
@@ -446,7 +446,7 @@ const RelatoriosVotacaoPage: React.FC = () => {
               </Button>
               <ExportMenu
                 relatorioRequest={{
-                  tipoRelatorio: 'resultados-eleicao',
+                  tipoRelatorio: 'resultados-enquete',
                   filtros: construirFiltros(),
                   formatoExportacao: 'html',
                 }}

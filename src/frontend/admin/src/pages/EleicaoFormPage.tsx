@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   Box,
@@ -20,9 +20,14 @@ import {
   CircularProgress,
 } from '@mui/material';
 import { Save, ArrowBack, Add, Delete, AttachFile, GetApp } from '@mui/icons-material';
-import { api, eleicoesAPI } from '../services/api';
+import { api, enquetesAPI } from '../services/api';
 import relatorioService from '../services/relatorioService';
 import { useToast } from '../contexts/ToastContext';
+import {
+  utcIsoToDatetimeLocalBr,
+  brDatetimeLocalToUtcIso,
+  parseUtcIso,
+} from '../utils/datetimeBr';
 import { TipoEleicao, TipoPergunta, type TipoEleicaoVal, type TipoPerguntaVal } from '../types';
 
 interface OpcaoForm {
@@ -67,7 +72,7 @@ const EleicaoFormPage: React.FC = () => {
   useEffect(() => {
     if (isEdit && id) {
       setLoading(true);
-      eleicoesAPI.obter(id)
+      enquetesAPI.obter(id)
         .then((data: Record<string, unknown>) => {
           setTitulo((data.titulo ?? data.Titulo ?? '') as string);
           setDescricao((data.descricao ?? data.Descricao ?? '') as string);
@@ -81,8 +86,8 @@ const EleicaoFormPage: React.FC = () => {
           setTipo((data.tipo ?? data.Tipo ?? TipoEleicao.Enquete) as TipoEleicaoVal);
           const inicio = (data.inicioVotacao ?? data.InicioVotacao ?? '') as string;
           const fim = (data.fimVotacao ?? data.FimVotacao ?? '') as string;
-          setInicioVotacao(inicio ? inicio.slice(0, 16) : '');
-          setFimVotacao(fim ? fim.slice(0, 16) : '');
+          setInicioVotacao(inicio ? utcIsoToDatetimeLocalBr(inicio) : '');
+          setFimVotacao(fim ? utcIsoToDatetimeLocalBr(fim) : '');
           setApenasAssociados((data.apenasAssociados ?? data.ApenasAssociados ?? true) as boolean);
           setApenasAtivos((data.apenasAtivos ?? data.ApenasAtivos ?? true) as boolean);
           setBancoNome((data.bancoNome ?? data.BancoNome ?? '') as string);
@@ -155,16 +160,38 @@ const EleicaoFormPage: React.FC = () => {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    // Limitar tipos de arquivo (PDFs, DOCs, etc.)
-    const allowedTypes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
-    if (!allowedTypes.includes(file.type)) {
-      toast.warning('Atenção', 'Apenas arquivos PDF, DOC e DOCX são permitidos.');
+    const nome = file.name.toLowerCase();
+    const allowedExt = ['.pdf', '.doc', '.docx', '.zip', '.rar'];
+    const zipMimes = ['application/zip', 'application/x-zip-compressed', 'application/x-zip'];
+    const rarMimes = ['application/vnd.rar', 'application/x-rar-compressed', 'application/x-rar'];
+    const docMimes = [
+      'application/pdf',
+      'application/msword',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    ];
+
+    const extOk = allowedExt.some((ext) => nome.endsWith(ext));
+    if (!extOk) {
+      toast.warning('Atenção', 'Formatos permitidos: PDF, DOC, DOCX, ZIP e RAR.');
       return;
     }
 
-    // Limitar tamanho (5MB)
-    if (file.size > 5 * 1024 * 1024) {
-      toast.warning('Atenção', 'Arquivo deve ter no máximo 5MB.');
+    const isCompactado = nome.endsWith('.zip') || nome.endsWith('.rar');
+    const mimesPermitidos = isCompactado
+      ? [...zipMimes, ...rarMimes, 'application/octet-stream']
+      : [...docMimes, ...zipMimes, 'application/octet-stream'];
+    if (file.type && !mimesPermitidos.includes(file.type)) {
+      toast.warning('Atenção', 'Tipo de arquivo incompatível com a extensão selecionada.');
+      return;
+    }
+    const maxBytes = isCompactado ? 25 * 1024 * 1024 : 5 * 1024 * 1024;
+    if (file.size > maxBytes) {
+      toast.warning(
+        'Atenção',
+        isCompactado
+          ? 'Arquivo compactado deve ter no máximo 25MB.'
+          : 'Arquivo deve ter no máximo 5MB.',
+      );
       return;
     }
 
@@ -188,7 +215,7 @@ const EleicaoFormPage: React.FC = () => {
 
     try {
       setBaixandoArquivoAnexo(true);
-      const response = await api.get(`/api/eleicoes/${id}/anexo`, {
+      const response = await api.get(`/api/enquetes/${id}/anexo`, {
         responseType: 'blob',
       });
 
@@ -225,8 +252,8 @@ const EleicaoFormPage: React.FC = () => {
       toast.warning('Atenção', 'Informe as datas de início e fim.');
       return;
     }
-    const dtInicio = new Date(inicioVotacao).getTime();
-    const dtFim = new Date(fimVotacao).getTime();
+    const dtInicio = parseUtcIso(brDatetimeLocalToUtcIso(inicioVotacao))?.getTime() ?? NaN;
+    const dtFim = parseUtcIso(brDatetimeLocalToUtcIso(fimVotacao))?.getTime() ?? NaN;
     if (dtFim <= dtInicio) {
       toast.warning('Atenção', 'A data/hora de fim da votação deve ser posterior à data/hora de início.');
       return;
@@ -259,8 +286,8 @@ const EleicaoFormPage: React.FC = () => {
         descricao,
         arquivoAnexo,
         tipo,
-        inicioVotacao: new Date(inicioVotacao).toISOString(),
-        fimVotacao: new Date(fimVotacao).toISOString(),
+        inicioVotacao: brDatetimeLocalToUtcIso(inicioVotacao),
+        fimVotacao: brDatetimeLocalToUtcIso(fimVotacao),
         apenasAssociados,
         apenasAtivos,
         bancoNome: bancoNome.trim() || undefined,
@@ -279,13 +306,13 @@ const EleicaoFormPage: React.FC = () => {
         })),
       };
       if (isEdit && id) {
-        await eleicoesAPI.atualizar(id, payload);
+        await enquetesAPI.atualizar(id, payload);
         toast.success('Sucesso', 'Enquete atualizada com sucesso.');
       } else {
-        await eleicoesAPI.criar(payload);
+        await enquetesAPI.criar(payload);
         toast.success('Sucesso', 'Enquete criada com sucesso.');
       }
-      navigate('/eleicoes');
+      navigate('/enquetes');
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
       toast.error('Erro', msg || 'Erro ao salvar enquete.');
@@ -305,7 +332,7 @@ const EleicaoFormPage: React.FC = () => {
   return (
     <Box>
       <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
-        <IconButton onClick={() => navigate('/eleicoes')} sx={{ mr: 1 }}>
+        <IconButton onClick={() => navigate('/enquetes')} sx={{ mr: 1 }}>
           <ArrowBack />
         </IconButton>
         <Typography variant="h4">{isEdit ? 'Editar Enquete' : 'Nova Enquete'}</Typography>
@@ -336,7 +363,7 @@ const EleicaoFormPage: React.FC = () => {
                   onChange={(e) => setTipo(e.target.value as TipoEleicaoVal)}
                 >
                   <MenuItem value={TipoEleicao.Enquete}>Enquete</MenuItem>
-                  <MenuItem value={TipoEleicao.Eleicao}>Eleição</MenuItem>
+                  <MenuItem value={TipoEleicao.Eleicao}>Assembleia</MenuItem>
                 </Select>
               </FormControl>
             </Grid>
@@ -406,7 +433,7 @@ const EleicaoFormPage: React.FC = () => {
           <Box sx={{ mb: 3 }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
               <input
-                accept=".pdf,.doc,.docx"
+                accept=".pdf,.doc,.docx,.zip,.rar"
                 style={{ display: 'none' }}
                 id="arquivo-upload"
                 type="file"
@@ -448,7 +475,7 @@ const EleicaoFormPage: React.FC = () => {
               )}
             </Box>
             <Typography variant="caption" color="text.secondary">
-              Formatos aceitos: PDF, DOC, DOCX (até 5MB)
+              Formatos: PDF, DOC, DOCX (até 5MB) ou ZIP/RAR com vários documentos (até 25MB)
             </Typography>
           </Box>
 
@@ -457,10 +484,13 @@ const EleicaoFormPage: React.FC = () => {
           <Typography variant="h6" gutterBottom>
             Período de Votação
           </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            Informe início e fim no horário de Brasília (UTC−3). Ex.: 09:00 às 18:00 do mesmo dia.
+          </Typography>
           <Grid container spacing={2}>
             <Grid item xs={12} md={6}>
               <TextField
-                label="Início da Votação"
+                label="Início da Votação (Brasília)"
                 type="datetime-local"
                 fullWidth
                 value={inicioVotacao}
@@ -472,7 +502,7 @@ const EleicaoFormPage: React.FC = () => {
             </Grid>
             <Grid item xs={12} md={6}>
               <TextField
-                label="Fim da Votação"
+                label="Fim da Votação (Brasília)"
                 type="datetime-local"
                 fullWidth
                 value={fimVotacao}
@@ -647,7 +677,7 @@ const EleicaoFormPage: React.FC = () => {
             </Button>
             <Button
               variant="outlined"
-              onClick={() => navigate('/eleicoes')}
+              onClick={() => navigate('/enquetes')}
               disabled={saving}
               size="large"
             >

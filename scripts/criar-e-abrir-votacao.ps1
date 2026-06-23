@@ -44,13 +44,13 @@ $createBody = @{
   )
 } | ConvertTo-Json -Depth 5
 
-$eleicao = Invoke-RestMethod -Uri "$base/api/eleicoes" -Method Post -Body $createBody -Headers $headers
+$eleicao = Invoke-RestMethod -Uri "$base/api/enquetes" -Method Post -Body $createBody -Headers $headers
 $id = if ($eleicao.id) { $eleicao.id } else { $eleicao.Id }
 Write-Host "Enquete criada: $id - $($eleicao.titulo)"
 
 # Abrir votacao (status = 2 = Aberta) - PATCH api/eleicoes/{id}/status
 $statusBody = @{ status = 2 } | ConvertTo-Json
-Invoke-RestMethod -Uri "$base/api/eleicoes/$id/status" -Method Patch -Body $statusBody -Headers $headers | Out-Null
+Invoke-RestMethod -Uri "$base/api/enquetes/$id/status" -Method Patch -Body $statusBody -Headers $headers | Out-Null
 Write-Host "Status alterado para Aberta."
 
 # IDs para votar (primeira pergunta, primeira opcao)

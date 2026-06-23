@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+﻿import React, { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import {
   Box,
@@ -52,7 +52,7 @@ const ComprovantePage: React.FC = () => {
   const carregarComprovante = async () => {
     try {
       setLoading(true)
-      const response = await api.get(`/api/eleicoes/comprovante/${votoId}`)
+      const response = await api.get(`/api/enquetes/comprovante/${votoId}`)
       const d = response.data
       setComprovante({
         id: d.id ?? d.Id ?? votoId ?? '',
@@ -80,7 +80,7 @@ const ComprovantePage: React.FC = () => {
       try {
         await navigator.share({
           title: 'Comprovante de Votação - SintrafGV',
-          text: `Votação confirmada na eleição: ${comprovante.eleicaoTitulo}\nComprovante: ${comprovante.numeroComprovante}`,
+          text: `Votação confirmada na enquete: ${comprovante.eleicaoTitulo}\nComprovante: ${comprovante.numeroComprovante}`,
           url: window.location.href
         })
       } catch (err) {
@@ -90,7 +90,7 @@ const ComprovantePage: React.FC = () => {
       // Fallback: copiar para clipboard
       if (comprovante) {
         const texto = `Comprovante de Votação - SintrafGV
-Eleição: ${comprovante.eleicaoTitulo}
+Enquete: ${comprovante.eleicaoTitulo}
 Data/Hora: ${formatarDataHora(comprovante.dataHoraVoto)}
 Comprovante: ${comprovante.numeroComprovante}
 Hash: ${comprovante.hashVoto}`
@@ -128,8 +128,8 @@ Hash: ${comprovante.hashVoto}`
         <Alert severity="error" sx={{ mt: 3 }}>
           {error || 'Comprovante não encontrado'}
         </Alert>
-        <Button onClick={() => navigate('/eleicoes')} sx={{ mt: 2 }}>
-          Voltar às Eleições
+        <Button onClick={() => navigate('/enquetes')} sx={{ mt: 2 }}>
+          Voltar às Votações
         </Button>
       </Container>
     )
@@ -168,10 +168,10 @@ Hash: ${comprovante.hashVoto}`
               <Grid item xs={12} md={6}>
                 <Paper variant="outlined" sx={{ p: 2 }}>
                   <Typography variant="subtitle2" color="primary" gutterBottom>
-                    📋 DADOS DA ELEIÇÃO
+                    📋 DADOS DA ENQUETE
                   </Typography>
                   <Typography variant="body2" gutterBottom>
-                    <strong>Eleição:</strong> {comprovante.eleicaoTitulo}
+                    <strong>Enquete:</strong> {comprovante.eleicaoTitulo}
                   </Typography>
                   <Typography variant="body2" gutterBottom>
                     <strong>Perguntas:</strong> {comprovante.totalPerguntas}
@@ -288,9 +288,9 @@ Hash: ${comprovante.hashVoto}`
           <Button
             variant="contained"
             startIcon={<Home />}
-            onClick={() => navigate('/eleicoes')}
+            onClick={() => navigate('/enquetes')}
           >
-            Voltar às Eleições
+            Voltar às Votações
           </Button>
         </Box>
 

@@ -37,6 +37,7 @@ public record AssociadoDto(
     string? Celular,
     string? Email,
     // Status
+    bool Filiado,
     bool Ativo,
     bool Aposentado,
     // Auditoria
@@ -79,6 +80,7 @@ public record CreateAssociadoRequest(
     string? Celular,
     string? Email,
     // Status
+    bool Filiado = true,
     bool Ativo = true,
     bool Aposentado = false);
 
@@ -118,5 +120,6 @@ public record UpdateAssociadoRequest(
     string? Celular,
     string? Email,
     // Status
+    bool Filiado,
     bool Ativo,
     bool Aposentado);

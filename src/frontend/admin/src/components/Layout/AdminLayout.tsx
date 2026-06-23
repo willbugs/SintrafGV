@@ -43,7 +43,7 @@ const menuItems: MenuItemType[] = [
   { id: 'dashboard', label: 'Dashboard', icon: <Dashboard />, path: '/dashboard' },
   { id: 'associados', label: 'Associados', icon: <Person />, path: '/associados' },
   { id: 'usuarios', label: 'Usuários', icon: <People />, path: '/usuarios' },
-  { id: 'eleicoes', label: 'Enquetes', icon: <HowToVote />, path: '/eleicoes' },
+  { id: 'enquetes', label: 'Enquetes', icon: <HowToVote />, path: '/enquetes' },
   { id: 'relatorios', label: 'Relatórios', icon: <Assessment />, path: '/relatorios',
     subItems: [
       { id: 'relatorios-gerais', label: 'Relatórios Gerais', icon: <Assessment />, path: '/relatorios' },

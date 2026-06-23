@@ -65,6 +65,8 @@ public class EleicaoService : IEleicaoService
         {
             if (!BancoCompativelComAssociado(e.BancoNome, bancoAssociado))
                 continue;
+            if (!AssociadoElegivelParaEleicao(e, associado))
+                continue;
             var jaVotou = await _repository.AssociadoJaVotouAsync(e.Id, associadoId, cancellationToken);
             var dentroPeriodo = now >= e.InicioVotacao && now <= e.FimVotacao;
             var podeVotar = dentroPeriodo && !jaVotou;
@@ -96,9 +98,45 @@ public class EleicaoService : IEleicaoService
         return string.Equals(bancoAssociado, bancoEnquete.Trim(), StringComparison.OrdinalIgnoreCase);
     }
 
+    /// <summary>Valida regras de acesso da enquete (legado: ASSOCIADO na enquete vs PESSOA.ASSOCIADO e ATIVO).</summary>
+    private static bool AssociadoElegivelParaEleicao(Eleicao eleicao, Associado? associado)
+    {
+        if (associado is null)
+            return false;
+        if (eleicao.ApenasAssociados && !associado.Filiado)
+            return false;
+        if (eleicao.ApenasAtivos && !associado.Ativo)
+            return false;
+        return true;
+    }
+
+    private static void ValidarElegibilidadeAssociado(Eleicao eleicao, Associado? associado)
+    {
+        if (associado is null)
+            throw new InvalidOperationException("Associado não encontrado.");
+        if (eleicao.ApenasAssociados && !associado.Filiado)
+            throw new InvalidOperationException("Esta votação é restrita a associados filiados ao sindicato.");
+        if (eleicao.ApenasAtivos && !associado.Ativo)
+            throw new InvalidOperationException("Esta votação é restrita a cadastros ativos.");
+    }
+
     private static readonly string AnexosEleicoesBasePath =
         Environment.GetEnvironmentVariable("SINTRAFGV_ANEXOS_ELEICOES_PATH")
         ?? @"D:\progs\Sintrafgv\anexos-eleicoes\";
+
+    private const long MaxAnexoBytesDocumento = 5L * 1024 * 1024;
+    private const long MaxAnexoBytesCompactado = 25L * 1024 * 1024;
+
+    private static long LimiteBytesPorExtensao(string ext) =>
+        ext is "zip" or "rar" ? MaxAnexoBytesCompactado : MaxAnexoBytesDocumento;
+
+    private static string ResolverExtensaoAnexo(string mimeType, ReadOnlySpan<byte> bytes)
+    {
+        var ext = ExtensaoPorMime(mimeType);
+        if (ext == "bin")
+            ext = ExtensaoPorConteudo(bytes);
+        return ext;
+    }
 
     private static bool IsArquivoAnexoEmBase64(string? value)
     {
@@ -160,8 +198,33 @@ public class EleicaoService : IEleicaoService
             "application/pdf" => "pdf",
             "application/msword" => "doc",
             "application/vnd.openxmlformats-officedocument.wordprocessingml.document" => "docx",
+            "application/zip" => "zip",
+            "application/x-zip-compressed" => "zip",
+            "application/x-zip" => "zip",
+            "application/vnd.rar" => "rar",
+            "application/x-rar-compressed" => "rar",
+            "application/x-rar" => "rar",
             _ => "bin"
         };
+    }
+
+    private static string ExtensaoPorConteudo(ReadOnlySpan<byte> bytes)
+    {
+        if (bytes.Length >= 4 && bytes[0] == 0x25 && bytes[1] == 0x50 && bytes[2] == 0x44 && bytes[3] == 0x46)
+            return "pdf";
+        if (bytes.Length >= 7 && bytes[0] == 0x52 && bytes[1] == 0x61 && bytes[2] == 0x72 && bytes[3] == 0x21 && bytes[4] == 0x1A && bytes[5] == 0x07)
+            return "rar";
+        if (bytes.Length >= 8 && bytes[0] == 0xD0 && bytes[1] == 0xCF && bytes[2] == 0x11 && bytes[3] == 0xE0)
+            return "doc";
+        if (bytes.Length >= 4 && bytes[0] == 0x50 && bytes[1] == 0x4B && (bytes[2] == 0x03 || bytes[2] == 0x05 || bytes[2] == 0x07) && (bytes[3] == 0x04 || bytes[3] == 0x06 || bytes[3] == 0x08))
+        {
+            var amostra = Math.Min(bytes.Length, 4096);
+            var header = System.Text.Encoding.ASCII.GetString(bytes[..amostra]);
+            if (header.Contains("word/", StringComparison.Ordinal))
+                return "docx";
+            return "zip";
+        }
+        return "bin";
     }
 
     private static string MimeTypePorExtensao(string extensao)
@@ -172,6 +235,8 @@ public class EleicaoService : IEleicaoService
             "pdf" => "application/pdf",
             "doc" => "application/msword",
             "docx" => "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            "zip" => "application/zip",
+            "rar" => "application/x-rar-compressed",
             _ => "application/octet-stream"
         };
     }
@@ -224,7 +289,17 @@ public class EleicaoService : IEleicaoService
             throw new InvalidOperationException("Arquivo anexo inválido.");
 
         var bytes = Convert.FromBase64String(base64);
-        var ext = ExtensaoPorMime(mimeType);
+        var ext = ResolverExtensaoAnexo(mimeType, bytes);
+        if (ext == "bin")
+            throw new InvalidOperationException("Formato de arquivo anexo não permitido. Use PDF, DOC, DOCX, ZIP ou RAR.");
+
+        var limite = LimiteBytesPorExtensao(ext);
+        if (bytes.Length > limite)
+        {
+            var limiteMb = ext is "zip" or "rar" ? 25 : 5;
+            throw new InvalidOperationException($"Arquivo anexo excede o limite de {limiteMb}MB.");
+        }
+
         var key = ArquivoAnexoParaKey(eleicaoId, ext);
 
         var fullPath = CaminhoCompletoParaArquivoAnexo(key);
@@ -268,13 +343,16 @@ public class EleicaoService : IEleicaoService
         if (!dentroPeriodo)
             throw new InvalidOperationException("Anexo indisponível fora do período de votação.");
 
-        // Respeitar restrição por banco (somente se houver associado)
-        if (associadoId.HasValue && !string.IsNullOrWhiteSpace(eleicao.BancoNome))
+        if (associadoId.HasValue)
         {
             var associado = await _associadoRepository.ObterPorIdAsync(associadoId.Value, cancellationToken);
-            var bancoAssociado = associado?.Banco?.Trim() ?? "";
-            if (!BancoCompativelComAssociado(eleicao.BancoNome, bancoAssociado))
-                throw new InvalidOperationException($"Esta votação é restrita ao banco {eleicao.BancoNome}.");
+            ValidarElegibilidadeAssociado(eleicao, associado);
+            if (!string.IsNullOrWhiteSpace(eleicao.BancoNome))
+            {
+                var bancoAssociado = associado?.Banco?.Trim() ?? "";
+                if (!BancoCompativelComAssociado(eleicao.BancoNome, bancoAssociado))
+                    throw new InvalidOperationException($"Esta votação é restrita ao banco {eleicao.BancoNome}.");
+            }
         }
 
         if (string.IsNullOrWhiteSpace(eleicao.ArquivoAnexo))
@@ -289,14 +367,14 @@ public class EleicaoService : IEleicaoService
                 throw new InvalidOperationException("Arquivo anexo inválido.");
 
             var bytes = Convert.FromBase64String(base64);
-            var ext = ExtensaoPorMime(mimeType);
 
             var key = await ProcessarArquivoAnexoAsync(eleicao.Id, input, cancellationToken);
             eleicao.ArquivoAnexo = key;
             await _repository.AtualizarAsync(eleicao, cancellationToken);
 
             var fileName = Path.GetFileName(CaminhoCompletoParaArquivoAnexo(key));
-            return (bytes, fileName, MimeTypePorExtensao(ext == "bin" ? "bin" : ext));
+            var savedExt = Path.GetExtension(fileName).TrimStart('.');
+            return (bytes, fileName, MimeTypePorExtensao(savedExt));
         }
 
         var fullPath = CaminhoCompletoParaArquivoAnexo(input);
@@ -378,7 +456,7 @@ public class EleicaoService : IEleicaoService
     public async Task AtualizarAsync(Guid id, UpdateEleicaoRequest request, CancellationToken cancellationToken = default)
     {
         var e = await _repository.ObterPorIdAsync(id, cancellationToken);
-        if (e is null) throw new InvalidOperationException("Eleição não encontrada.");
+        if (e is null) throw new InvalidOperationException("Enquete não encontrada.");
         if (e.Status != StatusEleicao.Rascunho)
             throw new InvalidOperationException("Apenas enquetes em rascunho podem ser editadas.");
         var inicio = ParseDataVotacao(request.InicioVotacao, nameof(request.InicioVotacao));
@@ -413,7 +491,7 @@ public class EleicaoService : IEleicaoService
     public async Task AtualizarStatusAsync(Guid id, StatusEleicao status, CancellationToken cancellationToken = default)
     {
         var e = await _repository.ObterPorIdAsync(id, cancellationToken);
-        if (e is null) throw new InvalidOperationException("Eleição não encontrada.");
+        if (e is null) throw new InvalidOperationException("Enquete não encontrada.");
         e.Status = status;
         await _repository.AtualizarAsync(e, cancellationToken);
     }
@@ -527,22 +605,23 @@ public class EleicaoService : IEleicaoService
     {
         var eleicao = await _repository.ObterPorIdComPerguntasAsync(eleicaoId, cancellationToken);
         if (eleicao is null)
-            throw new InvalidOperationException("Eleição não encontrada.");
+            throw new InvalidOperationException("Enquete não encontrada.");
 
         // Validações
         if (eleicao.Status != StatusEleicao.Aberta)
-            throw new InvalidOperationException("Eleição não está aberta para votação.");
+            throw new InvalidOperationException("Enquete não está aberta para votação.");
 
         if (DateTime.UtcNow < eleicao.InicioVotacao || DateTime.UtcNow > eleicao.FimVotacao)
-            throw new InvalidOperationException("Eleição fora do período de votação.");
+            throw new InvalidOperationException("Enquete fora do período de votação.");
 
         if (await _repository.AssociadoJaVotouAsync(eleicaoId, associadoId, cancellationToken))
-            throw new InvalidOperationException("Associado já votou nesta eleição.");
+            throw new InvalidOperationException("Associado já votou nesta enquete.");
 
+        var associadoVoto = await _associadoRepository.ObterPorIdAsync(associadoId, cancellationToken);
+        ValidarElegibilidadeAssociado(eleicao, associadoVoto);
         if (!string.IsNullOrWhiteSpace(eleicao.BancoNome))
         {
-            var associado = await _associadoRepository.ObterPorIdAsync(associadoId, cancellationToken);
-            var bancoAssociado = associado?.Banco?.Trim() ?? "";
+            var bancoAssociado = associadoVoto?.Banco?.Trim() ?? "";
             if (!BancoCompativelComAssociado(eleicao.BancoNome, bancoAssociado))
                 throw new InvalidOperationException($"Esta votação é restrita ao banco {eleicao.BancoNome}. Seu cadastro está vinculado a outro banco.");
         }
@@ -556,7 +635,7 @@ public class EleicaoService : IEleicaoService
             var pergunta = eleicao.Perguntas.FirstOrDefault(p => p.Id == perguntaId);
             
             if (pergunta is null)
-                throw new InvalidOperationException($"Pergunta {perguntaId} não pertence a esta eleição.");
+                throw new InvalidOperationException($"Pergunta {perguntaId} não pertence a esta enquete.");
 
             var respostas = grupo.ToList();
             
@@ -623,7 +702,15 @@ public class EleicaoService : IEleicaoService
         if (string.IsNullOrWhiteSpace(value))
             throw new ArgumentException($"Data de votação inválida: {nomeCampo} é obrigatório.", nomeCampo);
         if (DateTime.TryParse(value, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var dt))
-            return dt.Kind == DateTimeKind.Unspecified ? DateTime.SpecifyKind(dt, DateTimeKind.Utc) : dt.ToUniversalTime();
+        {
+            var utc = dt.Kind switch
+            {
+                DateTimeKind.Utc => dt,
+                DateTimeKind.Local => dt.ToUniversalTime(),
+                _ => DateTime.SpecifyKind(dt, DateTimeKind.Utc)
+            };
+            return utc;
+        }
         throw new ArgumentException($"Data de votação inválida: {nomeCampo} deve estar em formato ISO 8601 (ex: 2026-03-18T13:00:00.000Z).", nomeCampo);
     }
 }

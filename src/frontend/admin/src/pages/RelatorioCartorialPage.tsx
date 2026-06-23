@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import {
   Container,
   Paper,
@@ -31,6 +31,7 @@ import {
 } from '@mui/icons-material';
 import { useToast } from '../contexts/ToastContext';
 import { api } from '../services/api';
+import { formatDateTimeBr } from '../utils/datetimeBr';
 
 interface Eleicao {
   id: string;
@@ -44,7 +45,7 @@ interface Eleicao {
 }
 
 interface RelatorioCartorialRequest {
-  eleicaoId: string;
+  enqueteId: string;
   incluirDadosVotantes: boolean;
   incluirDadosTecnicos: boolean;
   cartorioDestino?: string;
@@ -83,7 +84,7 @@ const RelatorioCartorialPage: React.FC = () => {
   const [eleicoes, setEleicoes] = useState<Eleicao[]>([]);
   const [eleicaoSelecionada, setEleicaoSelecionada] = useState<string>('');
   const [relatorioRequest, setRelatorioRequest] = useState<RelatorioCartorialRequest>({
-    eleicaoId: '',
+    enqueteId: '',
     incluirDadosVotantes: true,
     incluirDadosTecnicos: true,
     cartorioDestino: '',
@@ -100,7 +101,7 @@ const RelatorioCartorialPage: React.FC = () => {
   const carregarEleicoes = async () => {
     try {
       setLoading(true);
-      const response = await api.get('/api/eleicoes');
+      const response = await api.get('/api/enquetes');
       const raw = (response.data?.itens ?? []) as any[];
       const mapeadas: Eleicao[] = raw.map((r) => ({
         id: r.id ?? r.Id,
@@ -143,7 +144,7 @@ const RelatorioCartorialPage: React.FC = () => {
 
   const gerarRelatorio = async () => {
     if (!eleicaoSelecionada) {
-      showToast('Selecione uma eleição', 'warning');
+      showToast('Selecione uma enquete', 'warning');
       return;
     }
 
@@ -152,7 +153,7 @@ const RelatorioCartorialPage: React.FC = () => {
       
       const request = {
         ...relatorioRequest,
-        eleicaoId: eleicaoSelecionada
+        enqueteId: eleicaoSelecionada
       };
 
       const response = await api.post('/api/relatorio-cartorial/gerar', request);
@@ -169,7 +170,7 @@ const RelatorioCartorialPage: React.FC = () => {
 
   const baixarRelatorioPDF = async () => {
     if (!eleicaoSelecionada) {
-      showToast('Selecione uma eleição', 'warning');
+      showToast('Selecione uma enquete', 'warning');
       return;
     }
 
@@ -178,7 +179,7 @@ const RelatorioCartorialPage: React.FC = () => {
       
       const request = {
         ...relatorioRequest,
-        eleicaoId: eleicaoSelecionada
+        enqueteId: eleicaoSelecionada
       };
 
       const response = await api.post('/api/relatorio-cartorial/gerar-pdf', request, {
@@ -207,7 +208,7 @@ const RelatorioCartorialPage: React.FC = () => {
 
   const handleEleicaoChange = (eleicaoId: string) => {
     setEleicaoSelecionada(eleicaoId);
-    setRelatorioRequest(prev => ({ ...prev, eleicaoId }));
+    setRelatorioRequest(prev => ({ ...prev, enqueteId: eleicaoId }));
     setIntegridadeValidada(null);
     setRelatorio(null);
     
@@ -236,7 +237,7 @@ const RelatorioCartorialPage: React.FC = () => {
         </Alert>
 
         <Grid container spacing={3}>
-          {/* Seleção de Eleição */}
+          {/* Seleção de enquete */}
           <Grid item xs={12}>
             <Card>
               <CardHeader
@@ -259,7 +260,7 @@ const RelatorioCartorialPage: React.FC = () => {
                       <option value="">Selecione uma enquete...</option>
                       {eleicoes.map((eleicao) => (
                         <option key={eleicao.id} value={eleicao.id}>
-                          {eleicao.titulo} - {new Date(eleicao.dataFim).toLocaleDateString()}
+                          {eleicao.titulo} - {formatDateTimeBr(eleicao.dataFim)}
                         </option>
                       ))}
                     </TextField>
@@ -290,8 +291,8 @@ const RelatorioCartorialPage: React.FC = () => {
                       <strong>Título:</strong> {eleicaoAtual.titulo}
                     </Typography>
                     <Typography variant="body2" color="text.secondary">
-                      <strong>Período:</strong> {new Date(eleicaoAtual.dataInicio).toLocaleDateString()} 
-                      até {new Date(eleicaoAtual.dataFim).toLocaleDateString()}
+                      <strong>Período:</strong> {formatDateTimeBr(eleicaoAtual.dataInicio)} 
+                      até {formatDateTimeBr(eleicaoAtual.dataFim)}
                     </Typography>
                     <Typography variant="body2" color="text.secondary">
                       <strong>Total de Votos:</strong> {eleicaoAtual.totalVotos}
@@ -430,9 +431,9 @@ const RelatorioCartorialPage: React.FC = () => {
                 </Grid>
                 
                 <Grid item xs={12} md={6}>
-                  <Typography variant="h6" gutterBottom>Dados da Eleição</Typography>
+                  <Typography variant="h6" gutterBottom>Dados da Enquete</Typography>
                   <Typography variant="body2"><strong>Título:</strong> {relatorio.dadosEleicao.titulo}</Typography>
-                  <Typography variant="body2"><strong>Período:</strong> {new Date(relatorio.dadosEleicao.dataInicio).toLocaleDateString()} - {new Date(relatorio.dadosEleicao.dataFim).toLocaleDateString()}</Typography>
+                  <Typography variant="body2"><strong>Período:</strong> {formatDateTimeBr(relatorio.dadosEleicao.dataInicio)} até {formatDateTimeBr(relatorio.dadosEleicao.dataFim)} (horário de Brasília)</Typography>
                   <Typography variant="body2"><strong>Pergunta:</strong> {relatorio.dadosEleicao.pergunta}</Typography>
                 </Grid>
                 

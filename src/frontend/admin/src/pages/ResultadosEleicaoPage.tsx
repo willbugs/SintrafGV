@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   Box,
@@ -14,7 +14,7 @@ import {
   Divider
 } from '@mui/material';
 import { ArrowBack, HowToVote, Person, Poll } from '@mui/icons-material';
-import { eleicoesAPI } from '../services/api';
+import { enquetesAPI } from '../services/api';
 import { useToast } from '../contexts/ToastContext';
 
 interface ResultadoOpcao {
@@ -55,12 +55,12 @@ const ResultadosEleicaoPage: React.FC = () => {
     const carregar = async () => {
       setLoading(true);
       try {
-        const data = await eleicoesAPI.obterResultados(id);
+        const data = await enquetesAPI.obterResultados(id);
         setResultados(data);
       } catch (err: unknown) {
         const errorMsg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
         toast.error('Erro', errorMsg || 'Erro ao carregar resultados da enquete.');
-        navigate('/eleicoes');
+        navigate('/enquetes');
       } finally {
         setLoading(false);
       }
@@ -90,7 +90,7 @@ const ResultadosEleicaoPage: React.FC = () => {
   return (
     <Box>
       <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
-        <IconButton onClick={() => navigate('/eleicoes')} sx={{ mr: 1 }}>
+        <IconButton onClick={() => navigate('/enquetes')} sx={{ mr: 1 }}>
           <ArrowBack />
         </IconButton>
         <Typography variant="h4">Resultados da Enquete</Typography>

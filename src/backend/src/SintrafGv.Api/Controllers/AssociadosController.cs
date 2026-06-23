@@ -78,6 +78,7 @@ public class AssociadosController : ControllerBase
             Telefone = request.Telefone,
             Celular = request.Celular,
             Email = request.Email,
+            Filiado = request.Filiado,
             Ativo = request.Ativo,
             Aposentado = request.Aposentado
         };
@@ -135,6 +136,7 @@ public class AssociadosController : ControllerBase
         associado.Telefone = request.Telefone;
         associado.Celular = request.Celular;
         associado.Email = request.Email;
+        associado.Filiado = request.Filiado;
         associado.Ativo = request.Ativo;
         associado.Aposentado = request.Aposentado;
 
@@ -199,6 +201,7 @@ public class AssociadosController : ControllerBase
         a.Telefone,
         a.Celular,
         a.Email,
+        a.Filiado,
         a.Ativo,
         a.Aposentado,
         a.DataUltimaAtualizacao,

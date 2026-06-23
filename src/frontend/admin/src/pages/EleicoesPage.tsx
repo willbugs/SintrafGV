@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import {
   Box,
   Typography,
@@ -29,9 +29,10 @@ import {
 } from '@mui/material';
 import { Add, Edit, HowToVote, AttachFile, Assessment, Search, Clear, PlayArrow, Stop, CheckCircle, Cancel, HelpOutline, KeyboardArrowDown, KeyboardArrowUp } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
-import { eleicoesAPI } from '../services/api';
+import { enquetesAPI } from '../services/api';
 import type { EleicaoResumoDto, StatusEleicaoVal } from '../types';
 import { useToast } from '../contexts/ToastContext';
+import { formatDateTimeBr } from '../utils/datetimeBr';
 
 const statusLabel: Record<StatusEleicaoVal, string> = {
   1: 'Rascunho',
@@ -51,7 +52,7 @@ const statusColor: Record<StatusEleicaoVal, 'default' | 'primary' | 'success' | 
 
 const tipoLabel: Record<number, string> = {
   1: 'Enquete',
-  2: 'Eleição',
+  2: 'Assembleia',
 };
 
 type DetalhesEleicao = {
@@ -92,7 +93,7 @@ const EleicoesPage: React.FC = () => {
     setAlterandoStatusId(id);
     fecharConfirmacao();
     try {
-      await eleicoesAPI.atualizarStatus(id, novoStatus);
+      await enquetesAPI.atualizarStatus(id, novoStatus);
       toast.success('Sucesso', `${acao} concluído.`);
       carregar();
     } catch {
@@ -107,12 +108,12 @@ const EleicoesPage: React.FC = () => {
     try {
       const temFiltro = busca.trim() !== '' || filtroStatus !== 'Todos' || filtroTipo !== 'Todos';
       const data = temFiltro
-        ? await eleicoesAPI.listar(1, 50, {
+        ? await enquetesAPI.listar(1, 50, {
             busca: busca.trim(),
             status: filtroStatus !== 'Todos' ? parseInt(filtroStatus) : undefined,
             tipo: filtroTipo !== 'Todos' ? parseInt(filtroTipo) : undefined
           })
-        : await eleicoesAPI.listar(1, 50);
+        : await enquetesAPI.listar(1, 50);
       const raw = data.itens ?? [];
       setItens(
         raw.map((r: Record<string, unknown>) => ({
@@ -142,29 +143,7 @@ const EleicoesPage: React.FC = () => {
     carregar();
   }, []);
 
-  const formatDate = (s: string) => {
-    if (!s) return '—';
-    try {
-      return new Date(s).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
-    } catch {
-      return s;
-    }
-  };
-
-  const formatDateTime = (s?: string) => {
-    if (!s) return '—';
-    try {
-      return new Date(s).toLocaleString('pt-BR', {
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-      });
-    } catch {
-      return s;
-    }
-  };
+  const formatDateTime = formatDateTimeBr;
 
   const nomeArquivoAnexo = (arquivoAnexo?: string | null) => {
     if (!arquivoAnexo) return null;
@@ -183,7 +162,7 @@ const EleicoesPage: React.FC = () => {
 
     try {
       setCarregandoDetalhesId(id);
-      const r = await eleicoesAPI.obter(id);
+      const r = await enquetesAPI.obter(id);
       const detalhes: DetalhesEleicao = {
         descricao: (r.descricao ?? r.Descricao ?? '') as string,
         inicioVotacao: (r.inicioVotacao ?? r.InicioVotacao) as string,
@@ -207,7 +186,7 @@ const EleicoesPage: React.FC = () => {
         <Button
           variant="contained"
           startIcon={<Add />}
-          onClick={() => navigate('/eleicoes/novo')}
+          onClick={() => navigate('/enquetes/novo')}
         >
           Nova enquete
         </Button>
@@ -239,7 +218,7 @@ const EleicoesPage: React.FC = () => {
           >
             <MenuItem value="Todos">Todos</MenuItem>
             <MenuItem value="1">Enquete</MenuItem>
-            <MenuItem value="2">Eleição</MenuItem>
+            <MenuItem value="2">Assembleia</MenuItem>
           </Select>
         </FormControl>
 
@@ -299,8 +278,8 @@ const EleicoesPage: React.FC = () => {
                   <TableCell>Status</TableCell>
                       <TableCell sx={{ minWidth: 100 }}>Banco</TableCell>
                   <TableCell align="center">Anexo</TableCell>
-                  <TableCell>Início</TableCell>
-                  <TableCell>Fim</TableCell>
+                  <TableCell>Início (Brasília)</TableCell>
+                  <TableCell>Fim (Brasília)</TableCell>
                   <TableCell align="center">Perguntas</TableCell>
                   <TableCell align="center">Votos</TableCell>
                   <TableCell align="right">Ações</TableCell>
@@ -356,8 +335,8 @@ const EleicoesPage: React.FC = () => {
                             <Typography variant="body2" color="text.secondary">—</Typography>
                           )}
                         </TableCell>
-                        <TableCell>{formatDate(e.inicioVotacao)}</TableCell>
-                        <TableCell>{formatDate(e.fimVotacao)}</TableCell>
+                        <TableCell>{formatDateTime(e.inicioVotacao)}</TableCell>
+                        <TableCell>{formatDateTime(e.fimVotacao)}</TableCell>
                         <TableCell align="center">{e.totalPerguntas}</TableCell>
                         <TableCell align="center">{e.totalVotos}</TableCell>
                         <TableCell align="right">
@@ -420,7 +399,7 @@ const EleicoesPage: React.FC = () => {
                         {(e.status === 3 || e.status === 4) && (
                           <Tooltip title="Ver resultados">
                             <IconButton
-                              onClick={() => navigate(`/eleicoes/${e.id}/resultados`)}
+                              onClick={() => navigate(`/enquetes/${e.id}/resultados`)}
                               size="small"
                               color="primary"
                               sx={{ mr: 1 }}
@@ -433,7 +412,7 @@ const EleicoesPage: React.FC = () => {
                         {e.status === 1 && (
                           <Tooltip title="Editar enquete">
                             <IconButton
-                              onClick={() => navigate(`/eleicoes/${e.id}`)}
+                              onClick={() => navigate(`/enquetes/${e.id}`)}
                               size="small"
                               disabled={alterandoStatusId === e.id}
                             >

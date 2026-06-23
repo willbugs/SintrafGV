@@ -42,7 +42,7 @@ for ($i = 0; $i -lt $limite; $i++) {
     $loginResp = Invoke-RestMethod -Uri "$base/api/auth/associado/login" -Method Post -Body $loginBody -ContentType "application/json"
     $token = $loginResp.token
     $h = @{ Authorization = "Bearer $token" }
-    $r = Invoke-RestMethod -Uri "$base/api/eleicoes/$eleicaoId/votar" -Method Post -Body $votoBody -ContentType "application/json" -Headers $h
+    $r = Invoke-RestMethod -Uri "$base/api/enquetes/$eleicaoId/votar" -Method Post -Body $votoBody -ContentType "application/json" -Headers $h
     $sw.Stop()
     $tempos += $sw.ElapsedMilliseconds
     $ok++

@@ -2,9 +2,11 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SintrafGv.Application.DTOs;
+using SintrafGv.Application.Exceptions;
 using SintrafGv.Application.Interfaces;
 using SintrafGv.Application.Services;
 using SintrafGv.Domain.Interfaces;
+using SintrafGv.Domain.Entities;
 
 namespace SintrafGv.Api.Controllers;
 
@@ -15,15 +17,18 @@ public class AuthController : ControllerBase
 {
     private readonly IAuthService _authService;
     private readonly IAssociadoRepository _associadoRepository;
+    private readonly IAssociadoService _associadoService;
     private readonly IJwtTokenGenerator _jwtTokenGenerator;
 
     public AuthController(
         IAuthService authService,
         IAssociadoRepository associadoRepository,
+        IAssociadoService associadoService,
         IJwtTokenGenerator jwtTokenGenerator)
     {
         _authService = authService;
         _associadoRepository = associadoRepository;
+        _associadoService = associadoService;
         _jwtTokenGenerator = jwtTokenGenerator;
     }
 
@@ -71,8 +76,8 @@ public class AuthController : ControllerBase
             return BadRequest(new { message = "CPF inválido." });
         var associado = await _associadoRepository.ObterPorCpfAsync(cpfLimpo, cancellationToken);
 
-        if (associado == null || !associado.Ativo)
-            return Unauthorized(new { message = "Associado não encontrado ou inativo." });
+        if (associado == null)
+            return Unauthorized(new { message = "Associado não encontrado." });
 
         var formatosData = new[] { "yyyy-MM-dd", "dd/MM/yyyy", "d/M/yyyy", "dd-MM-yyyy" };
         if (!DateTime.TryParseExact(request.DataNascimento.Trim(), formatosData,
@@ -104,9 +109,91 @@ public class AuthController : ControllerBase
                 nome = associado.Nome,
                 cpf = associado.Cpf,
                 email = associado.Email,
-                ativo = associado.Ativo
+                ativo = associado.Ativo,
+                filiado = associado.Filiado
             }
         });
+    }
+
+    /// <summary>Verifica se matrícula bancária já está cadastrada (cadastro na votação).</summary>
+    [HttpGet("associado/existe-matricula")]
+    public async Task<ActionResult<object>> ExisteMatriculaBancaria(
+        [FromQuery] string matricula,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(matricula))
+            return Ok(new { existe = false });
+
+        var associado = await _associadoRepository.ObterPorMatriculaBancariaAsync(matricula.Trim(), cancellationToken);
+        return Ok(new { existe = associado != null });
+    }
+
+    /// <summary>Cadastro público de associado no PWA de votação (equivalente ao legado WebEnquete).</summary>
+    [HttpPost("associado/cadastro")]
+    public async Task<ActionResult<object>> CadastroAssociadoVotacao(
+        [FromBody] CadastroAssociadoVotacaoRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (!request.AceiteTermos)
+            return BadRequest(new { message = "É necessário aceitar os termos de uso." });
+
+        if (string.IsNullOrWhiteSpace(request.Nome) ||
+            string.IsNullOrWhiteSpace(request.Cpf) ||
+            string.IsNullOrWhiteSpace(request.DataNascimento) ||
+            string.IsNullOrWhiteSpace(request.MatriculaBancaria) ||
+            string.IsNullOrWhiteSpace(request.Celular) ||
+            string.IsNullOrWhiteSpace(request.Email) ||
+            string.IsNullOrWhiteSpace(request.Banco))
+            return BadRequest(new { message = "Todos os campos são obrigatórios." });
+
+        var cpfLimpo = new string(request.Cpf.Where(char.IsDigit).ToArray());
+        if (cpfLimpo.Length != 11)
+            return BadRequest(new { message = "CPF inválido." });
+
+        var formatosData = new[] { "yyyy-MM-dd", "dd/MM/yyyy", "d/M/yyyy", "dd-MM-yyyy" };
+        if (!DateTime.TryParseExact(request.DataNascimento.Trim(), formatosData,
+            System.Globalization.CultureInfo.InvariantCulture,
+            System.Globalization.DateTimeStyles.None, out var dataNascimento))
+            return BadRequest(new { message = "Data de nascimento inválida. Use o formato DD/MM/AAAA." });
+
+        var matriculaLimpa = request.MatriculaBancaria.Trim();
+        var matriculaExistente = await _associadoRepository.ObterPorMatriculaBancariaAsync(matriculaLimpa, cancellationToken);
+        if (matriculaExistente != null)
+            return Conflict(new { message = "Matrícula bancária já cadastrada." });
+
+        var cpfExistente = await _associadoRepository.ObterPorCpfAsync(cpfLimpo, cancellationToken);
+        if (cpfExistente != null)
+            return Conflict(new { message = "CPF já cadastrado." });
+
+        var celularLimpo = new string(request.Celular.Where(char.IsDigit).ToArray());
+        var associado = new Associado
+        {
+            Nome = request.Nome.Trim().ToUpperInvariant(),
+            Cpf = cpfLimpo,
+            DataNascimento = dataNascimento.Date,
+            MatriculaBancaria = matriculaLimpa,
+            Celular = string.IsNullOrEmpty(celularLimpo) ? request.Celular.Trim() : celularLimpo,
+            Email = request.Email.Trim(),
+            Banco = request.Banco.Trim(),
+            Ativo = true,
+            Filiado = false,
+            Aposentado = false
+        };
+
+        try
+        {
+            await _associadoService.CriarAsync(associado, cancellationToken);
+        }
+        catch (CpfDuplicadoException)
+        {
+            return Conflict(new { message = "CPF já cadastrado." });
+        }
+        catch (ArgumentException ex) when (ex.ParamName == "associado")
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+
+        return Ok(new { message = "Cadastro realizado com sucesso. Faça login para votar." });
     }
 
     /// <summary>Renovar token JWT (igual Bureau: [Authorize], claims do token atual, devolve novo token).</summary>
@@ -177,4 +264,16 @@ public class LoginAssociadoRequest
     public string Cpf { get; set; } = string.Empty;
     public string DataNascimento { get; set; } = string.Empty;
     public string MatriculaBancaria { get; set; } = string.Empty;
+}
+
+public class CadastroAssociadoVotacaoRequest
+{
+    public string Nome { get; set; } = string.Empty;
+    public string Cpf { get; set; } = string.Empty;
+    public string DataNascimento { get; set; } = string.Empty;
+    public string MatriculaBancaria { get; set; } = string.Empty;
+    public string Celular { get; set; } = string.Empty;
+    public string Email { get; set; } = string.Empty;
+    public string Banco { get; set; } = string.Empty;
+    public bool AceiteTermos { get; set; }
 }

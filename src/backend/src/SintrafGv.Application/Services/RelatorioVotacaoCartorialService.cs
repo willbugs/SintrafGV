@@ -47,7 +47,7 @@ namespace SintrafGv.Application.Services
             // Buscar dados da eleição
             var eleicao = await _eleicaoRepository.ObterPorIdComPerguntasAsync(request.EleicaoId, cancellationToken);
             if (eleicao == null)
-                throw new ArgumentException("Eleição não encontrada", nameof(request.EleicaoId));
+                throw new ArgumentException("Enquete não encontrada", nameof(request.EleicaoId));
 
             var perguntasOrdenadas = (eleicao.Perguntas ?? new List<Domain.Entities.Pergunta>())
                 .OrderBy(p => p.Ordem)
@@ -101,9 +101,9 @@ namespace SintrafGv.Application.Services
                     Titulo = eleicao.Titulo,
                     Descricao = eleicao.Descricao ?? "",
                     DataInicio = eleicao.InicioVotacao,
-                    HoraInicio = eleicao.InicioVotacao.ToString("HH:mm:ss"),
+                    HoraInicio = BrasiliaTime.FormatTime(eleicao.InicioVotacao),
                     DataFim = eleicao.FimVotacao,
-                    HoraFim = eleicao.FimVotacao.ToString("HH:mm:ss"),
+                    HoraFim = BrasiliaTime.FormatTime(eleicao.FimVotacao),
                     Pergunta = perguntaResumo,
                     Opcoes = opcoesResumo,
                     ApenasAssociados = eleicao.ApenasAssociados,
@@ -208,10 +208,10 @@ namespace SintrafGv.Application.Services
             eleicaoTable.AddCell(new Cell().Add(new Paragraph(relatorio.DadosEleicao.Titulo).SetFont(normalFont)));
             
             eleicaoTable.AddCell(new Cell().Add(new Paragraph("Data Início:").SetFont(headerFont)));
-            eleicaoTable.AddCell(new Cell().Add(new Paragraph(relatorio.DadosEleicao.DataInicio.ToString("dd/MM/yyyy")).SetFont(normalFont)));
+            eleicaoTable.AddCell(new Cell().Add(new Paragraph($"{BrasiliaTime.FormatDate(relatorio.DadosEleicao.DataInicio)} às {relatorio.DadosEleicao.HoraInicio}").SetFont(normalFont)));
             
             eleicaoTable.AddCell(new Cell().Add(new Paragraph("Data Fim:").SetFont(headerFont)));
-            eleicaoTable.AddCell(new Cell().Add(new Paragraph(relatorio.DadosEleicao.DataFim.ToString("dd/MM/yyyy")).SetFont(normalFont)));
+            eleicaoTable.AddCell(new Cell().Add(new Paragraph($"{BrasiliaTime.FormatDate(relatorio.DadosEleicao.DataFim)} às {relatorio.DadosEleicao.HoraFim}").SetFont(normalFont)));
             
             eleicaoTable.AddCell(new Cell().Add(new Paragraph("Total de Votos:").SetFont(headerFont)));
             eleicaoTable.AddCell(new Cell().Add(new Paragraph(relatorio.Resumo.TotalVotosComputados.ToString()).SetFont(normalFont)));

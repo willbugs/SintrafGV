@@ -243,10 +243,10 @@ namespace SintrafGv.Api.Controllers
         }
 
         /// <summary>
-        /// Relatório de Resultados de Eleições - detalhamento por eleição
+        /// Relatório de resultados por enquete
         /// </summary>
-        [HttpPost("resultados-eleicao")]
-        public async Task<ActionResult<RelatorioResponse<ResultadoEleicaoDto>>> RelatorioResultadosEleicao(
+        [HttpPost("resultados-enquete")]
+        public async Task<ActionResult<RelatorioResponse<ResultadoEleicaoDto>>> RelatorioResultadosEnquete(
             [FromBody] RelatorioRequest request,
             CancellationToken cancellationToken)
         {

@@ -25,6 +25,7 @@ import ConfiguracaoEmailPage from './pages/ConfiguracaoEmailPage';
 import RelatorioCartorialPage from './pages/RelatorioCartorialPage';
 import RelatoriosVotacaoPage from './pages/RelatoriosVotacaoPage';
 import PerfilPage from './pages/PerfilPage';
+import { RedirectEleicoesParaEnquetes } from './components/RedirectEleicoesParaEnquetes';
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, loading } = useAuth();
@@ -122,7 +123,8 @@ const AppContent: React.FC = () => (
           <Route path="novo" element={<UsuarioFormPage />} />
           <Route path=":id" element={<UsuarioFormPage />} />
         </Route>
-        <Route path="eleicoes" element={<Outlet />}>
+        <Route path="eleicoes/*" element={<RedirectEleicoesParaEnquetes />} />
+        <Route path="enquetes" element={<Outlet />}>
           <Route index element={<EleicoesPage />} />
           <Route path="novo" element={<EleicaoFormPage />} />
           <Route path=":id" element={<EleicaoFormPage />} />

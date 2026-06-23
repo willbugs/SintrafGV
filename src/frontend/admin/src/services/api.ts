@@ -146,7 +146,7 @@ export const associadosAPI = {
   },
 };
 
-export const eleicoesAPI = {
+export const enquetesAPI = {
   listar: async (
     pagina = 1,
     porPagina = 20,
@@ -160,29 +160,29 @@ export const eleicoesAPI = {
     if (filtros?.tipo != null) params.set('tipo', String(filtros.tipo));
     if (filtros?.dataInicio) params.set('dataInicio', filtros.dataInicio);
     if (filtros?.dataFim) params.set('dataFim', filtros.dataFim);
-    const response = await api.get(`/api/eleicoes?${params.toString()}`);
+    const response = await api.get(`/api/enquetes?${params.toString()}`);
     return response.data;
   },
   obter: async (id: string) => {
-    const response = await api.get(`/api/eleicoes/${id}`);
+    const response = await api.get(`/api/enquetes/${id}`);
     return response.data;
   },
   criar: async (data: Record<string, unknown>) => {
-    const response = await api.post('/api/eleicoes', data);
+    const response = await api.post('/api/enquetes', data);
     return response.data;
   },
   atualizar: async (id: string, data: Record<string, unknown>) => {
-    await api.put(`/api/eleicoes/${id}`, data);
+    await api.put(`/api/enquetes/${id}`, data);
   },
   atualizarStatus: async (id: string, status: number) => {
-    await api.patch(`/api/eleicoes/${id}/status`, { status });
+    await api.patch(`/api/enquetes/${id}/status`, { status });
   },
   obterResultados: async (id: string) => {
-    const response = await api.get(`/api/eleicoes/${id}/resultados`);
+    const response = await api.get(`/api/enquetes/${id}/resultados`);
     return response.data;
   },
   votar: async (id: string, respostas: Record<string, unknown>) => {
-    const response = await api.post(`/api/eleicoes/${id}/votar`, respostas);
+    const response = await api.post(`/api/enquetes/${id}/votar`, respostas);
     return response.data;
   },
 };

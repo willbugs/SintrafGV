@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+﻿import React, { useState } from 'react'
 import { Navigate } from 'react-router-dom'
 import {
   Box,
@@ -8,8 +8,9 @@ import {
   Typography,
   Alert,
   IconButton,
-  InputAdornment
+  InputAdornment,
 } from '@mui/material'
+import { Link as RouterLink } from 'react-router-dom'
 import { Visibility, VisibilityOff, HowToVote } from '@mui/icons-material'
 // Removido DatePicker para eliminar dependência date-fns problemática
 import { useAuth } from '../contexts/AuthContext'
@@ -27,7 +28,7 @@ const LoginPage: React.FC = () => {
 
   // Se já está autenticado, redirecionar para eleições
   if (isAuthenticated) {
-    return <Navigate to="/eleicoes" replace />
+    return <Navigate to="/enquetes" replace />
   }
 
   const formatCPF = (value: string) => {
@@ -200,6 +201,16 @@ const LoginPage: React.FC = () => {
                 sx={{ mt: 3 }}
               >
                 {isSubmitting ? 'Entrando...' : 'Entrar'}
+              </Button>
+              <Button
+                component={RouterLink}
+                to="/cadastro"
+                fullWidth
+                variant="outlined"
+                size="large"
+                sx={{ mt: 1.5 }}
+              >
+                Cadastrar
               </Button>
             </Box>
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   Container,
@@ -31,6 +31,7 @@ import {
   GetApp as DownloadIcon
 } from '@mui/icons-material';
 import { api } from '../services/api';
+import { isWithinVotingPeriodBr } from '../utils/datetimeBr';
 
 interface Candidato {
   id: string;
@@ -67,7 +68,7 @@ interface VotoResposta {
 }
 
 const VotacaoPage: React.FC = () => {
-  const { eleicaoId } = useParams<{ eleicaoId: string }>();
+  const { enqueteId } = useParams<{ enqueteId: string }>();
   const navigate = useNavigate();
   
   const [eleicao, setEleicao] = useState<Eleicao | null>(null);
@@ -80,10 +81,10 @@ const VotacaoPage: React.FC = () => {
   const [baixandoAnexo, setBaixandoAnexo] = useState(false);
 
   useEffect(() => {
-    if (eleicaoId) {
+    if (enqueteId) {
       carregarEleicao();
     }
-  }, [eleicaoId]);
+  }, [enqueteId]);
 
   // Mapeia o formato da API (texto, opcoes) para o formato do componente (titulo, candidatos)
   const mapEleicaoFromApi = (data: any): Eleicao => {
@@ -122,18 +123,18 @@ const VotacaoPage: React.FC = () => {
   const carregarEleicao = async () => {
     try {
       setLoading(true);
-      const response = await api.get(`/api/eleicoes/${eleicaoId}`);
+      const response = await api.get(`/api/enquetes/${enqueteId}`);
       setEleicao(mapEleicaoFromApi(response.data));
       
       // Verificar se a eleição está aberta (API pode retornar status 2 = Aberta ou string 'Aberta')
       const status = response.data.status ?? response.data.Status;
       const aberta = status === 'Aberta' || status === 2;
       if (!aberta) {
-        setErro('Esta eleição não está disponível para votação.');
+        setErro('Esta enquete não está disponível para votação.');
       }
     } catch (error) {
       console.error('Erro ao carregar eleição:', error);
-      setErro('Erro ao carregar dados da eleição.');
+      setErro('Erro ao carregar dados da enquete.');
     } finally {
       setLoading(false);
     }
@@ -145,7 +146,7 @@ const VotacaoPage: React.FC = () => {
 
     setBaixandoAnexo(true);
     try {
-      const response = await api.get(`/api/eleicoes/${eleicao.id}/anexo`, {
+      const response = await api.get(`/api/enquetes/${eleicao.id}/anexo`, {
         responseType: 'blob',
       });
 
@@ -205,7 +206,7 @@ const VotacaoPage: React.FC = () => {
   };
 
   const confirmarVoto = async () => {
-    if (!eleicao || !eleicaoId) return;
+    if (!eleicao || !enqueteId) return;
     
     try {
       setVotando(true);
@@ -230,7 +231,7 @@ const VotacaoPage: React.FC = () => {
         }))
       };
       
-      const response = await api.post(`/api/eleicoes/${eleicaoId}/votar`, dadosVoto);
+      const response = await api.post(`/api/enquetes/${enqueteId}/votar`, dadosVoto);
       
       // Redirecionar para página de comprovante (API retorna votoId)
       const votoId = response.data.votoId ?? response.data.id;
@@ -239,7 +240,7 @@ const VotacaoPage: React.FC = () => {
     } catch (error: any) {
       console.error('Erro ao votar:', error);
       if (error.response?.status === 409) {
-        setErro('Você já votou nesta eleição.');
+        setErro('Você já votou nesta enquete.');
       } else if (error.response?.status === 400) {
         setErro('Dados do voto inválidos. Verifique suas respostas.');
       } else {
@@ -265,8 +266,8 @@ const VotacaoPage: React.FC = () => {
         <Alert severity="error" sx={{ mb: 2 }}>
           {erro}
         </Alert>
-        <Button variant="outlined" onClick={() => navigate('/eleicoes')}>
-          Voltar às Eleições
+        <Button variant="outlined" onClick={() => navigate('/enquetes')}>
+          Voltar às Votações
         </Button>
       </Container>
     );
@@ -276,10 +277,10 @@ const VotacaoPage: React.FC = () => {
     return (
       <Container maxWidth="md" sx={{ py: 4 }}>
         <Alert severity="warning">
-          Eleição não encontrada.
+          Enquete não encontrada.
         </Alert>
-        <Button variant="outlined" onClick={() => navigate('/eleicoes')} sx={{ mt: 2 }}>
-          Voltar às Eleições
+        <Button variant="outlined" onClick={() => navigate('/enquetes')} sx={{ mt: 2 }}>
+          Voltar às Votações
         </Button>
       </Container>
     );
@@ -290,10 +291,10 @@ const VotacaoPage: React.FC = () => {
     return (
       <Container maxWidth="md" sx={{ py: 4 }}>
         <Alert severity="warning">
-          Esta eleição não possui perguntas disponíveis para votação.
+          Esta enquete não possui perguntas disponíveis para votação.
         </Alert>
-        <Button variant="outlined" onClick={() => navigate('/eleicoes')} sx={{ mt: 2 }}>
-          Voltar às Eleições
+        <Button variant="outlined" onClick={() => navigate('/enquetes')} sx={{ mt: 2 }}>
+          Voltar às Votações
         </Button>
       </Container>
     );
@@ -301,10 +302,7 @@ const VotacaoPage: React.FC = () => {
 
   const podeBaixarAnexo =
     Boolean(eleicao.arquivoAnexo) &&
-    !Number.isNaN(new Date(eleicao.inicioVotacao).getTime()) &&
-    !Number.isNaN(new Date(eleicao.fimVotacao).getTime()) &&
-    Date.now() >= new Date(eleicao.inicioVotacao).getTime() &&
-    Date.now() <= new Date(eleicao.fimVotacao).getTime();
+    isWithinVotingPeriodBr(eleicao.inicioVotacao, eleicao.fimVotacao);
 
   const perguntaAtual = perguntas[etapaAtual];
   const respostaAtual = respostas.find(r => r.perguntaId === perguntaAtual?.id);
@@ -315,8 +313,8 @@ const VotacaoPage: React.FC = () => {
         <Alert severity="warning">
           Pergunta não encontrada.
         </Alert>
-        <Button variant="outlined" onClick={() => navigate('/eleicoes')} sx={{ mt: 2 }}>
-          Voltar às Eleições
+        <Button variant="outlined" onClick={() => navigate('/enquetes')} sx={{ mt: 2 }}>
+          Voltar às Votações
         </Button>
       </Container>
     );
@@ -332,8 +330,8 @@ const VotacaoPage: React.FC = () => {
           <Alert severity="info" sx={{ mt: 3 }}>
             Nenhuma opção disponível para esta pergunta.
           </Alert>
-          <Button variant="outlined" onClick={() => navigate('/eleicoes')} sx={{ mt: 3 }}>
-            Voltar às Eleições
+          <Button variant="outlined" onClick={() => navigate('/enquetes')} sx={{ mt: 3 }}>
+            Voltar às Votações
           </Button>
         </Paper>
       </Container>
@@ -476,7 +474,7 @@ const VotacaoPage: React.FC = () => {
           <Box sx={{ display: 'flex', gap: 2 }}>
             <Button
               variant="outlined"
-              onClick={() => navigate('/eleicoes')}
+              onClick={() => navigate('/enquetes')}
             >
               Cancelar
             </Button>

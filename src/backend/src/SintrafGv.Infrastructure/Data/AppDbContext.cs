@@ -49,6 +49,14 @@ public class AppDbContext : DbContext
             e.Property(x => x.ArquivoAnexo).HasMaxLength(500);
             e.Property(x => x.Tipo).HasConversion<int>();
             e.Property(x => x.Status).HasConversion<int>();
+            e.Property(x => x.InicioVotacao)
+                .HasConversion(
+                    v => v.Kind == DateTimeKind.Utc ? v : DateTime.SpecifyKind(v, DateTimeKind.Utc),
+                    v => DateTime.SpecifyKind(v, DateTimeKind.Utc));
+            e.Property(x => x.FimVotacao)
+                .HasConversion(
+                    v => v.Kind == DateTimeKind.Utc ? v : DateTime.SpecifyKind(v, DateTimeKind.Utc),
+                    v => DateTime.SpecifyKind(v, DateTimeKind.Utc));
             e.Property(x => x.BancoNome).HasMaxLength(200);
             e.HasMany(x => x.Perguntas).WithOne(x => x.Eleicao).HasForeignKey(x => x.EleicaoId).OnDelete(DeleteBehavior.Cascade);
             e.HasMany(x => x.Votos).WithOne(x => x.Eleicao).HasForeignKey(x => x.EleicaoId).OnDelete(DeleteBehavior.Restrict);

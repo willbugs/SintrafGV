@@ -1,12 +1,14 @@
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
+﻿import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import { ThemeProvider, createTheme } from '@mui/material/styles'
 import CssBaseline from '@mui/material/CssBaseline'
 import { AuthProvider } from './contexts/AuthContext'
 import LoginPage from './pages/LoginPage'
+import CadastroPage from './pages/CadastroPage'
 import EleicoesPage from './pages/EleicoesPage'
 import VotacaoPage from './pages/VotacaoPage'
 import ComprovantePage from './pages/ComprovantePage'
 import { PrivateRoute } from './components/PrivateRoute'
+import { RedirectEleicoesParaEnquetes } from './components/RedirectEleicoesParaEnquetes'
 import './App.css'
 
 const theme = createTheme({
@@ -40,12 +42,14 @@ function App() {
           <div className="App">
             <Routes>
               <Route path="/login" element={<LoginPage />} />
-              <Route path="/eleicoes" element={
+              <Route path="/cadastro" element={<CadastroPage />} />
+              <Route path="/eleicoes" element={<RedirectEleicoesParaEnquetes />} />
+              <Route path="/enquetes" element={
                 <PrivateRoute>
                   <EleicoesPage />
                 </PrivateRoute>
               } />
-              <Route path="/votacao/:eleicaoId" element={
+              <Route path="/votacao/:enqueteId" element={
                 <PrivateRoute>
                   <VotacaoPage />
                 </PrivateRoute>
@@ -55,7 +59,7 @@ function App() {
                   <ComprovantePage />
                 </PrivateRoute>
               } />
-              <Route path="/" element={<Navigate to="/eleicoes" replace />} />
+              <Route path="/" element={<Navigate to="/enquetes" replace />} />
             </Routes>
           </div>
         </Router>

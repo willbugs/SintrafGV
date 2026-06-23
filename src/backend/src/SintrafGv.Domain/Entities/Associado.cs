@@ -58,6 +58,8 @@ public class Associado
     public string? Email { get; set; }
 
     // Status
+    /// <summary>Filiado ao sindicato (legado PESSOAS.ASSOCIADO). Distinto de cadastro avulso para enquete.</summary>
+    public bool Filiado { get; set; } = true;
     /// <summary>Cadastro ativo no sistema (pode votar, receber comunicações)</summary>
     public bool Ativo { get; set; } = true;
     /// <summary>Status funcional: false = na ativa, true = aposentado do banco</summary>

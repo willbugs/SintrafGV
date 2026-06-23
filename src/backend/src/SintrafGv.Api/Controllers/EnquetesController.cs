@@ -8,13 +8,13 @@ using System.Security.Claims;
 namespace SintrafGv.Api.Controllers;
 
 [ApiController]
-[Route("api/[controller]")]
+[Route("api/enquetes")]
 [Authorize]
-public class EleicoesController : ControllerBase
+public class EnquetesController : ControllerBase
 {
     private readonly IEleicaoService _service;
 
-    public EleicoesController(IEleicaoService service) => _service = service;
+    public EnquetesController(IEleicaoService service) => _service = service;
 
     [HttpGet]
     public async Task<ActionResult<object>> Listar(
@@ -28,9 +28,9 @@ public class EleicoesController : ControllerBase
     {
         var buscaTrim = string.IsNullOrWhiteSpace(busca) ? null : busca!.Trim();
         var (itens, total) = await _service.ListarResumoAsync(
-            pagina, 
-            porPagina, 
-            status, 
+            pagina,
+            porPagina,
+            status,
             buscaTrim,
             dataInicio,
             dataFim,
@@ -38,7 +38,7 @@ public class EleicoesController : ControllerBase
         return Ok(new { itens, total });
     }
 
-    /// <summary>Lista eleições ativas disponíveis para votação (usado pelo PWA). Com token de associado retorna PodeVotar e JaVotou.</summary>
+    /// <summary>Lista enquetes ativas disponíveis para votação (PWA).</summary>
     [HttpGet("ativas")]
     public async Task<ActionResult<object>> ListarAtivas(CancellationToken cancellationToken = default)
     {
@@ -52,7 +52,6 @@ public class EleicoesController : ControllerBase
         return Ok(itens);
     }
 
-    /// <summary>Obtém comprovante do voto (apenas o associado dono do voto).</summary>
     [HttpGet("comprovante/{votoId:guid}")]
     public async Task<ActionResult<ComprovanteVotoDto>> ObterComprovante(Guid votoId, CancellationToken cancellationToken = default)
     {
@@ -74,9 +73,6 @@ public class EleicoesController : ControllerBase
         return Ok(dto);
     }
 
-    /// <summary>
-    /// Baixa o anexo da eleição apenas durante o período de votação (e respeita restrição de banco quando houver associado).
-    /// </summary>
     [HttpGet("{id:guid}/anexo")]
     public async Task<IActionResult> ObterAnexoDuranteVotacao(Guid id, CancellationToken cancellationToken = default)
     {
@@ -144,22 +140,16 @@ public class EleicoesController : ControllerBase
         }
     }
 
-    /// <summary>
-    /// Obtém os resultados de uma eleição (apenas para eleições encerradas/apuradas)
-    /// </summary>
     [HttpGet("{id:guid}/resultados")]
     public async Task<ActionResult<ResultadoEleicaoDto>> ObterResultados(Guid id, CancellationToken cancellationToken = default)
     {
         var resultados = await _service.ObterResultadosAsync(id, cancellationToken);
         if (resultados is null)
-            return NotFound("Eleição não encontrada ou não está disponível para apuração.");
+            return NotFound("Enquete não encontrada ou não está disponível para apuração.");
 
         return Ok(resultados);
     }
 
-    /// <summary>
-    /// Registra voto de um associado em uma eleição
-    /// </summary>
     [HttpPost("{id:guid}/votar")]
     public async Task<ActionResult<VotoDto>> Votar(Guid id, [FromBody] CreateVotoRequest request, CancellationToken cancellationToken = default)
     {

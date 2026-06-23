@@ -588,10 +588,10 @@ namespace SintrafGv.Application.Services
             }).ToList();
 
             // Aplicar filtros se especificados
-            if (request.Filtros?.ContainsKey("eleicaoId") == true && 
-                Guid.TryParse(request.Filtros["eleicaoId"].ToString(), out var eleicaoId))
+            if (request.Filtros?.ContainsKey("enqueteId") == true &&
+                Guid.TryParse(request.Filtros["enqueteId"].ToString(), out var enqueteIdFiltro))
             {
-                var votosEleicao = votos.Where(v => v.EleicaoId == eleicaoId).Select(v => v.AssociadoId).ToHashSet();
+                var votosEleicao = votos.Where(v => v.EleicaoId == enqueteIdFiltro).Select(v => v.AssociadoId).ToHashSet();
                 dados = dados.Where(d => votosEleicao.Contains(d.AssociadoId)).ToList();
             }
 

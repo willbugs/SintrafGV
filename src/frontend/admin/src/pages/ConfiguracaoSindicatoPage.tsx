@@ -455,7 +455,7 @@ const ConfiguracaoSindicatoPage: React.FC = () => {
                       onChange={handleChange('textoAutenticacao')}
                       multiline
                       rows={3}
-                      placeholder="Este relatório contém os dados oficiais da votação/eleição realizada pelo sindicato..."
+                      placeholder="Este relatório contém os dados oficiais da votação realizada pelo sindicato..."
                     />
                   </Grid>
                   <Grid item xs={12} md={6}>

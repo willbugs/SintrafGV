@@ -69,14 +69,14 @@ namespace SintrafGv.Api.Controllers
         /// <summary>
         /// Valida a integridade dos dados de votação
         /// </summary>
-        [HttpGet("validar-integridade/{eleicaoId}")]
+        [HttpGet("validar-integridade/{enqueteId}")]
         [Authorize(Roles = "Admin,Presidente,Secretario")]
-        public async Task<ActionResult<bool>> ValidarIntegridade(Guid eleicaoId)
+        public async Task<ActionResult<bool>> ValidarIntegridade(Guid enqueteId)
         {
             try
             {
-                var integridadeValida = await _relatorioService.ValidarIntegridadeVotacaoAsync(eleicaoId);
-                return Ok(new { EleicaoId = eleicaoId, IntegridadeValida = integridadeValida });
+                var integridadeValida = await _relatorioService.ValidarIntegridadeVotacaoAsync(enqueteId);
+                return Ok(new { enqueteId, IntegridadeValida = integridadeValida });
             }
             catch (Exception ex)
             {
@@ -124,17 +124,17 @@ namespace SintrafGv.Api.Controllers
         /// <summary>
         /// Endpoint público para validação de relatórios
         /// </summary>
-        [HttpGet("validar/{eleicaoId}")]
+        [HttpGet("validar/{enqueteId}")]
         [AllowAnonymous]
-        public async Task<ActionResult> ValidarRelatorio(Guid eleicaoId, [FromQuery] string chave)
+        public async Task<ActionResult> ValidarRelatorio(Guid enqueteId, [FromQuery] string chave)
         {
             try
             {
-                var integridadeValida = await _relatorioService.ValidarIntegridadeVotacaoAsync(eleicaoId);
+                var integridadeValida = await _relatorioService.ValidarIntegridadeVotacaoAsync(enqueteId);
                 
                 return Ok(new 
                 { 
-                    EleicaoId = eleicaoId,
+                    enqueteId,
                     ChaveValidacao = chave,
                     Valido = integridadeValida,
                     Status = integridadeValida ? "Relatório válido - Integridade verificada" : "Falha na validação de integridade",
@@ -145,10 +145,10 @@ namespace SintrafGv.Api.Controllers
             {
                 return Ok(new
                 {
-                    EleicaoId = eleicaoId,
+                    enqueteId,
                     ChaveValidacao = chave,
                     Valido = false,
-                    Status = $"Eleição não encontrada ou erro na validação: {ex.Message}",
+                    Status = $"Enquete não encontrada ou erro na validação: {ex.Message}",
                     DataValidacao = DateTime.UtcNow
                 });
             }

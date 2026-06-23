@@ -1,4 +1,4 @@
-import { api } from './api';
+﻿import { api } from './api';
 
 export interface RelatorioRequest {
   tipoRelatorio: string;
@@ -262,8 +262,8 @@ class RelatorioService {
   }
 
   async obterRelatorioResultadosEleicao(filtros: any = {}): Promise<any> {
-    const response = await api.post('/api/relatorios/resultados-eleicao', {
-      tipoRelatorio: 'resultados-eleicao',
+    const response = await api.post('/api/relatorios/resultados-enquete', {
+      tipoRelatorio: 'resultados-enquete',
       filtros,
       formatoExportacao: 'html'
     });

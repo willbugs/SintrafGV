@@ -111,6 +111,7 @@ namespace SintrafGv.Application.DTOs
     // Request para gerar relatório cartorial
     public class RelatorioCartorialRequest
     {
+        [System.Text.Json.Serialization.JsonPropertyName("enqueteId")]
         public Guid EleicaoId { get; set; }
         public bool IncluirDadosVotantes { get; set; } = true;
         public bool IncluirDadosTecnicos { get; set; } = true;

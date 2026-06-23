@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+﻿import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Box,
@@ -25,6 +25,7 @@ import {
   AttachFile
 } from '@mui/icons-material'
 import { useAuth } from '../contexts/AuthContext'
+import { formatDateTimeBr } from '../utils/datetimeBr'
 import { api } from '../services/api'
 
 interface Eleicao {
@@ -58,7 +59,7 @@ const EleicoesPage: React.FC = () => {
   const carregarEleicoes = async () => {
     try {
       setLoading(true)
-      const response = await api.get('/api/eleicoes/ativas')
+      const response = await api.get('/api/enquetes/ativas')
       const raw = response.data ?? []
       // API pode retornar PascalCase (PodeVotar, JaVotou) ou camelCase; /ativas = só abertas, então se não vier flag assume pode votar
       setEleicoes(raw.map((e: any) => ({
@@ -77,8 +78,8 @@ const EleicoesPage: React.FC = () => {
         jaVotou: e.jaVotou ?? e.JaVotou ?? false
       })))
     } catch (err) {
-      setError('Erro ao carregar eleições disponíveis')
-      console.error('Erro ao carregar eleições:', err)
+      setError('Erro ao carregar enquetes disponíveis')
+      console.error('Erro ao carregar enquetes:', err)
     } finally {
       setLoading(false)
     }
@@ -102,22 +103,12 @@ const EleicoesPage: React.FC = () => {
     navigate('/login')
   }
 
-  const formatDateTime = (s: string) => {
-    const d = new Date(s)
-    if (Number.isNaN(d.getTime())) return '—'
-    return d.toLocaleString('pt-BR', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    })
-  }
+  const formatDateTime = formatDateTimeBr
 
   if (loading) {
     return (
       <Box display="flex" justifyContent="center" alignItems="center" minHeight="100vh">
-        <Typography>Carregando eleições...</Typography>
+        <Typography>Carregando enquetes...</Typography>
       </Box>
     )
   }
@@ -128,7 +119,7 @@ const EleicoesPage: React.FC = () => {
         <Toolbar>
           <HowToVote sx={{ mr: 2 }} />
           <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
-            SintrafGV - Eleições
+            SintrafGV - Votações
           </Typography>
           
           <Box display="flex" alignItems="center">
@@ -161,7 +152,7 @@ const EleicoesPage: React.FC = () => {
             Bem-vindo, {associado?.nome?.split(' ')[0]}!
           </Typography>
           <Typography variant="subtitle1" color="text.secondary">
-            Selecione uma eleição para participar da votação
+            Selecione uma enquete para participar da votação
           </Typography>
         </Box>
 
@@ -173,7 +164,7 @@ const EleicoesPage: React.FC = () => {
 
         {eleicoes.length === 0 ? (
           <Alert severity="info">
-            Não há eleições disponíveis no momento.
+            Não há enquetes disponíveis no momento.
           </Alert>
         ) : (
           <Grid container spacing={3}>

@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import {
   Box,
   Typography,
@@ -118,7 +118,7 @@ const tiposRelatorios: TipoRelatorio[] = [
     cor: '#2196F3'
   },
   {
-    id: 'resultados-eleicao',
+    id: 'resultados-enquete',
     titulo: 'Resultados de Enquetes',
     descricao: 'Detalhamento dos resultados por enquete e pergunta',
     icone: <Assessment />,
@@ -152,7 +152,7 @@ const RelatoriosPage: React.FC = () => {
       case 'participacao-votacao':
         navigate('/relatorios/votacao?tab=0');
         break;
-      case 'resultados-eleicao':
+      case 'resultados-enquete':
         navigate('/relatorios/votacao?tab=1');
         break;
       case 'engajamento-votacao':

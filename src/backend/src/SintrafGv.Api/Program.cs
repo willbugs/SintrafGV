@@ -6,6 +6,7 @@ using Microsoft.IdentityModel.Tokens;
 using SintrafGv.Application;
 using SintrafGv.Domain.Interfaces;
 using SintrafGv.Application.Interfaces;
+using SintrafGv.Api.Json;
 using SintrafGv.Api.Services;
 using SintrafGv.Domain.Entities;
 using SintrafGv.Infrastructure;
@@ -27,6 +28,8 @@ builder.Services.AddControllers()
     {
         options.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
         options.JsonSerializerOptions.PropertyNameCaseInsensitive = true;
+        options.JsonSerializerOptions.Converters.Add(new UtcDateTimeJsonConverter());
+        options.JsonSerializerOptions.Converters.Add(new NullableUtcDateTimeJsonConverter());
     });
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
@@ -58,6 +61,7 @@ var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get
         "http://localhost:5174", 
         "https://admin.sintrafgv.com.br", 
         "https://votacao.sintrafgv.com.br",
+        "https://assembleia.sintrafgv.com.br",
         "https://api.sintrafgv.com.br"
     };
     options.AddDefaultPolicy(policy =>
@@ -75,7 +79,7 @@ app.UseCors();
 
 // Garantir CORS mesmo quando resposta é enviada por exception handler (headers já no context)
 var allowedOriginsList = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
-    ?? new[] { "http://localhost:5173", "http://localhost:5174", "https://admin.sintrafgv.com.br", "https://votacao.sintrafgv.com.br" };
+    ?? new[] { "http://localhost:5173", "http://localhost:5174", "https://admin.sintrafgv.com.br", "https://votacao.sintrafgv.com.br", "https://assembleia.sintrafgv.com.br" };
 var allowedSet = new HashSet<string>(allowedOriginsList, StringComparer.OrdinalIgnoreCase);
 app.Use(async (context, next) =>
 {

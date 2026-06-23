@@ -30,6 +30,25 @@ public class AssociadoRepository : IAssociadoRepository
         return associados.FirstOrDefault();
     }
 
+    public async Task<Associado?> ObterPorMatriculaBancariaAsync(string matriculaBancaria, CancellationToken cancellationToken = default)
+    {
+        var matriculaDigits = new string(matriculaBancaria.Where(char.IsDigit).ToArray());
+        if (string.IsNullOrEmpty(matriculaDigits)) return null;
+
+        var associados = await _context.Associados
+            .AsNoTracking()
+            .Where(a => a.MatriculaBancaria != null && a.MatriculaBancaria != "")
+            .ToListAsync(cancellationToken);
+
+        return associados.FirstOrDefault(a =>
+        {
+            var dbDigits = new string(a.MatriculaBancaria!.Where(char.IsDigit).ToArray());
+            if (string.IsNullOrEmpty(dbDigits)) return false;
+            return dbDigits == matriculaDigits ||
+                   dbDigits.TrimStart('0') == matriculaDigits.TrimStart('0');
+        });
+    }
+
     public async Task<IReadOnlyList<Associado>> ListarAsync(int skip, int take, bool apenasAtivos = false, CancellationToken cancellationToken = default)
     {
         var query = _context.Associados.AsNoTracking();
