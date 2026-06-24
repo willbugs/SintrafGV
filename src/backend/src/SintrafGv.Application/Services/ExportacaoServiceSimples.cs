@@ -6,6 +6,7 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Text;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using OfficeOpenXml;
@@ -79,33 +80,63 @@ namespace SintrafGv.Application.Services
                 .SetFont(font).SetFontSize(10).SetTextAlignment(TextAlignment.RIGHT));
 
             // Tabela - colunas exportáveis (exclui [ExportIgnore])
-            var propriedades = ObterPropriedadesSimples<T>().ToList();
-            if (propriedades.Count == 0)
+            var colunasParticipacao = ObterColunasParticipacaoVotacao(dados);
+            var propriedades = colunasParticipacao == null
+                ? ObterPropriedadesSimples<T>().ToList()
+                : new List<PropertyInfo>();
+            if (colunasParticipacao == null && propriedades.Count == 0)
                 propriedades = typeof(T).GetProperties().Where(p => p.CanRead && p.GetIndexParameters().Length == 0).Take(8).ToList();
-            var tabela = new Table(Math.Max(1, propriedades.Count)).UseAllAvailableWidth();
+
+            var numColunas = colunasParticipacao?.Count ?? Math.Max(1, propriedades.Count);
+            var tabela = new Table(numColunas).UseAllAvailableWidth();
 
             // Cabeçalhos
-            foreach (var prop in propriedades)
+            if (colunasParticipacao != null)
             {
-                tabela.AddHeaderCell(new Cell()
-                    .Add(new Paragraph(RemoverAcentos(ObterTituloColuna(prop.Name))))
-                    .SetFont(boldFont).SetFontSize(10)
-                    .SetBackgroundColor(ColorConstants.LIGHT_GRAY)
-                    .SetTextAlignment(TextAlignment.CENTER));
+                foreach (var col in colunasParticipacao)
+                {
+                    tabela.AddHeaderCell(new Cell()
+                        .Add(new Paragraph(RemoverAcentos(col.Titulo)))
+                        .SetFont(boldFont).SetFontSize(10)
+                        .SetBackgroundColor(ColorConstants.LIGHT_GRAY)
+                        .SetTextAlignment(TextAlignment.CENTER));
+                }
             }
-            if (propriedades.Count == 0)
-                tabela.AddHeaderCell(new Cell().Add(new Paragraph("Dados")).SetFont(boldFont).SetFontSize(10).SetBackgroundColor(ColorConstants.LIGHT_GRAY));
+            else
+            {
+                foreach (var prop in propriedades)
+                {
+                    tabela.AddHeaderCell(new Cell()
+                        .Add(new Paragraph(RemoverAcentos(ObterTituloColuna(prop.Name))))
+                        .SetFont(boldFont).SetFontSize(10)
+                        .SetBackgroundColor(ColorConstants.LIGHT_GRAY)
+                        .SetTextAlignment(TextAlignment.CENTER));
+                }
+                if (propriedades.Count == 0)
+                    tabela.AddHeaderCell(new Cell().Add(new Paragraph("Dados")).SetFont(boldFont).SetFontSize(10).SetBackgroundColor(ColorConstants.LIGHT_GRAY));
+            }
 
             // Dados
             foreach (var registro in dados.Dados)
             {
-                foreach (var prop in propriedades)
+                if (colunasParticipacao != null)
                 {
-                    var valor = FormatarValorParaPdf(prop.GetValue(registro));
-                    tabela.AddCell(new Cell().Add(new Paragraph(valor)).SetFont(font).SetFontSize(8));
+                    foreach (var col in colunasParticipacao)
+                    {
+                        var valor = FormatarValorParaPdf(col.ObterValor(registro));
+                        tabela.AddCell(new Cell().Add(new Paragraph(valor)).SetFont(font).SetFontSize(8));
+                    }
                 }
-                if (propriedades.Count == 0)
-                    tabela.AddCell(new Cell().Add(new Paragraph("-")).SetFont(font).SetFontSize(8));
+                else
+                {
+                    foreach (var prop in propriedades)
+                    {
+                        var valor = FormatarValorParaPdf(prop.GetValue(registro));
+                        tabela.AddCell(new Cell().Add(new Paragraph(valor)).SetFont(font).SetFontSize(8));
+                    }
+                    if (propriedades.Count == 0)
+                        tabela.AddCell(new Cell().Add(new Paragraph("-")).SetFont(font).SetFontSize(8));
+                }
             }
 
             document.Add(tabela);
@@ -136,16 +167,31 @@ namespace SintrafGv.Application.Services
 
             var linha = 3;
 
-            // Cabeçalhos - excluir listas e dicionários
-            var propriedades = ObterPropriedadesSimples<T>().ToList();
-            if (propriedades.Count == 0)
+            var colunasParticipacao = ObterColunasParticipacaoVotacao(dados);
+            var propriedades = colunasParticipacao == null
+                ? ObterPropriedadesSimples<T>().ToList()
+                : new List<PropertyInfo>();
+            if (colunasParticipacao == null && propriedades.Count == 0)
                 propriedades = typeof(T).GetProperties().Where(p => p.CanRead && p.GetIndexParameters().Length == 0).ToList();
+
             var coluna = 1;
-            foreach (var prop in propriedades)
+            if (colunasParticipacao != null)
             {
-                worksheet.Cells[linha, coluna].Value = ObterTituloColuna(prop.Name);
-                worksheet.Cells[linha, coluna].Style.Font.Bold = true;
-                coluna++;
+                foreach (var col in colunasParticipacao)
+                {
+                    worksheet.Cells[linha, coluna].Value = col.Titulo;
+                    worksheet.Cells[linha, coluna].Style.Font.Bold = true;
+                    coluna++;
+                }
+            }
+            else
+            {
+                foreach (var prop in propriedades)
+                {
+                    worksheet.Cells[linha, coluna].Value = ObterTituloColuna(prop.Name);
+                    worksheet.Cells[linha, coluna].Style.Font.Bold = true;
+                    coluna++;
+                }
             }
 
             // Dados
@@ -153,35 +199,21 @@ namespace SintrafGv.Application.Services
             foreach (var registro in dados.Dados)
             {
                 coluna = 1;
-                foreach (var prop in propriedades)
+                if (colunasParticipacao != null)
                 {
-                    var valor = prop.GetValue(registro);
-                    if (valor != null)
+                    foreach (var col in colunasParticipacao)
                     {
-                        if (valor is DateTime data)
-                        {
-                            worksheet.Cells[linha, coluna].Value = data;
-                            worksheet.Cells[linha, coluna].Style.Numberformat.Format =
-                                data.TimeOfDay == TimeSpan.Zero ? "dd/mm/yyyy" : "dd/mm/yyyy hh:mm";
-                        }
-                        else if (valor is bool boolean)
-                        {
-                            worksheet.Cells[linha, coluna].Value = boolean ? "Sim" : "Não";
-                        }
-                        else if (valor is TimeSpan ts)
-                        {
-                            worksheet.Cells[linha, coluna].Value = ts.ToString(@"hh\:mm\:ss");
-                        }
-                        else if (valor is IEnumerable and not string)
-                        {
-                            worksheet.Cells[linha, coluna].Value = "-";
-                        }
-                        else
-                        {
-                            worksheet.Cells[linha, coluna].Value = valor;
-                        }
+                        EscreverCelulaExcel(worksheet, linha, coluna, col.ObterValor(registro));
+                        coluna++;
                     }
-                    coluna++;
+                }
+                else
+                {
+                    foreach (var prop in propriedades)
+                    {
+                        EscreverCelulaExcel(worksheet, linha, coluna, prop.GetValue(registro));
+                        coluna++;
+                    }
                 }
                 linha++;
             }
@@ -216,36 +248,43 @@ namespace SintrafGv.Application.Services
             csv.AppendLine(); // Linha em branco
 
             // Cabeçalhos das colunas - excluir listas e dicionários
-            var propriedades = ObterPropriedadesSimples<T>().ToList();
-            if (propriedades.Count == 0)
+            var colunasParticipacao = ObterColunasParticipacaoVotacao(dados);
+            var propriedades = colunasParticipacao == null
+                ? ObterPropriedadesSimples<T>().ToList()
+                : new List<PropertyInfo>();
+            if (colunasParticipacao == null && propriedades.Count == 0)
                 propriedades = typeof(T).GetProperties().Where(p => p.CanRead && p.GetIndexParameters().Length == 0).ToList();
-            var cabecalhos = propriedades.Select(p => ObterTituloColuna(p.Name));
-            csv.AppendLine(string.Join(";", cabecalhos));
+
+            if (colunasParticipacao != null)
+                csv.AppendLine(string.Join(";", colunasParticipacao.Select(c => EscaparCsv(c.Titulo))));
+            else
+                csv.AppendLine(string.Join(";", propriedades.Select(p => ObterTituloColuna(p.Name))));
 
             // Dados
             foreach (var registro in dados.Dados)
             {
                 var valores = new List<string>();
-                foreach (var prop in propriedades)
+                if (colunasParticipacao != null)
                 {
-                    var valor = prop.GetValue(registro);
-                    var valorFormatado = valor switch
+                    foreach (var col in colunasParticipacao)
+                        valores.Add(EscaparCsv(FormatarValorCsv(col.ObterValor(registro))));
+                }
+                else
+                {
+                    foreach (var prop in propriedades)
                     {
-                        null => "",
-                        DateTime data => data.ToString("dd/MM/yyyy HH:mm"),
-                        bool boolean => boolean ? "Sim" : "Não",
-                        TimeSpan ts => ts.ToString(@"hh\:mm\:ss"),
-                        IEnumerable and not string => "-",
-                        _ => valor.ToString()
-                    };
-                    
-                    // Escapar caracteres especiais do CSV
-                    if (valorFormatado!.Contains("\"") || valorFormatado.Contains(";") || valorFormatado.Contains("\n"))
-                    {
-                        valorFormatado = "\"" + valorFormatado.Replace("\"", "\"\"") + "\"";
+                        var valor = prop.GetValue(registro);
+                        var valorFormatado = valor switch
+                        {
+                            null => "",
+                            DateTime data => data.ToString("dd/MM/yyyy HH:mm"),
+                            bool boolean => boolean ? "Sim" : "Não",
+                            TimeSpan ts => ts.ToString(@"hh\:mm\:ss"),
+                            IEnumerable and not string => "-",
+                            _ => valor.ToString()
+                        };
+                        valores.Add(EscaparCsv(valorFormatado ?? ""));
                     }
-                    
-                    valores.Add(valorFormatado);
                 }
                 csv.AppendLine(string.Join(";", valores));
             }
@@ -312,16 +351,108 @@ namespace SintrafGv.Application.Services
             return sanitizado.Length > 31 ? sanitizado[..31] : sanitizado;
         }
 
+        private static bool TemTotalizadoresVotacao<T>(RelatorioResponse<T> dados) =>
+            dados.Totalizadores != null &&
+            (dados.Totalizadores.ContainsKey("resultadoPorOpcao") ||
+             dados.Totalizadores.ContainsKey("ResultadoPorOpcao") ||
+             dados.Totalizadores.ContainsKey("votosSim") ||
+             dados.Totalizadores.ContainsKey("VotosSim") ||
+             dados.Totalizadores.ContainsKey("totalAssociados") ||
+             dados.Totalizadores.ContainsKey("TotalAssociados"));
+
+        private static Dictionary<string, int> LerResultadoPorOpcao(Dictionary<string, object> tot)
+        {
+            if (!tot.TryGetValue("resultadoPorOpcao", out var raw) &&
+                !tot.TryGetValue("ResultadoPorOpcao", out raw))
+                return new Dictionary<string, int>();
+
+            if (raw is Dictionary<string, int> dictInt)
+                return dictInt;
+
+            if (raw is JsonElement json && json.ValueKind == JsonValueKind.Object)
+            {
+                var result = new Dictionary<string, int>();
+                foreach (var prop in json.EnumerateObject())
+                    result[prop.Name] = prop.Value.ValueKind == JsonValueKind.Number
+                        ? prop.Value.GetInt32()
+                        : int.TryParse(prop.Value.ToString(), out var n) ? n : 0;
+                return result;
+            }
+
+            if (raw is IDictionary<string, object> dictObj)
+            {
+                return dictObj.ToDictionary(
+                    kvp => kvp.Key,
+                    kvp => kvp.Value switch
+                    {
+                        int i => i,
+                        long l => (int)l,
+                        _ => int.TryParse(kvp.Value?.ToString(), out var n) ? n : 0
+                    });
+            }
+
+            return new Dictionary<string, int>();
+        }
+
+        private static List<string> LerOrdemTotalizadores(Dictionary<string, object> tot, Dictionary<string, int> resultado)
+        {
+            if (tot.TryGetValue("ordemTotalizadores", out var ordemRaw) ||
+                tot.TryGetValue("OrdemTotalizadores", out ordemRaw))
+            {
+                if (ordemRaw is IEnumerable<string> listaStr)
+                    return listaStr.Where(resultado.ContainsKey).ToList();
+                if (ordemRaw is JsonElement json && json.ValueKind == JsonValueKind.Array)
+                {
+                    var ordem = new List<string>();
+                    foreach (var item in json.EnumerateArray())
+                    {
+                        var chave = item.GetString();
+                        if (!string.IsNullOrEmpty(chave) && resultado.ContainsKey(chave))
+                            ordem.Add(chave);
+                    }
+                    if (ordem.Count > 0) return ordem;
+                }
+            }
+            return resultado.Keys.ToList();
+        }
+
+        private static object LerTotalizadorVotacao(Dictionary<string, object> tot, params string[] chaves)
+        {
+            foreach (var chave in chaves)
+            {
+                if (tot.TryGetValue(chave, out var valor) && valor != null)
+                    return valor;
+            }
+            return 0;
+        }
+
         private static void AdicionarTotalizadores<T>(Document document, RelatorioResponse<T> dados, PdfFont font, PdfFont boldFont)
         {
-            if (dados.Totalizadores == null || !dados.Totalizadores.ContainsKey("VotosSim"))
+            if (!TemTotalizadoresVotacao(dados))
                 return;
 
+            var tot = dados.Totalizadores!;
             document.Add(new Paragraph("\n"));
-            var sim = dados.Totalizadores.GetValueOrDefault("VotosSim", 0);
-            var nao = dados.Totalizadores.GetValueOrDefault("VotosNao", 0);
-            var branco = dados.Totalizadores.GetValueOrDefault("VotosBranco", 0);
-            var total = dados.Totalizadores.GetValueOrDefault("TotalAssociados", dados.Metadata.TotalRegistros);
+            var total = LerTotalizadorVotacao(tot, "totalAssociados", "TotalAssociados");
+            if (total.Equals(0) && dados.Metadata.TotalRegistros > 0)
+                total = dados.Metadata.TotalRegistros;
+
+            var resultado = LerResultadoPorOpcao(tot);
+            if (resultado.Count > 0)
+            {
+                document.Add(new Paragraph(RemoverAcentos($"Total de votantes: {total}"))
+                    .SetFont(boldFont).SetFontSize(11));
+                foreach (var opcao in LerOrdemTotalizadores(tot, resultado))
+                {
+                    document.Add(new Paragraph(RemoverAcentos($"{opcao}: {resultado[opcao]}"))
+                        .SetFont(font).SetFontSize(10).SetTextAlignment(TextAlignment.RIGHT));
+                }
+                return;
+            }
+
+            var sim = LerTotalizadorVotacao(tot, "votosSim", "VotosSim");
+            var nao = LerTotalizadorVotacao(tot, "votosNao", "VotosNao");
+            var branco = LerTotalizadorVotacao(tot, "votosBranco", "VotosBranco");
             var resumo = $"Total: {total} | Sim: {sim} | Nao: {nao} | Branco: {branco}";
             document.Add(new Paragraph(RemoverAcentos(resumo))
                 .SetFont(boldFont).SetFontSize(11).SetTextAlignment(TextAlignment.RIGHT));
@@ -329,40 +460,147 @@ namespace SintrafGv.Application.Services
 
         private static void AdicionarTotalizadoresPlanilha<T>(ExcelWorksheet worksheet, RelatorioResponse<T> dados, ref int linha)
         {
-            if (dados.Totalizadores == null || !dados.Totalizadores.ContainsKey("VotosSim"))
+            if (!TemTotalizadoresVotacao(dados))
                 return;
 
+            var tot = dados.Totalizadores!;
             linha += 2;
             worksheet.Cells[linha, 1].Value = "Totalizadores";
             worksheet.Cells[linha, 1].Style.Font.Bold = true;
             linha++;
             worksheet.Cells[linha, 1].Value = "Total de votantes";
-            worksheet.Cells[linha, 2].Value = dados.Totalizadores.GetValueOrDefault("TotalAssociados", dados.Metadata.TotalRegistros);
+            worksheet.Cells[linha, 2].Value = LerTotalizadorVotacao(tot, "totalAssociados", "TotalAssociados");
             linha++;
+
+            var resultado = LerResultadoPorOpcao(tot);
+            if (resultado.Count > 0)
+            {
+                foreach (var opcao in LerOrdemTotalizadores(tot, resultado))
+                {
+                    worksheet.Cells[linha, 1].Value = opcao;
+                    worksheet.Cells[linha, 2].Value = resultado[opcao];
+                    linha++;
+                }
+                return;
+            }
+
             worksheet.Cells[linha, 1].Value = "Votos Sim";
-            worksheet.Cells[linha, 2].Value = dados.Totalizadores.GetValueOrDefault("VotosSim", 0);
+            worksheet.Cells[linha, 2].Value = LerTotalizadorVotacao(tot, "votosSim", "VotosSim");
             linha++;
             worksheet.Cells[linha, 1].Value = "Votos Não";
-            worksheet.Cells[linha, 2].Value = dados.Totalizadores.GetValueOrDefault("VotosNao", 0);
+            worksheet.Cells[linha, 2].Value = LerTotalizadorVotacao(tot, "votosNao", "VotosNao");
             linha++;
             worksheet.Cells[linha, 1].Value = "Votos Branco";
-            worksheet.Cells[linha, 2].Value = dados.Totalizadores.GetValueOrDefault("VotosBranco", 0);
+            worksheet.Cells[linha, 2].Value = LerTotalizadorVotacao(tot, "votosBranco", "VotosBranco");
         }
 
         private static void AdicionarTotalizadoresCsv<T>(StringBuilder csv, RelatorioResponse<T> dados)
         {
-            if (dados.Totalizadores == null || !dados.Totalizadores.ContainsKey("VotosSim"))
+            if (!TemTotalizadoresVotacao(dados))
                 return;
 
+            var tot = dados.Totalizadores!;
             csv.AppendLine();
             csv.AppendLine("# Totalizadores");
-            csv.AppendLine($"# Total de votantes;{dados.Totalizadores.GetValueOrDefault("TotalAssociados", dados.Metadata.TotalRegistros)}");
-            csv.AppendLine($"# Votos Sim;{dados.Totalizadores.GetValueOrDefault("VotosSim", 0)}");
-            csv.AppendLine($"# Votos Nao;{dados.Totalizadores.GetValueOrDefault("VotosNao", 0)}");
-            csv.AppendLine($"# Votos Branco;{dados.Totalizadores.GetValueOrDefault("VotosBranco", 0)}");
+            csv.AppendLine($"# Total de votantes;{LerTotalizadorVotacao(tot, "totalAssociados", "TotalAssociados")}");
+
+            var resultado = LerResultadoPorOpcao(tot);
+            if (resultado.Count > 0)
+            {
+                foreach (var opcao in LerOrdemTotalizadores(tot, resultado))
+                    csv.AppendLine($"# {EscaparCsv(opcao)};{resultado[opcao]}");
+                return;
+            }
+
+            csv.AppendLine($"# Votos Sim;{LerTotalizadorVotacao(tot, "votosSim", "VotosSim")}");
+            csv.AppendLine($"# Votos Nao;{LerTotalizadorVotacao(tot, "votosNao", "VotosNao")}");
+            csv.AppendLine($"# Votos Branco;{LerTotalizadorVotacao(tot, "votosBranco", "VotosBranco")}");
         }
 
-        private string ObterTituloColuna(string nomePropriedade)
+        private sealed class ColunaExportDef
+        {
+            public string Titulo { get; init; } = string.Empty;
+            public Func<object, object?> ObterValor { get; init; } = _ => null;
+        }
+
+        private static List<ColunaExportDef>? ObterColunasParticipacaoVotacao<T>(RelatorioResponse<T> dados)
+        {
+            if (typeof(T) != typeof(ParticipacaoVotacaoDto))
+                return null;
+
+            var cols = new List<ColunaExportDef>();
+            foreach (var prop in ObterPropriedadesSimples<ParticipacaoVotacaoDto>())
+            {
+                var propInfo = prop;
+                cols.Add(new ColunaExportDef
+                {
+                    Titulo = ObterTituloColuna(propInfo.Name),
+                    ObterValor = r => propInfo.GetValue((ParticipacaoVotacaoDto)r)
+                });
+            }
+
+            foreach (var campo in dados.Metadata?.CamposDisponiveis ?? new List<CampoRelatorio>())
+            {
+                var perguntaId = campo.Nome;
+                cols.Add(new ColunaExportDef
+                {
+                    Titulo = campo.Titulo,
+                    ObterValor = r =>
+                    {
+                        var dto = (ParticipacaoVotacaoDto)r;
+                        return dto.Respostas.GetValueOrDefault(perguntaId, "—");
+                    }
+                });
+            }
+
+            return cols;
+        }
+
+        private static void EscreverCelulaExcel(ExcelWorksheet worksheet, int linha, int coluna, object? valor)
+        {
+            if (valor == null) return;
+            if (valor is DateTime data)
+            {
+                worksheet.Cells[linha, coluna].Value = data;
+                worksheet.Cells[linha, coluna].Style.Numberformat.Format =
+                    data.TimeOfDay == TimeSpan.Zero ? "dd/mm/yyyy" : "dd/mm/yyyy hh:mm";
+            }
+            else if (valor is bool boolean)
+            {
+                worksheet.Cells[linha, coluna].Value = boolean ? "Sim" : "Não";
+            }
+            else if (valor is TimeSpan ts)
+            {
+                worksheet.Cells[linha, coluna].Value = ts.ToString(@"hh\:mm\:ss");
+            }
+            else if (valor is IEnumerable and not string)
+            {
+                worksheet.Cells[linha, coluna].Value = "-";
+            }
+            else
+            {
+                worksheet.Cells[linha, coluna].Value = valor;
+            }
+        }
+
+        private static string FormatarValorCsv(object? valor) => valor switch
+        {
+            null => "",
+            DateTime data => data.ToString("dd/MM/yyyy HH:mm"),
+            bool boolean => boolean ? "Sim" : "Não",
+            TimeSpan ts => ts.ToString(@"hh\:mm\:ss"),
+            IEnumerable and not string => "-",
+            _ => valor.ToString() ?? ""
+        };
+
+        private static string EscaparCsv(string valorFormatado)
+        {
+            if (valorFormatado.Contains('"') || valorFormatado.Contains(';') || valorFormatado.Contains('\n'))
+                return "\"" + valorFormatado.Replace("\"", "\"\"") + "\"";
+            return valorFormatado;
+        }
+
+        private static string ObterTituloColuna(string nomePropriedade)
         {
             return nomePropriedade switch
             {
@@ -385,7 +623,6 @@ namespace SintrafGv.Application.Services
                 "Estado" => "Estado",
                 "Funcao" => "Função",
                 "NomeBanco" => "Banco",
-                "OpcaoVotada" => "Voto",
                 "TotalEleicoesDisponiveis" => "Enquetes Disponíveis",
                 "TotalVotosRealizados" => "Votos Realizados",
                 "PercentualParticipacao" => "Participação (%)",

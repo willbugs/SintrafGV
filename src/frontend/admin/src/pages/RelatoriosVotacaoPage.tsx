@@ -75,6 +75,62 @@ interface Enquete {
   status: number;
 }
 
+function lerTotalizador(totalizadores: Record<string, unknown> | undefined, ...chaves: string[]): number | null {
+  if (!totalizadores) return null;
+  for (const chave of chaves) {
+    const valor = totalizadores[chave];
+    if (valor !== undefined && valor !== null) return Number(valor);
+  }
+  return null;
+}
+
+function linhasParticipacao(dadosParticipacao: any): Record<string, unknown>[] {
+  const raw = dadosParticipacao?.dados ?? dadosParticipacao?.Dados;
+  return Array.isArray(raw) ? raw : [];
+}
+
+function extrairResultadoPorOpcao(dadosParticipacao: any): { ordem: string[]; valores: Record<string, number> } {
+  const tot = (dadosParticipacao?.totalizadores ?? dadosParticipacao?.Totalizadores ?? {}) as Record<string, unknown>;
+  const raw = tot.resultadoPorOpcao ?? tot.ResultadoPorOpcao;
+  const valores: Record<string, number> = {};
+
+  if (raw && typeof raw === 'object') {
+    for (const [chave, valor] of Object.entries(raw as Record<string, unknown>)) {
+      valores[chave] = Number(valor) || 0;
+    }
+  }
+
+  const ordemRaw = tot.ordemTotalizadores ?? tot.OrdemTotalizadores;
+  let ordem: string[] = Array.isArray(ordemRaw)
+    ? ordemRaw.map((x) => String(x))
+    : Object.keys(valores);
+
+  // Compatibilidade com API antiga (Sim/Não/Branco fixos)
+  if (ordem.length === 0 && Object.keys(valores).length === 0) {
+    const sim = Number(tot.votosSim ?? tot.VotosSim ?? 0);
+    const nao = Number(tot.votosNao ?? tot.VotosNao ?? 0);
+    const branco = Number(tot.votosBranco ?? tot.VotosBranco ?? 0);
+    if (sim || nao || branco) {
+      ordem = ['SIM', 'NÃO', 'Branco'];
+      valores.SIM = sim;
+      valores.NÃO = nao;
+      valores.Branco = branco;
+    }
+  }
+
+  return { ordem, valores };
+}
+
+function calcularTotaisParticipacao(dadosParticipacao: any) {
+  const linhas = linhasParticipacao(dadosParticipacao);
+  const tot = dadosParticipacao?.totalizadores as Record<string, unknown> | undefined;
+  const { ordem: ordemOpcoes, valores: resultadoPorOpcao } = extrairResultadoPorOpcao(dadosParticipacao);
+
+  const totalVotantes = lerTotalizador(tot, 'totalAssociados', 'TotalAssociados') ?? linhas.length;
+
+  return { totalVotantes, ordemOpcoes, resultadoPorOpcao, linhas };
+}
+
 const RelatoriosVotacaoPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const tabFromUrl = Math.min(2, Math.max(0, parseInt(searchParams.get('tab') || '0', 10) || 0));
@@ -349,7 +405,7 @@ const RelatoriosVotacaoPage: React.FC = () => {
               Participação em Votações
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-              Análise do engajamento dos associados nas enquetes
+              Lista quem participou (sem expor a escolha individual). Totais por opção aparecem nos cards.
             </Typography>
             <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
               <Button 
@@ -372,49 +428,33 @@ const RelatoriosVotacaoPage: React.FC = () => {
             </Box>
           </Box>
 
-          {dadosParticipacao && (
+          {dadosParticipacao && (() => {
+            const { totalVotantes, ordemOpcoes, resultadoPorOpcao, linhas } = calcularTotaisParticipacao(dadosParticipacao);
+            return (
             <Box>
               <Grid container spacing={3} sx={{ mb: 3 }}>
                 <Grid item xs={12} md={3}>
                   <Card variant="outlined">
                     <CardContent>
                       <Typography variant="h6" color="primary">
-                        {dadosParticipacao.totalizadores?.TotalAssociados || 0}
+                        {totalVotantes}
                       </Typography>
                       <Typography variant="body2">Total de Votantes</Typography>
                     </CardContent>
                   </Card>
                 </Grid>
-                <Grid item xs={12} md={3}>
-                  <Card variant="outlined">
-                    <CardContent>
-                      <Typography variant="h6" color="success.main">
-                        {dadosParticipacao.totalizadores?.VotosSim ?? 0}
-                      </Typography>
-                      <Typography variant="body2">Votos Sim</Typography>
-                    </CardContent>
-                  </Card>
-                </Grid>
-                <Grid item xs={12} md={3}>
-                  <Card variant="outlined">
-                    <CardContent>
-                      <Typography variant="h6" color="error.main">
-                        {dadosParticipacao.totalizadores?.VotosNao ?? 0}
-                      </Typography>
-                      <Typography variant="body2">Votos Não</Typography>
-                    </CardContent>
-                  </Card>
-                </Grid>
-                <Grid item xs={12} md={3}>
-                  <Card variant="outlined">
-                    <CardContent>
-                      <Typography variant="h6" color="text.secondary">
-                        {dadosParticipacao.totalizadores?.VotosBranco ?? 0}
-                      </Typography>
-                      <Typography variant="body2">Votos Branco</Typography>
-                    </CardContent>
-                  </Card>
-                </Grid>
+                {ordemOpcoes.map((opcao) => (
+                  <Grid item xs={12} md={3} key={opcao}>
+                    <Card variant="outlined">
+                      <CardContent>
+                        <Typography variant="h6" color="text.primary">
+                          {resultadoPorOpcao[opcao] ?? 0}
+                        </Typography>
+                        <Typography variant="body2">{opcao}</Typography>
+                      </CardContent>
+                    </Card>
+                  </Grid>
+                ))}
               </Grid>
 
               <TableContainer component={Paper}>
@@ -424,20 +464,25 @@ const RelatoriosVotacaoPage: React.FC = () => {
                       <TableCell>Nome</TableCell>
                       <TableCell>CPF</TableCell>
                       <TableCell>Banco</TableCell>
-                      <TableCell>Voto</TableCell>
                       <TableCell>Data/Hora Votação</TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
-                    {dadosParticipacao.dados?.map((item: any, index: number) => (
+                    {linhas.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={4} align="center">
+                          Nenhum votante encontrado. Gere o relatório novamente.
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                    linhas.map((item: any, index: number) => (
                       <TableRow key={index}>
-                        <TableCell>{item.nome}</TableCell>
-                        <TableCell>{item.cpf}</TableCell>
-                        <TableCell>{item.nomeBanco}</TableCell>
-                        <TableCell>{item.opcaoVotada || '—'}</TableCell>
+                        <TableCell>{item.nome ?? item.Nome}</TableCell>
+                        <TableCell>{item.cpf ?? item.Cpf}</TableCell>
+                        <TableCell>{item.nomeBanco ?? item.NomeBanco}</TableCell>
                         <TableCell>
-                          {item.ultimaVotacao
-                            ? new Date(item.ultimaVotacao).toLocaleString('pt-BR', {
+                          {(item.ultimaVotacao ?? item.UltimaVotacao)
+                            ? new Date(item.ultimaVotacao ?? item.UltimaVotacao).toLocaleString('pt-BR', {
                                 day: '2-digit',
                                 month: '2-digit',
                                 year: 'numeric',
@@ -447,12 +492,14 @@ const RelatoriosVotacaoPage: React.FC = () => {
                             : 'Nunca'}
                         </TableCell>
                       </TableRow>
-                    ))}
+                    ))
+                    )}
                   </TableBody>
                 </Table>
               </TableContainer>
             </Box>
-          )}
+            );
+          })()}
         </TabPanel>
 
         <TabPanel value={tabValue} index={1}>

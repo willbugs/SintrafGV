@@ -258,7 +258,18 @@ class RelatorioService {
       filtros,
       formatoExportacao: 'html'
     });
-    return response.data;
+    const raw = response.data ?? {};
+    const meta = raw.metadata ?? raw.Metadata ?? {};
+    const dados = raw.dados ?? raw.Dados ?? [];
+    return {
+      ...raw,
+      dados: Array.isArray(dados) ? dados : [],
+      totalizadores: raw.totalizadores ?? raw.Totalizadores ?? {},
+      metadata: {
+        ...meta,
+        camposDisponiveis: meta.camposDisponiveis ?? meta.CamposDisponiveis ?? [],
+      },
+    };
   }
 
   async obterRelatorioResultadosEleicao(filtros: any = {}): Promise<any> {

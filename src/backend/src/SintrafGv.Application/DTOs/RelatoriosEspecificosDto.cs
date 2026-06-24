@@ -70,7 +70,10 @@ namespace SintrafGv.Application.DTOs
         [ExportIgnore]
         public string MatriculaSindicato { get; set; } = string.Empty;
         public string NomeBanco { get; set; } = string.Empty;
-        public string OpcaoVotada { get; set; } = string.Empty;
+        /// <summary>Respostas por pergunta — uso interno; não expor na API nem export.</summary>
+        [ExportIgnore]
+        [System.Text.Json.Serialization.JsonIgnore]
+        public Dictionary<string, string> Respostas { get; set; } = new();
         [ExportIgnore]
         public string Funcao { get; set; } = string.Empty;
         [ExportIgnore]

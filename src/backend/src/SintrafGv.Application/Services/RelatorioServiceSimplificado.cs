@@ -578,21 +578,44 @@ namespace SintrafGv.Application.Services
                     },
                     Totalizadores = new Dictionary<string, object>
                     {
-                        { "TotalAssociados", 0 },
-                        { "TotalVotos", 0 },
-                        { "VotosSim", 0 },
-                        { "VotosNao", 0 },
-                        { "VotosBranco", 0 }
+                        { "totalAssociados", 0 },
+                        { "totalVotos", 0 },
+                        { "resultadoPorOpcao", new Dictionary<string, int>() }
                     }
                 };
             }
 
             var associados = await _associadoRepository.ListarAsync(0, int.MaxValue, false, cancellationToken);
             var associadosPorId = associados.ToDictionary(a => a.Id);
-            var eleicao = await _eleicaoRepository.ObterPorIdAsync(enqueteIdFiltro.Value, cancellationToken);
-            var tituloEleicao = eleicao?.Titulo ?? "Enquete";
+            var eleicao = await _eleicaoRepository.ObterPorIdComPerguntasAsync(enqueteIdFiltro.Value, cancellationToken);
+            if (eleicao == null)
+            {
+                return new RelatorioResponse<ParticipacaoVotacaoDto>
+                {
+                    Dados = new List<ParticipacaoVotacaoDto>(),
+                    Metadata = new RelatorioMetadata
+                    {
+                        Titulo = "Relatório de Participação em Votações",
+                        Subtitulo = "Enquete não encontrada",
+                        TotalRegistros = 0,
+                        FiltrosAplicados = filtros
+                    },
+                    Totalizadores = new Dictionary<string, object>
+                    {
+                        { "totalAssociados", 0 },
+                        { "totalVotos", 0 },
+                        { "resultadoPorOpcao", new Dictionary<string, int>() },
+                        { "ordemTotalizadores", new List<string>() }
+                    }
+                };
+            }
 
-            var votosEleicao = await _votoRepository.ListarPorEleicaoAsync(enqueteIdFiltro.Value, cancellationToken);
+            var tituloEleicao = eleicao.Titulo;
+            var perguntas = eleicao?.Perguntas?.OrderBy(p => p.Ordem).ToList() ?? new List<Pergunta>();
+
+            var votosEleicao = (await _votoRepository.ListarPorEleicaoAsync(enqueteIdFiltro.Value, cancellationToken))
+                .OrderBy(v => v.DataHoraVoto)
+                .ToList();
 
             var detalhesEleicao = await _context.VotosDetalhes
                 .AsNoTracking()
@@ -614,7 +637,11 @@ namespace SintrafGv.Application.Services
                 .Select(v =>
                 {
                     var associado = associadosPorId[v.AssociadoId];
-                    var opcaoVotada = ObterOpcaoVotada(v, detalhesPorVotoId, detalhesSemVotoId, detalhesSemVotoIdUsados);
+                    var detalhesVoto = ObterDetalhesDoVoto(v, detalhesPorVotoId, detalhesSemVotoId, detalhesSemVotoIdUsados);
+                    var respostas = perguntas.ToDictionary(
+                        p => p.Id.ToString(),
+                        p => FormatarRespostaPergunta(detalhesVoto, p.Id));
+
                     return new ParticipacaoVotacaoDto
                     {
                         AssociadoId = associado.Id,
@@ -623,7 +650,7 @@ namespace SintrafGv.Application.Services
                         MatriculaSindicato = associado.MatriculaSindicato!,
                         NomeBanco = associado.Banco ?? "",
                         Funcao = associado.Funcao!,
-                        OpcaoVotada = opcaoVotada,
+                        Respostas = respostas,
                         TotalEleicoesDisponiveis = 1,
                         TotalVotosRealizados = 1,
                         PercentualParticipacao = 100,
@@ -635,9 +662,9 @@ namespace SintrafGv.Application.Services
                 })
                 .ToList();
 
-            var votosSim = dados.Count(d => ClassificarOpcaoVotada(d.OpcaoVotada) == "Sim");
-            var votosNao = dados.Count(d => ClassificarOpcaoVotada(d.OpcaoVotada) == "Nao");
-            var votosBranco = dados.Count(d => ClassificarOpcaoVotada(d.OpcaoVotada) == "Branco");
+            var votosPorOpcao = await _eleicaoRepository.ContarVotosPorOpcaoAsync(enqueteIdFiltro.Value, cancellationToken);
+            var resultadoPorOpcao = MontarResultadoPorOpcao(perguntas, votosPorOpcao, detalhesEleicao);
+            var ordemTotalizadores = resultadoPorOpcao.Keys.ToList();
 
             return new RelatorioResponse<ParticipacaoVotacaoDto>
             {
@@ -647,65 +674,101 @@ namespace SintrafGv.Application.Services
                     Titulo = "Relatório de Participação em Votações",
                     Subtitulo = tituloEleicao,
                     TotalRegistros = dados.Count,
-                    FiltrosAplicados = filtros
+                    FiltrosAplicados = filtros,
+                    // Participação = quem votou; escolha individual não é exposta na API.
+                    CamposDisponiveis = new List<CampoRelatorio>()
                 },
                 Totalizadores = new Dictionary<string, object>
                 {
-                    { "TotalAssociados", dados.Count },
-                    { "TotalVotos", votosEleicao.Count },
-                    { "VotosSim", votosSim },
-                    { "VotosNao", votosNao },
-                    { "VotosBranco", votosBranco }
+                    { "totalAssociados", dados.Count },
+                    { "totalVotos", votosEleicao.Count },
+                    { "resultadoPorOpcao", resultadoPorOpcao },
+                    { "ordemTotalizadores", ordemTotalizadores }
                 }
             };
         }
 
-        private static string ObterOpcaoVotada(
+        private static Dictionary<string, int> MontarResultadoPorOpcao(
+            IReadOnlyList<Pergunta> perguntas,
+            Dictionary<Guid, int> votosPorOpcao,
+            IReadOnlyList<VotoDetalhe> detalhesEleicao)
+        {
+            var resultado = new Dictionary<string, int>();
+            var multiplasPerguntas = perguntas.Count > 1;
+
+            foreach (var pergunta in perguntas)
+            {
+                foreach (var opcao in (pergunta.Opcoes ?? new List<Opcao>()).OrderBy(o => o.Ordem))
+                {
+                    var chave = multiplasPerguntas ? $"{pergunta.Texto}: {opcao.Texto}" : opcao.Texto;
+                    resultado[chave] = votosPorOpcao.GetValueOrDefault(opcao.Id, 0);
+                }
+
+                if (!pergunta.PermiteBranco)
+                    continue;
+
+                var brancos = detalhesEleicao.Count(d => d.PerguntaId == pergunta.Id && d.VotoBranco);
+                if (brancos <= 0)
+                    continue;
+
+                var chaveBranco = multiplasPerguntas ? $"{pergunta.Texto}: Branco" : "Branco";
+                resultado[chaveBranco] = brancos;
+            }
+
+            return resultado;
+        }
+
+        private static List<VotoDetalhe> ObterDetalhesDoVoto(
             Voto voto,
             Dictionary<Guid, List<VotoDetalhe>> detalhesPorVotoId,
             List<VotoDetalhe> detalhesSemVotoId,
             HashSet<Guid> detalhesSemVotoIdUsados)
         {
             if (detalhesPorVotoId.TryGetValue(voto.Id, out var detalhesVinculados))
-                return FormatarOpcoesVotadas(detalhesVinculados);
+                return detalhesVinculados;
 
-            var candidato = detalhesSemVotoId
+            // Fallback legado (VotoId nulo): associa o grupo de detalhes com timestamp mais próximo, uma vez por voto.
+            var candidatos = detalhesSemVotoId
                 .Where(d => !detalhesSemVotoIdUsados.Contains(d.Id))
-                .Where(d => Math.Abs((d.DataHora - voto.DataHoraVoto).TotalSeconds) <= 30)
-                .OrderBy(d => Math.Abs((d.DataHora - voto.DataHoraVoto).Ticks))
-                .FirstOrDefault();
+                .Select(d => new { Detalhe = d, Delta = Math.Abs((d.DataHora - voto.DataHoraVoto).TotalSeconds) })
+                .OrderBy(x => x.Delta)
+                .ToList();
 
-            if (candidato == null)
-                return "—";
+            if (candidatos.Count == 0)
+                return new List<VotoDetalhe>();
 
-            detalhesSemVotoIdUsados.Add(candidato.Id);
-            return FormatarOpcoesVotadas(new List<VotoDetalhe> { candidato });
+            var deltaMinimo = candidatos[0].Delta;
+            if (deltaMinimo > 30)
+                return new List<VotoDetalhe>();
+
+            var ancora = candidatos[0].Detalhe.DataHora;
+            var grupo = candidatos
+                .Where(x => x.Delta <= 5 || x.Detalhe.DataHora == ancora)
+                .Select(x => x.Detalhe)
+                .ToList();
+
+            foreach (var d in grupo)
+                detalhesSemVotoIdUsados.Add(d.Id);
+
+            return grupo;
         }
 
-        private static string FormatarOpcoesVotadas(IReadOnlyList<VotoDetalhe> detalhes)
+        private static string FormatarRespostaPergunta(IReadOnlyList<VotoDetalhe> detalhes, Guid perguntaId)
         {
-            if (detalhes.Count == 0)
+            var daPergunta = detalhes.Where(d => d.PerguntaId == perguntaId).ToList();
+            if (daPergunta.Count == 0)
                 return "—";
 
-            if (detalhes.All(d => d.VotoBranco || !d.OpcaoId.HasValue))
+            if (daPergunta.All(d => d.VotoBranco || !d.OpcaoId.HasValue))
                 return "Branco";
 
-            var textos = detalhes
+            var textos = daPergunta
                 .Where(d => d.Opcao != null && !string.IsNullOrWhiteSpace(d.Opcao!.Texto))
                 .Select(d => d.Opcao!.Texto.Trim())
                 .Distinct()
                 .ToList();
 
             return textos.Count > 0 ? string.Join(", ", textos) : "—";
-        }
-
-        private static string ClassificarOpcaoVotada(string? opcao)
-        {
-            var normalizado = RemoverAcentos(opcao?.Trim().ToUpperInvariant() ?? "");
-            if (normalizado.StartsWith("SIM")) return "Sim";
-            if (normalizado.StartsWith("NAO")) return "Nao";
-            if (normalizado == "BRANCO") return "Branco";
-            return "Outro";
         }
 
         private static string RemoverAcentos(string texto)
