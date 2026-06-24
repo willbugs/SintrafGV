@@ -30,5 +30,6 @@ public interface IEleicaoRepository
     Task<Dictionary<Guid, int>> ContarVotosPorOpcaoAsync(Guid eleicaoId, CancellationToken cancellationToken = default);
     Task<Dictionary<Guid, int>> ContarVotosBrancoPorPerguntaAsync(Guid eleicaoId, CancellationToken cancellationToken = default);
     Task<bool> AssociadoJaVotouAsync(Guid eleicaoId, Guid associadoId, CancellationToken cancellationToken = default);
+    Task<bool> CpfJaVotouAsync(Guid eleicaoId, string cpf, CancellationToken cancellationToken = default);
     Task<Voto> RegistrarVotoAsync(Voto voto, List<VotoDetalhe> detalhes, CancellationToken cancellationToken = default);
 }

@@ -33,4 +33,6 @@ public class ComprovanteVotoDto
     public string NumeroComprovante { get; set; } = string.Empty;
     public string AssociadoNome { get; set; } = string.Empty;
     public int TotalPerguntas { get; set; }
+    /// <summary>Nome do sindicato para exibição no comprovante (razão social ou nome fantasia).</summary>
+    public string SindicatoNome { get; set; } = string.Empty;
 }

@@ -10,7 +10,7 @@ using SintrafGv.Application.Services;
 using SintrafGv.Application.DTOs;
 using SintrafGv.Domain.Entities;
 using SintrafGv.Domain.Enums;
-using SintrafGv.Domain.Interfaces.Repositories;
+using SintrafGv.Domain.Interfaces;
 
 namespace SintrafGv.Tests.Application
 {
@@ -19,6 +19,7 @@ namespace SintrafGv.Tests.Application
         private readonly Mock<IEleicaoRepository> _eleicaoRepositoryMock;
         private readonly Mock<IAssociadoRepository> _associadoRepositoryMock;
         private readonly Mock<IVotoRepository> _votoRepositoryMock;
+        private readonly Mock<IConfiguracaoSindicatoRepository> _configuracaoSindicatoRepositoryMock;
         private readonly EleicaoService _eleicaoService;
 
         public EleicaoServiceTests()
@@ -26,11 +27,13 @@ namespace SintrafGv.Tests.Application
             _eleicaoRepositoryMock = new Mock<IEleicaoRepository>();
             _associadoRepositoryMock = new Mock<IAssociadoRepository>();
             _votoRepositoryMock = new Mock<IVotoRepository>();
+            _configuracaoSindicatoRepositoryMock = new Mock<IConfiguracaoSindicatoRepository>();
             
             _eleicaoService = new EleicaoService(
                 _eleicaoRepositoryMock.Object,
                 _associadoRepositoryMock.Object,
-                _votoRepositoryMock.Object
+                _votoRepositoryMock.Object,
+                _configuracaoSindicatoRepositoryMock.Object
             );
         }
 

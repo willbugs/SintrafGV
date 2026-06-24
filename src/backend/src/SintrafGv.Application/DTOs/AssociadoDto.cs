@@ -39,6 +39,8 @@ public record AssociadoDto(
     // Status
     bool Filiado,
     bool Ativo,
+    bool Encerrado,
+    Guid? SubstituidoPorId,
     bool Aposentado,
     // Auditoria
     DateTime? DataUltimaAtualizacao,
@@ -123,3 +125,8 @@ public record UpdateAssociadoRequest(
     bool Filiado,
     bool Ativo,
     bool Aposentado);
+
+public record TrocarBancoAssociadoRequest(
+    string MatriculaBancaria,
+    string Banco,
+    string? MotivoEncerramento);

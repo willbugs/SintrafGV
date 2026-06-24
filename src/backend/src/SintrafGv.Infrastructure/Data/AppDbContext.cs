@@ -112,6 +112,8 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<VotoDetalhe>(e =>
         {
             e.HasKey(x => x.Id);
+            e.HasOne(x => x.Voto).WithMany().HasForeignKey(x => x.VotoId).OnDelete(DeleteBehavior.Restrict);
+            e.HasIndex(x => x.VotoId);
         });
 
         modelBuilder.Entity<ConfiguracaoSindicato>(e =>

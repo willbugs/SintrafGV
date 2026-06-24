@@ -144,6 +144,15 @@ export const associadosAPI = {
   atualizar: async (id: string, data: Record<string, unknown>) => {
     await api.put(`/api/associados/${id}`, data);
   },
+  historicoPorCpf: async (cpf: string) => {
+    const cpfLimpo = cpf.replace(/\D/g, '');
+    const response = await api.get(`/api/associados/cpf/${cpfLimpo}/historico`);
+    return response.data;
+  },
+  trocarBanco: async (id: string, data: { matriculaBancaria: string; banco: string; motivoEncerramento?: string }) => {
+    const response = await api.post(`/api/associados/${id}/trocar-banco`, data);
+    return response.data;
+  },
 };
 
 export const enquetesAPI = {

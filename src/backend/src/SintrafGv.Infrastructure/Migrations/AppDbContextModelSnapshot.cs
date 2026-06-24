@@ -37,6 +37,9 @@ namespace SintrafGv.Infrastructure.Migrations
                     b.Property<bool>("Ativo")
                         .HasColumnType("bit");
 
+                    b.Property<bool>("Encerrado")
+                        .HasColumnType("bit");
+
                     b.Property<bool>("Filiado")
                         .HasColumnType("bit");
 
@@ -137,6 +140,9 @@ namespace SintrafGv.Infrastructure.Migrations
 
                     b.Property<string>("Serie")
                         .HasColumnType("nvarchar(max)");
+
+                    b.Property<Guid?>("SubstituidoPorId")
+                        .HasColumnType("uniqueidentifier");
 
                     b.Property<string>("Sexo")
                         .HasColumnType("nvarchar(max)");

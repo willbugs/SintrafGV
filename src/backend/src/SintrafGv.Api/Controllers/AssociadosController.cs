@@ -45,6 +45,37 @@ public class AssociadosController : ControllerBase
         return Ok(new { itens = itensLegado.Select(ToDto), total = totalLegado });
     }
 
+    [HttpGet("cpf/{cpf}/historico")]
+    public async Task<ActionResult<object>> HistoricoPorCpf(string cpf, CancellationToken cancellationToken)
+    {
+        var itens = await _service.ListarHistoricoPorCpfAsync(cpf, cancellationToken);
+        if (itens.Count == 0)
+            return NotFound(new { message = "Nenhum cadastro encontrado para este CPF." });
+        return Ok(new { itens = itens.Select(ToDto) });
+    }
+
+    [HttpPost("{id:guid}/trocar-banco")]
+    public async Task<ActionResult<AssociadoDto>> TrocarBanco(
+        Guid id,
+        [FromBody] TrocarBancoAssociadoRequest request,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var novo = await _service.TrocarBancoAsync(
+                id,
+                request.MatriculaBancaria,
+                request.Banco,
+                request.MotivoEncerramento,
+                cancellationToken);
+            return Ok(ToDto(novo));
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
     [HttpPost]
     public async Task<ActionResult<AssociadoDto>> Criar([FromBody] CreateAssociadoRequest request, CancellationToken cancellationToken)
     {
@@ -203,6 +234,8 @@ public class AssociadosController : ControllerBase
         a.Email,
         a.Filiado,
         a.Ativo,
+        a.Encerrado,
+        a.SubstituidoPorId,
         a.Aposentado,
         a.DataUltimaAtualizacao,
         a.CriadoEm);

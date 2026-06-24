@@ -1,11 +1,15 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
+using System.Text;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.EntityFrameworkCore;
 using SintrafGv.Application.DTOs;
+using SintrafGv.Domain.Entities;
 using SintrafGv.Domain.Interfaces;
 using SintrafGv.Application.Interfaces;
 using SintrafGv.Infrastructure.Data;
@@ -558,42 +562,82 @@ namespace SintrafGv.Application.Services
             RelatorioRequest request,
             CancellationToken cancellationToken = default)
         {
-            // Buscar associados e eleições
-            var associados = await _associadoRepository.ListarAsync(0, int.MaxValue, false, cancellationToken);
-            var eleicoes = await _eleicaoRepository.ListarAsync(0, int.MaxValue, null, null, null, null, cancellationToken);
-            var votos = await _votoRepository.ListarTodosAsync(cancellationToken);
-
-            var dados = associados.Select(associado =>
+            var filtros = request.Filtros ?? new Dictionary<string, object>();
+            var enqueteIdFiltro = LerGuidFiltro(filtros, "enqueteId");
+            if (!enqueteIdFiltro.HasValue)
             {
-                var votosAssociado = votos.Where(v => v.AssociadoId == associado.Id).ToList();
-                var eleicoesDisponiveis = eleicoes.Count(e => e.InicioVotacao <= DateTime.Now);
-                
-                return new ParticipacaoVotacaoDto
+                return new RelatorioResponse<ParticipacaoVotacaoDto>
                 {
-                    AssociadoId = associado.Id,
-                    Nome = associado.Nome,
-                    Cpf = associado.Cpf,
-                    MatriculaSindicato = associado.MatriculaSindicato!,
-                    NomeBanco = associado.Banco ?? "",
-                    Funcao = associado.Funcao!,
-                    TotalEleicoesDisponiveis = eleicoesDisponiveis,
-                    TotalVotosRealizados = votosAssociado.Count,
-                    PercentualParticipacao = eleicoesDisponiveis > 0 ? 
-                        (decimal)votosAssociado.Count / eleicoesDisponiveis * 100 : 0,
-                    UltimaVotacao = votosAssociado.OrderByDescending(v => v.DataHoraVoto).FirstOrDefault()?.DataHoraVoto,
-                    UltimaEleicaoTitulo = votosAssociado.OrderByDescending(v => v.DataHoraVoto).FirstOrDefault()?.Eleicao?.Titulo ?? "",
-                    StatusAssociado = associado.Ativo ? "Ativo" : "Inativo",
-                    DataFiliacao = associado.DataFiliacao ?? DateTime.MinValue
+                    Dados = new List<ParticipacaoVotacaoDto>(),
+                    Metadata = new RelatorioMetadata
+                    {
+                        Titulo = "Relatório de Participação em Votações",
+                        Subtitulo = "Selecione uma enquete para gerar o relatório",
+                        TotalRegistros = 0,
+                        FiltrosAplicados = filtros
+                    },
+                    Totalizadores = new Dictionary<string, object>
+                    {
+                        { "TotalAssociados", 0 },
+                        { "TotalVotos", 0 },
+                        { "VotosSim", 0 },
+                        { "VotosNao", 0 },
+                        { "VotosBranco", 0 }
+                    }
                 };
-            }).ToList();
-
-            // Aplicar filtros se especificados
-            if (request.Filtros?.ContainsKey("enqueteId") == true &&
-                Guid.TryParse(request.Filtros["enqueteId"].ToString(), out var enqueteIdFiltro))
-            {
-                var votosEleicao = votos.Where(v => v.EleicaoId == enqueteIdFiltro).Select(v => v.AssociadoId).ToHashSet();
-                dados = dados.Where(d => votosEleicao.Contains(d.AssociadoId)).ToList();
             }
+
+            var associados = await _associadoRepository.ListarAsync(0, int.MaxValue, false, cancellationToken);
+            var associadosPorId = associados.ToDictionary(a => a.Id);
+            var eleicao = await _eleicaoRepository.ObterPorIdAsync(enqueteIdFiltro.Value, cancellationToken);
+            var tituloEleicao = eleicao?.Titulo ?? "Enquete";
+
+            var votosEleicao = await _votoRepository.ListarPorEleicaoAsync(enqueteIdFiltro.Value, cancellationToken);
+
+            var detalhesEleicao = await _context.VotosDetalhes
+                .AsNoTracking()
+                .Include(vd => vd.Opcao)
+                .Include(vd => vd.Pergunta)
+                .Where(vd => vd.Pergunta!.EleicaoId == enqueteIdFiltro.Value)
+                .ToListAsync(cancellationToken);
+
+            var detalhesPorVotoId = detalhesEleicao
+                .Where(d => d.VotoId.HasValue)
+                .GroupBy(d => d.VotoId!.Value)
+                .ToDictionary(g => g.Key, g => g.ToList());
+
+            var detalhesSemVotoId = detalhesEleicao.Where(d => !d.VotoId.HasValue).ToList();
+            var detalhesSemVotoIdUsados = new HashSet<Guid>();
+
+            var dados = votosEleicao
+                .Where(v => associadosPorId.ContainsKey(v.AssociadoId))
+                .Select(v =>
+                {
+                    var associado = associadosPorId[v.AssociadoId];
+                    var opcaoVotada = ObterOpcaoVotada(v, detalhesPorVotoId, detalhesSemVotoId, detalhesSemVotoIdUsados);
+                    return new ParticipacaoVotacaoDto
+                    {
+                        AssociadoId = associado.Id,
+                        Nome = associado.Nome,
+                        Cpf = associado.Cpf,
+                        MatriculaSindicato = associado.MatriculaSindicato!,
+                        NomeBanco = associado.Banco ?? "",
+                        Funcao = associado.Funcao!,
+                        OpcaoVotada = opcaoVotada,
+                        TotalEleicoesDisponiveis = 1,
+                        TotalVotosRealizados = 1,
+                        PercentualParticipacao = 100,
+                        UltimaVotacao = v.DataHoraVoto,
+                        UltimaEleicaoTitulo = tituloEleicao,
+                        StatusAssociado = associado.Ativo ? "Ativo" : "Inativo",
+                        DataFiliacao = associado.DataFiliacao ?? DateTime.MinValue
+                    };
+                })
+                .ToList();
+
+            var votosSim = dados.Count(d => ClassificarOpcaoVotada(d.OpcaoVotada) == "Sim");
+            var votosNao = dados.Count(d => ClassificarOpcaoVotada(d.OpcaoVotada) == "Nao");
+            var votosBranco = dados.Count(d => ClassificarOpcaoVotada(d.OpcaoVotada) == "Branco");
 
             return new RelatorioResponse<ParticipacaoVotacaoDto>
             {
@@ -601,17 +645,80 @@ namespace SintrafGv.Application.Services
                 Metadata = new RelatorioMetadata
                 {
                     Titulo = "Relatório de Participação em Votações",
-                    Subtitulo = "Análise de engajamento dos associados",
+                    Subtitulo = tituloEleicao,
                     TotalRegistros = dados.Count,
-                    FiltrosAplicados = request.Filtros!
+                    FiltrosAplicados = filtros
                 },
                 Totalizadores = new Dictionary<string, object>
                 {
                     { "TotalAssociados", dados.Count },
-                    { "ParticipacaoMedia", dados.Any() ? dados.Average(d => d.PercentualParticipacao) : 0 },
-                    { "TotalVotos", dados.Sum(d => d.TotalVotosRealizados) }
+                    { "TotalVotos", votosEleicao.Count },
+                    { "VotosSim", votosSim },
+                    { "VotosNao", votosNao },
+                    { "VotosBranco", votosBranco }
                 }
             };
+        }
+
+        private static string ObterOpcaoVotada(
+            Voto voto,
+            Dictionary<Guid, List<VotoDetalhe>> detalhesPorVotoId,
+            List<VotoDetalhe> detalhesSemVotoId,
+            HashSet<Guid> detalhesSemVotoIdUsados)
+        {
+            if (detalhesPorVotoId.TryGetValue(voto.Id, out var detalhesVinculados))
+                return FormatarOpcoesVotadas(detalhesVinculados);
+
+            var candidato = detalhesSemVotoId
+                .Where(d => !detalhesSemVotoIdUsados.Contains(d.Id))
+                .Where(d => Math.Abs((d.DataHora - voto.DataHoraVoto).TotalSeconds) <= 30)
+                .OrderBy(d => Math.Abs((d.DataHora - voto.DataHoraVoto).Ticks))
+                .FirstOrDefault();
+
+            if (candidato == null)
+                return "—";
+
+            detalhesSemVotoIdUsados.Add(candidato.Id);
+            return FormatarOpcoesVotadas(new List<VotoDetalhe> { candidato });
+        }
+
+        private static string FormatarOpcoesVotadas(IReadOnlyList<VotoDetalhe> detalhes)
+        {
+            if (detalhes.Count == 0)
+                return "—";
+
+            if (detalhes.All(d => d.VotoBranco || !d.OpcaoId.HasValue))
+                return "Branco";
+
+            var textos = detalhes
+                .Where(d => d.Opcao != null && !string.IsNullOrWhiteSpace(d.Opcao!.Texto))
+                .Select(d => d.Opcao!.Texto.Trim())
+                .Distinct()
+                .ToList();
+
+            return textos.Count > 0 ? string.Join(", ", textos) : "—";
+        }
+
+        private static string ClassificarOpcaoVotada(string? opcao)
+        {
+            var normalizado = RemoverAcentos(opcao?.Trim().ToUpperInvariant() ?? "");
+            if (normalizado.StartsWith("SIM")) return "Sim";
+            if (normalizado.StartsWith("NAO")) return "Nao";
+            if (normalizado == "BRANCO") return "Branco";
+            return "Outro";
+        }
+
+        private static string RemoverAcentos(string texto)
+        {
+            if (string.IsNullOrEmpty(texto)) return "";
+            var normalized = texto.Normalize(NormalizationForm.FormD);
+            var sb = new StringBuilder();
+            foreach (var c in normalized)
+            {
+                if (CharUnicodeInfo.GetUnicodeCategory(c) != UnicodeCategory.NonSpacingMark)
+                    sb.Append(c);
+            }
+            return sb.ToString().Normalize(NormalizationForm.FormC);
         }
 
         public async Task<RelatorioResponse<ResultadoEleicaoDto>> ObterRelatorioResultadosEleicaoAsync(
@@ -1036,6 +1143,19 @@ namespace SintrafGv.Application.Services
             if (situacao == "ativos") return associados.Where(a => a.Ativo).ToList();
             if (situacao == "inativos") return associados.Where(a => !a.Ativo).ToList();
             return associados;
+        }
+
+        private static Guid? LerGuidFiltro(Dictionary<string, object> filtros, string chave)
+        {
+            if (!filtros.TryGetValue(chave, out var bruto) || bruto == null)
+                return null;
+            if (bruto is JsonElement je)
+            {
+                if (je.ValueKind == JsonValueKind.String && Guid.TryParse(je.GetString(), out var guidStr))
+                    return guidStr;
+                return null;
+            }
+            return Guid.TryParse(bruto.ToString(), out var guid) ? guid : null;
         }
 
         private static int? LerIntFiltro(Dictionary<string, object> filtros, string chave)

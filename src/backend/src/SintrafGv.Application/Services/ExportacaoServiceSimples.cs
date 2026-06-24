@@ -78,10 +78,10 @@ namespace SintrafGv.Application.Services
             document.Add(new Paragraph(RemoverAcentos($"Gerado em: {dados.Metadata.DataGeracao:dd/MM/yyyy HH:mm} | Total: {dados.Metadata.TotalRegistros}"))
                 .SetFont(font).SetFontSize(10).SetTextAlignment(TextAlignment.RIGHT));
 
-            // Tabela (máximo 6 colunas para caber na página) - excluir listas e dicionários
-            var propriedades = ObterPropriedadesSimples<T>().Take(6).ToList();
+            // Tabela - colunas exportáveis (exclui [ExportIgnore])
+            var propriedades = ObterPropriedadesSimples<T>().ToList();
             if (propriedades.Count == 0)
-                propriedades = typeof(T).GetProperties().Where(p => p.CanRead && p.GetIndexParameters().Length == 0).Take(6).ToList();
+                propriedades = typeof(T).GetProperties().Where(p => p.CanRead && p.GetIndexParameters().Length == 0).Take(8).ToList();
             var tabela = new Table(Math.Max(1, propriedades.Count)).UseAllAvailableWidth();
 
             // Cabeçalhos
@@ -96,8 +96,8 @@ namespace SintrafGv.Application.Services
             if (propriedades.Count == 0)
                 tabela.AddHeaderCell(new Cell().Add(new Paragraph("Dados")).SetFont(boldFont).SetFontSize(10).SetBackgroundColor(ColorConstants.LIGHT_GRAY));
 
-            // Dados (máximo 100 linhas para performance)
-            foreach (var registro in dados.Dados.Take(100))
+            // Dados
+            foreach (var registro in dados.Dados)
             {
                 foreach (var prop in propriedades)
                 {
@@ -109,6 +109,7 @@ namespace SintrafGv.Application.Services
             }
 
             document.Add(tabela);
+            AdicionarTotalizadores(document, dados, font, boldFont);
             document.Close();
 
             return new ExportacaoRelatorioDto
@@ -160,7 +161,8 @@ namespace SintrafGv.Application.Services
                         if (valor is DateTime data)
                         {
                             worksheet.Cells[linha, coluna].Value = data;
-                            worksheet.Cells[linha, coluna].Style.Numberformat.Format = "dd/mm/yyyy";
+                            worksheet.Cells[linha, coluna].Style.Numberformat.Format =
+                                data.TimeOfDay == TimeSpan.Zero ? "dd/mm/yyyy" : "dd/mm/yyyy hh:mm";
                         }
                         else if (valor is bool boolean)
                         {
@@ -187,6 +189,8 @@ namespace SintrafGv.Application.Services
             // Autofit (Dimension pode ser null se planilha vazia)
             if (worksheet.Dimension != null)
                 worksheet.Cells[worksheet.Dimension.Address].AutoFitColumns();
+
+            AdicionarTotalizadoresPlanilha(worksheet, dados, ref linha);
 
             var conteudo = package.GetAsByteArray();
 
@@ -228,7 +232,7 @@ namespace SintrafGv.Application.Services
                     var valorFormatado = valor switch
                     {
                         null => "",
-                        DateTime data => data.ToString("dd/MM/yyyy"),
+                        DateTime data => data.ToString("dd/MM/yyyy HH:mm"),
                         bool boolean => boolean ? "Sim" : "Não",
                         TimeSpan ts => ts.ToString(@"hh\:mm\:ss"),
                         IEnumerable and not string => "-",
@@ -245,6 +249,8 @@ namespace SintrafGv.Application.Services
                 }
                 csv.AppendLine(string.Join(";", valores));
             }
+
+            AdicionarTotalizadoresCsv(csv, dados);
 
             var conteudo = Encoding.UTF8.GetBytes(csv.ToString());
 
@@ -263,6 +269,7 @@ namespace SintrafGv.Application.Services
         {
             return typeof(T).GetProperties()
                 .Where(p => p.CanRead && p.GetIndexParameters().Length == 0)
+                .Where(p => p.GetCustomAttribute<ExportIgnoreAttribute>() == null)
                 .Where(p =>
                 {
                     var t = Nullable.GetUnderlyingType(p.PropertyType) ?? p.PropertyType;
@@ -292,6 +299,8 @@ namespace SintrafGv.Application.Services
         {
             if (valor == null) return "";
             if (valor is IEnumerable and not string) return "-";
+            if (valor is DateTime data)
+                return RemoverAcentos(data.ToString("dd/MM/yyyy HH:mm"));
             return RemoverAcentos(valor.ToString());
         }
 
@@ -301,6 +310,56 @@ namespace SintrafGv.Application.Services
             var invalidos = new[] { '\\', '/', '*', '?', ':', '[', ']' };
             var sanitizado = new string(titulo.Where(c => !invalidos.Contains(c)).ToArray()).Trim();
             return sanitizado.Length > 31 ? sanitizado[..31] : sanitizado;
+        }
+
+        private static void AdicionarTotalizadores<T>(Document document, RelatorioResponse<T> dados, PdfFont font, PdfFont boldFont)
+        {
+            if (dados.Totalizadores == null || !dados.Totalizadores.ContainsKey("VotosSim"))
+                return;
+
+            document.Add(new Paragraph("\n"));
+            var sim = dados.Totalizadores.GetValueOrDefault("VotosSim", 0);
+            var nao = dados.Totalizadores.GetValueOrDefault("VotosNao", 0);
+            var branco = dados.Totalizadores.GetValueOrDefault("VotosBranco", 0);
+            var total = dados.Totalizadores.GetValueOrDefault("TotalAssociados", dados.Metadata.TotalRegistros);
+            var resumo = $"Total: {total} | Sim: {sim} | Nao: {nao} | Branco: {branco}";
+            document.Add(new Paragraph(RemoverAcentos(resumo))
+                .SetFont(boldFont).SetFontSize(11).SetTextAlignment(TextAlignment.RIGHT));
+        }
+
+        private static void AdicionarTotalizadoresPlanilha<T>(ExcelWorksheet worksheet, RelatorioResponse<T> dados, ref int linha)
+        {
+            if (dados.Totalizadores == null || !dados.Totalizadores.ContainsKey("VotosSim"))
+                return;
+
+            linha += 2;
+            worksheet.Cells[linha, 1].Value = "Totalizadores";
+            worksheet.Cells[linha, 1].Style.Font.Bold = true;
+            linha++;
+            worksheet.Cells[linha, 1].Value = "Total de votantes";
+            worksheet.Cells[linha, 2].Value = dados.Totalizadores.GetValueOrDefault("TotalAssociados", dados.Metadata.TotalRegistros);
+            linha++;
+            worksheet.Cells[linha, 1].Value = "Votos Sim";
+            worksheet.Cells[linha, 2].Value = dados.Totalizadores.GetValueOrDefault("VotosSim", 0);
+            linha++;
+            worksheet.Cells[linha, 1].Value = "Votos Não";
+            worksheet.Cells[linha, 2].Value = dados.Totalizadores.GetValueOrDefault("VotosNao", 0);
+            linha++;
+            worksheet.Cells[linha, 1].Value = "Votos Branco";
+            worksheet.Cells[linha, 2].Value = dados.Totalizadores.GetValueOrDefault("VotosBranco", 0);
+        }
+
+        private static void AdicionarTotalizadoresCsv<T>(StringBuilder csv, RelatorioResponse<T> dados)
+        {
+            if (dados.Totalizadores == null || !dados.Totalizadores.ContainsKey("VotosSim"))
+                return;
+
+            csv.AppendLine();
+            csv.AppendLine("# Totalizadores");
+            csv.AppendLine($"# Total de votantes;{dados.Totalizadores.GetValueOrDefault("TotalAssociados", dados.Metadata.TotalRegistros)}");
+            csv.AppendLine($"# Votos Sim;{dados.Totalizadores.GetValueOrDefault("VotosSim", 0)}");
+            csv.AppendLine($"# Votos Nao;{dados.Totalizadores.GetValueOrDefault("VotosNao", 0)}");
+            csv.AppendLine($"# Votos Branco;{dados.Totalizadores.GetValueOrDefault("VotosBranco", 0)}");
         }
 
         private string ObterTituloColuna(string nomePropriedade)
@@ -326,6 +385,11 @@ namespace SintrafGv.Application.Services
                 "Estado" => "Estado",
                 "Funcao" => "Função",
                 "NomeBanco" => "Banco",
+                "OpcaoVotada" => "Voto",
+                "TotalEleicoesDisponiveis" => "Enquetes Disponíveis",
+                "TotalVotosRealizados" => "Votos Realizados",
+                "PercentualParticipacao" => "Participação (%)",
+                "UltimaVotacao" => "Data/Hora Votação",
                 "Agencia" => "Agência",
                 "CidadeAgencia" => "Cidade Agência",
                 "CodAgencia" => "Cód. Agência",

@@ -62,6 +62,10 @@ public class Associado
     public bool Filiado { get; set; } = true;
     /// <summary>Cadastro ativo no sistema (pode votar, receber comunicações)</summary>
     public bool Ativo { get; set; } = true;
+    /// <summary>Cadastro histórico (ex.: troca de banco). Não pode ser reativado.</summary>
+    public bool Encerrado { get; set; }
+    /// <summary>Cadastro ativo que substituiu este registro, quando encerrado por troca de banco.</summary>
+    public Guid? SubstituidoPorId { get; set; }
     /// <summary>Status funcional: false = na ativa, true = aposentado do banco</summary>
     public bool Aposentado { get; set; } = false;
 

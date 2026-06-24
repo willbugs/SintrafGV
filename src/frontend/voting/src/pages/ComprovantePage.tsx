@@ -32,6 +32,7 @@ interface ComprovanteVoto {
   numeroComprovante: string
   associadoNome: string
   totalPerguntas: number
+  sindicatoNome: string
 }
 
 const ComprovantePage: React.FC = () => {
@@ -61,7 +62,8 @@ const ComprovantePage: React.FC = () => {
         hashVoto: d.hashVoto ?? d.HashVoto ?? '',
         numeroComprovante: d.numeroComprovante ?? d.NumeroComprovante ?? d.codigo ?? d.Codigo ?? '',
         associadoNome: d.associadoNome ?? d.AssociadoNome ?? associado?.nome ?? '',
-        totalPerguntas: d.totalPerguntas ?? d.TotalPerguntas ?? 0
+        totalPerguntas: d.totalPerguntas ?? d.TotalPerguntas ?? 0,
+        sindicatoNome: d.sindicatoNome ?? d.SindicatoNome ?? 'SintrafGV'
       })
     } catch (err) {
       setError('Erro ao carregar comprovante')
@@ -158,7 +160,7 @@ Hash: ${comprovante.hashVoto}`
                 🗳️ COMPROVANTE DE VOTAÇÃO
               </Typography>
               <Typography variant="subtitle1" color="primary" fontWeight="bold">
-                SintrafGV - Sindicato dos Trabalhadores em Saúde
+                {comprovante.sindicatoNome}
               </Typography>
               <Divider sx={{ my: 2 }} />
             </Box>

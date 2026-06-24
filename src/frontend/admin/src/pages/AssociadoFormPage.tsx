@@ -14,6 +14,17 @@ import {
   InputLabel,
   Select,
   MenuItem,
+  Alert,
+  Chip,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableRow,
 } from '@mui/material';
 import { useNavigate, useParams } from 'react-router-dom';
 import { associadosAPI } from '../services/api';
@@ -112,7 +123,13 @@ const AssociadoFormPage: React.FC = () => {
   const [email, setEmail] = useState('');
 
   const [ativo, setAtivo] = useState(true);
+  const [encerrado, setEncerrado] = useState(false);
   const [aposentado, setAposentado] = useState(false);
+  const [historico, setHistorico] = useState<Array<Record<string, unknown>>>([]);
+  const [trocarBancoOpen, setTrocarBancoOpen] = useState(false);
+  const [novaMatricula, setNovaMatricula] = useState('');
+  const [novoBanco, setNovoBanco] = useState('');
+  const [motivoTroca, setMotivoTroca] = useState('');
 
   const [loading, setLoading] = useState(!isNew);
   const [saving, setSaving] = useState(false);
@@ -153,7 +170,14 @@ const AssociadoFormPage: React.FC = () => {
           setCelular(formatCelular((a.celular as string) ?? ''));
           setEmail((a.email as string) ?? '');
           setAtivo((a.ativo as boolean) ?? true);
+          setEncerrado((a.encerrado as boolean) ?? false);
           setAposentado((a.aposentado as boolean) ?? false);
+          const cpfCarregado = ((a.cpf as string) ?? '').replace(/\D/g, '');
+          if (cpfCarregado.length === 11) {
+            associadosAPI.historicoPorCpf(cpfCarregado)
+              .then((h) => setHistorico(h.itens ?? []))
+              .catch(() => setHistorico([]));
+          }
         })
         .catch(() => toast.error('Erro', 'Associado não encontrado.'))
         .finally(() => setLoading(false));
@@ -179,8 +203,36 @@ const AssociadoFormPage: React.FC = () => {
     }
   };
 
+  const handleTrocarBanco = async () => {
+    if (!id || !novaMatricula.trim() || !novoBanco.trim()) {
+      toast.warning('Atenção', 'Informe banco e matrícula bancária do novo cadastro.');
+      return;
+    }
+    setSaving(true);
+    try {
+      const novo = await associadosAPI.trocarBanco(id, {
+        matriculaBancaria: novaMatricula.trim(),
+        banco: novoBanco.trim(),
+        motivoEncerramento: motivoTroca.trim() || undefined,
+      });
+      toast.success('Sucesso', 'Cadastro anterior encerrado. Novo cadastro criado.');
+      setTrocarBancoOpen(false);
+      navigate(`/associados/${novo.id}`);
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      toast.error('Erro', msg ?? 'Não foi possível trocar o banco.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (encerrado) {
+      toast.warning('Atenção', 'Cadastro encerrado (histórico) não pode ser alterado.');
+      return;
+    }
 
     if (!nome.trim() || !cpf.trim()) {
       toast.warning('Atenção', 'Nome e CPF são obrigatórios.');
@@ -593,22 +645,110 @@ const AssociadoFormPage: React.FC = () => {
           <Typography variant="h6" gutterBottom>
             Status
           </Typography>
+          {encerrado && (
+            <Alert severity="warning" sx={{ mb: 2 }}>
+              Cadastro encerrado (histórico). Não pode ser reativado nem alterado.
+            </Alert>
+          )}
           <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 3, mb: 2 }}>
             <FormControlLabel
-              control={<Checkbox checked={ativo} onChange={(e) => setAtivo(e.target.checked)} />}
+              control={
+                <Checkbox
+                  checked={ativo}
+                  onChange={(e) => setAtivo(e.target.checked)}
+                  disabled={encerrado}
+                />
+              }
               label="Cadastro Ativo (pode votar)"
             />
             <FormControlLabel
-              control={<Checkbox checked={aposentado} onChange={(e) => setAposentado(e.target.checked)} />}
+              control={
+                <Checkbox
+                  checked={aposentado}
+                  onChange={(e) => setAposentado(e.target.checked)}
+                  disabled={encerrado}
+                />
+              }
               label="Aposentado"
             />
+            {encerrado && <Chip label="Encerrado" color="default" size="small" />}
           </Box>
+
+          {!isNew && !encerrado && ativo && (
+            <Button variant="outlined" color="secondary" sx={{ mb: 2 }} onClick={() => setTrocarBancoOpen(true)}>
+              Trocar banco (encerra este cadastro)
+            </Button>
+          )}
+
+          {historico.length > 1 && (
+            <>
+              <Divider sx={{ my: 3 }} />
+              <Typography variant="h6" gutterBottom>
+                Histórico deste CPF
+              </Typography>
+              <Table size="small" sx={{ mb: 2 }}>
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Banco</TableCell>
+                    <TableCell>Matrícula</TableCell>
+                    <TableCell>Situação</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {historico.map((h) => (
+                    <TableRow key={String(h.id)}>
+                      <TableCell>{String(h.banco ?? '—')}</TableCell>
+                      <TableCell>{String(h.matriculaBancaria ?? '—')}</TableCell>
+                      <TableCell>
+                        {h.encerrado ? 'Encerrado' : h.ativo ? 'Ativo' : 'Inativo'}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </>
+          )}
+
+          <Dialog open={trocarBancoOpen} onClose={() => setTrocarBancoOpen(false)} maxWidth="sm" fullWidth>
+            <DialogTitle>Trocar banco</DialogTitle>
+            <DialogContent>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                O cadastro atual será encerrado (Itaú ou outro) e um novo cadastro ativo será criado. Esta ação não pode ser desfeita.
+              </Typography>
+              <TextField
+                fullWidth
+                label="Novo banco"
+                value={novoBanco}
+                onChange={(e) => setNovoBanco(e.target.value)}
+                sx={{ mb: 2, mt: 1 }}
+              />
+              <TextField
+                fullWidth
+                label="Nova matrícula bancária"
+                value={novaMatricula}
+                onChange={(e) => setNovaMatricula(e.target.value)}
+                sx={{ mb: 2 }}
+              />
+              <TextField
+                fullWidth
+                label="Motivo (opcional)"
+                value={motivoTroca}
+                onChange={(e) => setMotivoTroca(e.target.value)}
+              />
+            </DialogContent>
+            <DialogActions>
+              <Button onClick={() => setTrocarBancoOpen(false)}>Cancelar</Button>
+              <Button variant="contained" onClick={handleTrocarBanco} disabled={saving}>
+                Confirmar troca
+              </Button>
+            </DialogActions>
+          </Dialog>
 
           <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2, mt: 3 }}>
             <Button onClick={() => navigate('/associados')} disabled={saving}>
               Cancelar
             </Button>
-            <Button type="submit" variant="contained" disabled={saving}>
+            <Button type="submit" variant="contained" disabled={saving || encerrado}>
               {saving ? <CircularProgress size={24} /> : isNew ? 'Criar Associado' : 'Salvar Alterações'}
             </Button>
           </Box>

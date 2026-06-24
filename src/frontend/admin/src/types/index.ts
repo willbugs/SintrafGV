@@ -83,6 +83,8 @@ export interface Associado {
   email?: string;
   // Status
   ativo: boolean;
+  encerrado?: boolean;
+  substituidoPorId?: string | null;
   aposentado: boolean;
   // Auditoria
   dataUltimaAtualizacao?: string;

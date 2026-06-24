@@ -74,10 +74,11 @@ public class AuthController : ControllerBase
         var cpfLimpo = new string(request.Cpf.Where(char.IsDigit).ToArray());
         if (string.IsNullOrEmpty(cpfLimpo))
             return BadRequest(new { message = "CPF inválido." });
-        var associado = await _associadoRepository.ObterPorCpfAsync(cpfLimpo, cancellationToken);
+        var associado = await _associadoRepository.ObterAtivoPorCpfEMatriculaAsync(
+            cpfLimpo, request.MatriculaBancaria.Trim(), cancellationToken);
 
         if (associado == null)
-            return Unauthorized(new { message = "Associado não encontrado." });
+            return Unauthorized(new { message = "Dados de autenticação inválidos." });
 
         var formatosData = new[] { "yyyy-MM-dd", "dd/MM/yyyy", "d/M/yyyy", "dd-MM-yyyy" };
         if (!DateTime.TryParseExact(request.DataNascimento.Trim(), formatosData,
@@ -87,15 +88,6 @@ public class AuthController : ControllerBase
 
         if (associado.DataNascimento == null ||
             associado.DataNascimento.Value.Date != dataNascInput.Date)
-            return Unauthorized(new { message = "Dados de autenticação inválidos." });
-
-        var matriculaLimpa = request.MatriculaBancaria.Trim();
-        var matriculaDb = (associado.MatriculaBancaria ?? "").Trim();
-        if (string.IsNullOrEmpty(matriculaDb))
-            return Unauthorized(new { message = "Dados de autenticação inválidos." });
-        var matriculaMatch = matriculaDb == matriculaLimpa ||
-            matriculaDb.TrimStart('0') == matriculaLimpa.TrimStart('0');
-        if (!matriculaMatch)
             return Unauthorized(new { message = "Dados de autenticação inválidos." });
 
         var token = _jwtTokenGenerator.GenerateTokenAssociado(associado);
@@ -157,13 +149,13 @@ public class AuthController : ControllerBase
             return BadRequest(new { message = "Data de nascimento inválida. Use o formato DD/MM/AAAA." });
 
         var matriculaLimpa = request.MatriculaBancaria.Trim();
-        var matriculaExistente = await _associadoRepository.ObterPorMatriculaBancariaAsync(matriculaLimpa, cancellationToken);
+        var matriculaExistente = await _associadoRepository.ObterAtivoPorMatriculaBancariaAsync(matriculaLimpa, cancellationToken);
         if (matriculaExistente != null)
             return Conflict(new { message = "Matrícula bancária já cadastrada." });
 
-        var cpfExistente = await _associadoRepository.ObterPorCpfAsync(cpfLimpo, cancellationToken);
-        if (cpfExistente != null)
-            return Conflict(new { message = "CPF já cadastrado." });
+        var cpfAtivo = await _associadoRepository.ObterAtivoPorCpfAsync(cpfLimpo, cancellationToken);
+        if (cpfAtivo != null)
+            return Conflict(new { message = "CPF já possui cadastro ativo." });
 
         var celularLimpo = new string(request.Celular.Where(char.IsDigit).ToArray());
         var associado = new Associado

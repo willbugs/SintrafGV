@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using SintrafGv.Domain;
 using SintrafGv.Domain.Interfaces;
 using SintrafGv.Domain.Entities;
 using SintrafGv.Infrastructure.Data;
@@ -16,18 +17,65 @@ public class AssociadoRepository : IAssociadoRepository
 
     public async Task<Associado?> ObterPorCpfAsync(string cpf, CancellationToken cancellationToken = default)
     {
-        var cpfDigits = new string(cpf.Where(char.IsDigit).ToArray());
+        var cpfDigits = DocumentoAssociado.NormalizarCpf(cpf);
         if (string.IsNullOrEmpty(cpfDigits)) return null;
-        // Tenta match exato primeiro
-        var associado = await _context.Associados.FirstOrDefaultAsync(a => a.Cpf == cpfDigits, cancellationToken);
-        if (associado != null) return associado;
-        // Fallback: CPF no banco pode estar formatado (942.262.026-00)
-        var associados = await _context.Associados
-            .FromSqlRaw(
-                "SELECT * FROM Associados WHERE REPLACE(REPLACE(REPLACE(ISNULL(Cpf,''), '.', ''), '-', ''), ' ', '') = {0}",
-                cpfDigits)
-            .ToListAsync(cancellationToken);
+        var associados = await ListarPorCpfNormalizadoAsync(cpfDigits, cancellationToken);
         return associados.FirstOrDefault();
+    }
+
+    public async Task<Associado?> ObterAtivoPorCpfAsync(string cpf, CancellationToken cancellationToken = default)
+    {
+        var cpfDigits = DocumentoAssociado.NormalizarCpf(cpf);
+        if (string.IsNullOrEmpty(cpfDigits)) return null;
+        var associados = await ListarPorCpfNormalizadoAsync(cpfDigits, cancellationToken);
+        return associados.FirstOrDefault(DocumentoAssociado.EhCadastroAtual);
+    }
+
+    public async Task<Associado?> ObterAtivoPorCpfEMatriculaAsync(
+        string cpf,
+        string matriculaBancaria,
+        CancellationToken cancellationToken = default)
+    {
+        var cpfDigits = DocumentoAssociado.NormalizarCpf(cpf);
+        if (string.IsNullOrEmpty(cpfDigits)) return null;
+        var associados = await ListarPorCpfNormalizadoAsync(cpfDigits, cancellationToken);
+        return associados.FirstOrDefault(a =>
+            DocumentoAssociado.EhCadastroAtual(a) &&
+            DocumentoAssociado.MatriculaCoincide(a.MatriculaBancaria, matriculaBancaria));
+    }
+
+    public async Task<Associado?> ObterAtivoPorMatriculaBancariaAsync(
+        string matriculaBancaria,
+        CancellationToken cancellationToken = default)
+    {
+        var matriculaDigits = new string(matriculaBancaria.Where(char.IsDigit).ToArray());
+        if (string.IsNullOrEmpty(matriculaDigits)) return null;
+
+        var associados = await _context.Associados
+            .AsNoTracking()
+            .Where(a => a.Ativo && !a.Encerrado && a.MatriculaBancaria != null && a.MatriculaBancaria != "")
+            .ToListAsync(cancellationToken);
+
+        return associados.FirstOrDefault(a =>
+        {
+            var dbDigits = new string(a.MatriculaBancaria!.Where(char.IsDigit).ToArray());
+            if (string.IsNullOrEmpty(dbDigits)) return false;
+            return dbDigits == matriculaDigits ||
+                   dbDigits.TrimStart('0') == matriculaDigits.TrimStart('0');
+        });
+    }
+
+    public async Task<IReadOnlyList<Associado>> ListarHistoricoPorCpfAsync(
+        string cpf,
+        CancellationToken cancellationToken = default)
+    {
+        var cpfDigits = DocumentoAssociado.NormalizarCpf(cpf);
+        if (string.IsNullOrEmpty(cpfDigits)) return Array.Empty<Associado>();
+        var associados = await ListarPorCpfNormalizadoAsync(cpfDigits, cancellationToken);
+        return associados
+            .OrderByDescending(DocumentoAssociado.EhCadastroAtual)
+            .ThenByDescending(a => a.CriadoEm)
+            .ToList();
     }
 
     public async Task<Associado?> ObterPorMatriculaBancariaAsync(string matriculaBancaria, CancellationToken cancellationToken = default)
@@ -49,11 +97,22 @@ public class AssociadoRepository : IAssociadoRepository
         });
     }
 
+    private async Task<List<Associado>> ListarPorCpfNormalizadoAsync(string cpfDigits, CancellationToken cancellationToken)
+    {
+        var associados = await _context.Associados
+            .FromSqlRaw(
+                "SELECT * FROM Associados WHERE REPLACE(REPLACE(REPLACE(ISNULL(Cpf,''), '.', ''), '-', ''), ' ', '') = {0}",
+                cpfDigits)
+            .AsNoTracking()
+            .ToListAsync(cancellationToken);
+        return associados;
+    }
+
     public async Task<IReadOnlyList<Associado>> ListarAsync(int skip, int take, bool apenasAtivos = false, CancellationToken cancellationToken = default)
     {
         var query = _context.Associados.AsNoTracking();
         if (apenasAtivos)
-            query = query.Where(x => x.Ativo);
+            query = query.Where(x => x.Ativo && !x.Encerrado);
         return await query.OrderBy(x => x.Nome).Skip(skip).Take(take).ToListAsync(cancellationToken);
     }
 
@@ -67,7 +126,7 @@ public class AssociadoRepository : IAssociadoRepository
     {
         var query = _context.Associados.AsNoTracking();
         if (apenasAtivos)
-            query = query.Where(x => x.Ativo);
+            query = query.Where(x => x.Ativo && !x.Encerrado);
         return await query.CountAsync(cancellationToken);
     }
 
@@ -89,7 +148,9 @@ public class AssociadoRepository : IAssociadoRepository
                 (a.Email != null && a.Email.Contains(termo)));
         }
         if (statusAtivo.HasValue)
-            query = query.Where(x => x.Ativo == statusAtivo.Value);
+            query = statusAtivo.Value
+                ? query.Where(x => x.Ativo && !x.Encerrado)
+                : query.Where(x => !x.Ativo || x.Encerrado);
         return query;
     }
 
@@ -103,7 +164,7 @@ public class AssociadoRepository : IAssociadoRepository
     public async Task<int> ContarAssociadosAtivosAsync(CancellationToken cancellationToken = default)
     {
         return await _context.Associados
-            .CountAsync(a => a.Ativo, cancellationToken);
+            .CountAsync(a => a.Ativo && !a.Encerrado, cancellationToken);
     }
 
     public async Task<List<Associado>> ObterPorIdsAsync(List<Guid> ids, CancellationToken cancellationToken = default)

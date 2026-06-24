@@ -14,12 +14,34 @@ public class EleicaoService : IEleicaoService
     private readonly IEleicaoRepository _repository;
     private readonly IAssociadoRepository _associadoRepository;
     private readonly IVotoRepository _votoRepository;
+    private readonly IConfiguracaoSindicatoRepository _configuracaoSindicatoRepository;
 
-    public EleicaoService(IEleicaoRepository repository, IAssociadoRepository associadoRepository, IVotoRepository votoRepository)
+    public EleicaoService(
+        IEleicaoRepository repository,
+        IAssociadoRepository associadoRepository,
+        IVotoRepository votoRepository,
+        IConfiguracaoSindicatoRepository configuracaoSindicatoRepository)
     {
         _repository = repository;
         _associadoRepository = associadoRepository;
         _votoRepository = votoRepository;
+        _configuracaoSindicatoRepository = configuracaoSindicatoRepository;
+    }
+
+    internal static string ResolverNomeSindicato(ConfiguracaoSindicato? config)
+    {
+        const string fallback = "SintrafGV";
+        if (config is null) return fallback;
+
+        foreach (var candidate in new[] { config.RazaoSocial, config.NomeFantasia })
+        {
+            var nome = candidate?.Trim();
+            if (string.IsNullOrWhiteSpace(nome)) continue;
+            if (string.Equals(nome, "A preencher", StringComparison.OrdinalIgnoreCase)) continue;
+            return nome;
+        }
+
+        return fallback;
     }
 
     public async Task<(IReadOnlyList<EleicaoResumoDto> Itens, int Total)> ListarResumoAsync(
@@ -67,7 +89,8 @@ public class EleicaoService : IEleicaoService
                 continue;
             if (!AssociadoElegivelParaEleicao(e, associado))
                 continue;
-            var jaVotou = await _repository.AssociadoJaVotouAsync(e.Id, associadoId, cancellationToken);
+            var jaVotou = associado != null &&
+                await _repository.CpfJaVotouAsync(e.Id, associado.Cpf, cancellationToken);
             var dentroPeriodo = now >= e.InicioVotacao && now <= e.FimVotacao;
             var podeVotar = dentroPeriodo && !jaVotou;
             result.Add(new EleicaoAtivaDto
@@ -103,6 +126,8 @@ public class EleicaoService : IEleicaoService
     {
         if (associado is null)
             return false;
+        if (associado.Encerrado)
+            return false;
         if (eleicao.ApenasAssociados && !associado.Filiado)
             return false;
         if (eleicao.ApenasAtivos && !associado.Ativo)
@@ -114,6 +139,8 @@ public class EleicaoService : IEleicaoService
     {
         if (associado is null)
             throw new InvalidOperationException("Associado não encontrado.");
+        if (associado.Encerrado)
+            throw new InvalidOperationException("Cadastro encerrado não pode votar.");
         if (eleicao.ApenasAssociados && !associado.Filiado)
             throw new InvalidOperationException("Esta votação é restrita a associados filiados ao sindicato.");
         if (eleicao.ApenasAtivos && !associado.Ativo)
@@ -316,6 +343,8 @@ public class EleicaoService : IEleicaoService
         var voto = await _votoRepository.ObterVotoPorIdComEleicaoAsync(votoId, cancellationToken);
         if (voto is null || voto.AssociadoId != associadoId)
             return null;
+
+        var config = await _configuracaoSindicatoRepository.ObterConfiguracaoAsync(cancellationToken);
         return new ComprovanteVotoDto
         {
             Id = voto.Id,
@@ -324,7 +353,8 @@ public class EleicaoService : IEleicaoService
             HashVoto = voto.HashVoto ?? string.Empty,
             NumeroComprovante = voto.CodigoComprovante ?? string.Empty,
             AssociadoNome = voto.Associado?.Nome ?? string.Empty,
-            TotalPerguntas = voto.Eleicao?.Perguntas?.Count ?? 0
+            TotalPerguntas = voto.Eleicao?.Perguntas?.Count ?? 0,
+            SindicatoNome = ResolverNomeSindicato(config),
         };
     }
 
@@ -614,10 +644,13 @@ public class EleicaoService : IEleicaoService
         if (DateTime.UtcNow < eleicao.InicioVotacao || DateTime.UtcNow > eleicao.FimVotacao)
             throw new InvalidOperationException("Enquete fora do período de votação.");
 
-        if (await _repository.AssociadoJaVotouAsync(eleicaoId, associadoId, cancellationToken))
+        var associadoVoto = await _associadoRepository.ObterPorIdAsync(associadoId, cancellationToken);
+        if (associadoVoto is null)
+            throw new InvalidOperationException("Associado não encontrado.");
+
+        if (await _repository.CpfJaVotouAsync(eleicaoId, associadoVoto.Cpf, cancellationToken))
             throw new InvalidOperationException("Associado já votou nesta enquete.");
 
-        var associadoVoto = await _associadoRepository.ObterPorIdAsync(associadoId, cancellationToken);
         ValidarElegibilidadeAssociado(eleicao, associadoVoto);
         if (!string.IsNullOrWhiteSpace(eleicao.BancoNome))
         {
@@ -678,9 +711,10 @@ public class EleicaoService : IEleicaoService
         var detalhes = request.Respostas.Select(r => new VotoDetalhe
         {
             Id = Guid.NewGuid(),
+            VotoId = voto.Id,
             PerguntaId = r.PerguntaId,
             OpcaoId = r.OpcaoId,
-            DataHora = DateTime.UtcNow,
+            DataHora = dataHora,
             VotoBranco = !r.OpcaoId.HasValue || r.VotoBranco
         }).ToList();
 

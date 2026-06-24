@@ -63,18 +63,28 @@ namespace SintrafGv.Application.DTOs
     // DTO para Relatório de Participação em Votações
     public class ParticipacaoVotacaoDto
     {
+        [ExportIgnore]
         public Guid AssociadoId { get; set; }
         public string Nome { get; set; } = string.Empty;
         public string Cpf { get; set; } = string.Empty;
+        [ExportIgnore]
         public string MatriculaSindicato { get; set; } = string.Empty;
         public string NomeBanco { get; set; } = string.Empty;
+        public string OpcaoVotada { get; set; } = string.Empty;
+        [ExportIgnore]
         public string Funcao { get; set; } = string.Empty;
+        [ExportIgnore]
         public int TotalEleicoesDisponiveis { get; set; }
+        [ExportIgnore]
         public int TotalVotosRealizados { get; set; }
+        [ExportIgnore]
         public decimal PercentualParticipacao { get; set; }
         public DateTime? UltimaVotacao { get; set; }
+        [ExportIgnore]
         public string UltimaEleicaoTitulo { get; set; } = string.Empty;
+        [ExportIgnore]
         public string StatusAssociado { get; set; } = string.Empty;
+        [ExportIgnore]
         public DateTime DataFiliacao { get; set; }
     }
 

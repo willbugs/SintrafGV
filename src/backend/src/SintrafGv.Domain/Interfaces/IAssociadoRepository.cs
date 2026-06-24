@@ -6,6 +6,10 @@ public interface IAssociadoRepository
 {
     Task<Associado?> ObterPorIdAsync(Guid id, CancellationToken cancellationToken = default);
     Task<Associado?> ObterPorCpfAsync(string cpf, CancellationToken cancellationToken = default);
+    Task<Associado?> ObterAtivoPorCpfAsync(string cpf, CancellationToken cancellationToken = default);
+    Task<Associado?> ObterAtivoPorCpfEMatriculaAsync(string cpf, string matriculaBancaria, CancellationToken cancellationToken = default);
+    Task<Associado?> ObterAtivoPorMatriculaBancariaAsync(string matriculaBancaria, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<Associado>> ListarHistoricoPorCpfAsync(string cpf, CancellationToken cancellationToken = default);
     Task<Associado?> ObterPorMatriculaBancariaAsync(string matriculaBancaria, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<Associado>> ListarAsync(int skip, int take, bool apenasAtivos = false, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<Associado>> ListarAsync(int skip, int take, string? busca, bool? statusAtivo, CancellationToken cancellationToken = default);

@@ -135,6 +135,24 @@ public class EleicaoRepository : IEleicaoRepository
     public async Task<bool> AssociadoJaVotouAsync(Guid eleicaoId, Guid associadoId, CancellationToken cancellationToken = default) =>
         await _context.Votos.AnyAsync(v => v.EleicaoId == eleicaoId && v.AssociadoId == associadoId, cancellationToken);
 
+    public async Task<bool> CpfJaVotouAsync(Guid eleicaoId, string cpf, CancellationToken cancellationToken = default)
+    {
+        var cpfDigits = SintrafGv.Domain.DocumentoAssociado.NormalizarCpf(cpf);
+        if (string.IsNullOrEmpty(cpfDigits)) return false;
+
+        return await _context.Votos
+            .Where(v => v.EleicaoId == eleicaoId)
+            .Join(
+                _context.Associados,
+                v => v.AssociadoId,
+                a => a.Id,
+                (_, a) => a.Cpf)
+            .AnyAsync(
+                cpfCadastro => cpfCadastro != null &&
+                    SintrafGv.Domain.DocumentoAssociado.NormalizarCpf(cpfCadastro) == cpfDigits,
+                cancellationToken);
+    }
+
     public async Task<Voto> RegistrarVotoAsync(Voto voto, List<VotoDetalhe> detalhes, CancellationToken cancellationToken = default)
     {
         using var transaction = await _context.Database.BeginTransactionAsync(cancellationToken);
