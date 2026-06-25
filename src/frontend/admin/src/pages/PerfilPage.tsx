@@ -34,6 +34,7 @@ import {
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import { api } from '../services/api';
+import { formatDateTimeBrFromValue, formatDateOnlyBrFromValue } from '../utils/datetimeBr';
 
 interface PerfilData {
   id: string;
@@ -87,7 +88,7 @@ const PerfilPage: React.FC = () => {
         const response = await api.get(`/api/usuarios/${user.id}/historico-acoes?limite=4`);
         setUltimasAcoes(response.data.map((item: any) => ({
           acao: item.acao,
-          data: new Date(item.data).toLocaleString('pt-BR')
+          data: formatDateTimeBrFromValue(item.data)
         })));
       }
     } catch (err) {
@@ -107,8 +108,8 @@ const PerfilPage: React.FC = () => {
           nome: response.data.nome,
           email: response.data.email,
           role: response.data.role,
-          dataCriacao: new Date(response.data.criadoEm).toLocaleDateString('pt-BR'),
-          ultimoAcesso: new Date().toLocaleString(),
+          dataCriacao: formatDateOnlyBrFromValue(response.data.criadoEm),
+          ultimoAcesso: formatDateTimeBrFromValue(new Date().toISOString()),
         };
         setPerfil(perfilData);
         setDadosEdicao({

@@ -29,6 +29,7 @@ import { Assessment, BarChart, TrendingUp, FilterList } from '@mui/icons-materia
 import relatorioService from '../services/relatorioService';
 import { enquetesAPI } from '../services/api';
 import ExportMenu from '../components/Relatorios/ExportMenu';
+import { formatDateTimeBrFromValue, formatDateTimeBr } from '../utils/datetimeBr';
 
 const STATUS_ENQUETE: Record<number, string> = {
   1: 'Rascunho',
@@ -84,8 +85,21 @@ function lerTotalizador(totalizadores: Record<string, unknown> | undefined, ...c
   return null;
 }
 
+function lerTotalizadorResultados(totalizadores: Record<string, unknown> | undefined, ...chaves: string[]): number {
+  for (const chave of chaves) {
+    const valor = totalizadores?.[chave];
+    if (valor !== undefined && valor !== null) return Number(valor);
+  }
+  return 0;
+}
+
 function linhasParticipacao(dadosParticipacao: any): Record<string, unknown>[] {
   const raw = dadosParticipacao?.dados ?? dadosParticipacao?.Dados;
+  return Array.isArray(raw) ? raw : [];
+}
+
+function linhasResultados(dadosResultados: any): Record<string, unknown>[] {
+  const raw = dadosResultados?.dados ?? dadosResultados?.Dados;
   return Array.isArray(raw) ? raw : [];
 }
 
@@ -140,6 +154,7 @@ const RelatoriosVotacaoPage: React.FC = () => {
   const [dadosParticipacao, setDadosParticipacao] = useState<any>(null);
   const [filtrosParticipacaoExport, setFiltrosParticipacaoExport] = useState<Record<string, string> | null>(null);
   const [dadosResultados, setDadosResultados] = useState<any>(null);
+  const [filtrosResultadosExport, setFiltrosResultadosExport] = useState<Record<string, string> | null>(null);
   const [dadosEngajamento, setDadosEngajamento] = useState<any>(null);
   const [enquetes, setEnquetes] = useState<Enquete[]>([]);
   
@@ -224,8 +239,10 @@ const RelatoriosVotacaoPage: React.FC = () => {
     setLoading(true);
     setError(null);
     try {
-      const dados = await relatorioService.obterRelatorioResultadosEleicao(construirFiltros());
+      const filtrosRelatorio = construirFiltros();
+      const dados = await relatorioService.obterRelatorioResultadosEleicao(filtrosRelatorio);
       setDadosResultados(dados);
+      setFiltrosResultadosExport(filtrosRelatorio);
     } catch (err: any) {
       setError(err.response?.data?.message || 'Erro ao carregar relatório de resultados');
     } finally {
@@ -256,6 +273,8 @@ const RelatoriosVotacaoPage: React.FC = () => {
     });
     setDadosParticipacao(null);
     setFiltrosParticipacaoExport(null);
+    setDadosResultados(null);
+    setFiltrosResultadosExport(null);
     carregarEnquetes({ dataInicio: '', dataFim: '', status: '' });
   };
 
@@ -293,6 +312,8 @@ const RelatoriosVotacaoPage: React.FC = () => {
                   setFiltros({ ...filtros, enqueteId: e.target.value });
                   setDadosParticipacao(null);
                   setFiltrosParticipacaoExport(null);
+                  setDadosResultados(null);
+                  setFiltrosResultadosExport(null);
                 }}
               >
                 <MenuItem value="">Todas</MenuItem>
@@ -482,13 +503,7 @@ const RelatoriosVotacaoPage: React.FC = () => {
                         <TableCell>{item.nomeBanco ?? item.NomeBanco}</TableCell>
                         <TableCell>
                           {(item.ultimaVotacao ?? item.UltimaVotacao)
-                            ? new Date(item.ultimaVotacao ?? item.UltimaVotacao).toLocaleString('pt-BR', {
-                                day: '2-digit',
-                                month: '2-digit',
-                                year: 'numeric',
-                                hour: '2-digit',
-                                minute: '2-digit',
-                              })
+                            ? formatDateTimeBrFromValue(item.ultimaVotacao ?? item.UltimaVotacao)
                             : 'Nunca'}
                         </TableCell>
                       </TableRow>
@@ -522,22 +537,29 @@ const RelatoriosVotacaoPage: React.FC = () => {
               <ExportMenu
                 relatorioRequest={{
                   tipoRelatorio: 'resultados-enquete',
-                  filtros: construirFiltros(),
+                  filtros: filtrosResultadosExport ?? {},
                   formatoExportacao: 'html',
                 }}
+                disabled={!dadosResultados || !filtrosResultadosExport}
                 buttonVariant="outlined"
               />
             </Box>
           </Box>
 
-          {dadosResultados && (
+          {dadosResultados && (() => {
+            const tot = dadosResultados.totalizadores as Record<string, unknown> | undefined;
+            const linhas = linhasResultados(dadosResultados);
+            const totalEnquetes = lerTotalizadorResultados(tot, 'totalEnquetes', 'TotalEleicoes', 'totalEleicoes');
+            const totalVotos = lerTotalizadorResultados(tot, 'totalVotosComputados', 'TotalVotosComputados');
+            const participacaoMedia = lerTotalizadorResultados(tot, 'participacaoMedia', 'ParticipacaoMedia');
+            return (
             <Box>
               <Grid container spacing={3} sx={{ mb: 3 }}>
                 <Grid item xs={12} md={4}>
                   <Card variant="outlined">
                     <CardContent>
                       <Typography variant="h6" color="primary">
-                        {dadosResultados.totalizadores?.TotalEleicoes || 0}
+                        {totalEnquetes}
                       </Typography>
                       <Typography variant="body2">Total de Enquetes</Typography>
                     </CardContent>
@@ -547,7 +569,7 @@ const RelatoriosVotacaoPage: React.FC = () => {
                   <Card variant="outlined">
                     <CardContent>
                       <Typography variant="h6" color="primary">
-                        {dadosResultados.totalizadores?.TotalVotosComputados || 0}
+                        {totalVotos}
                       </Typography>
                       <Typography variant="body2">Votos Computados</Typography>
                     </CardContent>
@@ -557,7 +579,7 @@ const RelatoriosVotacaoPage: React.FC = () => {
                   <Card variant="outlined">
                     <CardContent>
                       <Typography variant="h6" color="primary">
-                        {dadosResultados.totalizadores?.ParticipacaoMedia?.toFixed(2) || 0}%
+                        {participacaoMedia.toFixed(2)}%
                       </Typography>
                       <Typography variant="body2">Participação Média</Typography>
                     </CardContent>
@@ -579,22 +601,33 @@ const RelatoriosVotacaoPage: React.FC = () => {
                     </TableRow>
                   </TableHead>
                   <TableBody>
-                    {dadosResultados.dados?.map((item: any, index: number) => (
-                      <TableRow key={index}>
-                        <TableCell>{item.titulo}</TableCell>
-                        <TableCell>{new Date(item.dataInicio).toLocaleDateString()}</TableCell>
-                        <TableCell>{new Date(item.dataFim).toLocaleDateString()}</TableCell>
-                        <TableCell>{item.status}</TableCell>
-                        <TableCell align="right">{item.totalVotos}</TableCell>
-                        <TableCell align="right">{item.percentualParticipacao?.toFixed(2)}%</TableCell>
-                        <TableCell>{item.vencedor}</TableCell>
+                    {linhas.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={7} align="center">
+                          Nenhuma enquete encontrada com os filtros aplicados.
+                        </TableCell>
                       </TableRow>
-                    ))}
+                    ) : (
+                    linhas.map((item: any, index: number) => (
+                      <TableRow key={index}>
+                        <TableCell>{item.titulo ?? item.Titulo}</TableCell>
+                        <TableCell>{formatDateTimeBr(item.dataInicio ?? item.DataInicio)}</TableCell>
+                        <TableCell>{formatDateTimeBr(item.dataFim ?? item.DataFim)}</TableCell>
+                        <TableCell>{item.status ?? item.Status}</TableCell>
+                        <TableCell align="right">{item.totalVotos ?? item.TotalVotos}</TableCell>
+                        <TableCell align="right">
+                          {Number(item.percentualParticipacao ?? item.PercentualParticipacao ?? 0).toFixed(2)}%
+                        </TableCell>
+                        <TableCell>{item.vencedor ?? item.Vencedor}</TableCell>
+                      </TableRow>
+                    ))
+                    )}
                   </TableBody>
                 </Table>
               </TableContainer>
             </Box>
-          )}
+            );
+          })()}
         </TabPanel>
 
         <TabPanel value={tabValue} index={2}>
@@ -677,8 +710,8 @@ const RelatoriosVotacaoPage: React.FC = () => {
                     {dadosEngajamento.dados?.map((item: any, index: number) => (
                       <TableRow key={index}>
                         <TableCell>{item.tituloEleicao}</TableCell>
-                        <TableCell>{new Date(item.dataInicio).toLocaleDateString()}</TableCell>
-                        <TableCell>{new Date(item.dataFim).toLocaleDateString()}</TableCell>
+                        <TableCell>{formatDateTimeBr(item.dataInicio)}</TableCell>
+                        <TableCell>{formatDateTimeBr(item.dataFim)}</TableCell>
                         <TableCell align="right">{item.totalVotosComputados}</TableCell>
                         <TableCell align="right">{item.percentualParticipacao?.toFixed(2)}%</TableCell>
                         <TableCell align="right">{item.votosPorDia}</TableCell>

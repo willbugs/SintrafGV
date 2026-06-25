@@ -9,6 +9,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using SintrafGv.Application.DTOs;
+using SintrafGv.Application;
 using SintrafGv.Domain.Entities;
 using SintrafGv.Domain.Interfaces;
 using SintrafGv.Application.Interfaces;
@@ -123,7 +124,7 @@ namespace SintrafGv.Application.Services
             CancellationToken cancellationToken = default)
         {
             var filtros = request.Filtros ?? new Dictionary<string, object>();
-            var mes = LerIntFiltro(filtros, "mes") ?? DateTime.Now.Month;
+            var mes = LerIntFiltro(filtros, "mes") ?? BrasiliaTime.ToBrasilia(DateTime.UtcNow).Month;
             var dia = LerIntFiltro(filtros, "dia");
             var situacao = LerSituacaoFiltro(filtros);
 
@@ -162,8 +163,9 @@ namespace SintrafGv.Application.Services
             CancellationToken cancellationToken = default)
         {
             var filtros = request.Filtros ?? new Dictionary<string, object>();
-            var dataInicio = LerDataFiltro(filtros, "dataInicio") ?? DateTime.Now.AddMonths(-1);
-            var dataFim = LerDataFiltro(filtros, "dataFim") ?? DateTime.Now;
+            var agoraUtc = DateTime.UtcNow;
+            var dataInicio = LerDataFiltro(filtros, "dataInicio") ?? agoraUtc.AddMonths(-1);
+            var dataFim = LerDataFiltro(filtros, "dataFim") ?? agoraUtc;
             var dataInicioDate = dataInicio.Date;
             var dataFimDate = dataFim.Date;
             var situacao = LerSituacaoFiltro(filtros);
@@ -472,8 +474,9 @@ namespace SintrafGv.Application.Services
                 "por-cidade" => await ObterRelatorioPorCidadeAsync(request, cancellationToken),
                 "em-periodo" => await ObterRelatorioAssociadosEmPeriodoAsync(request, cancellationToken),
                 
-                // Relatórios de votação implementados com novos endpoints específicos
+                // Relatórios de votação (tipo público: *-enquete / participacao / engajamento)
                 "participacao-votacao" => await ObterRelatorioParticipacaoVotacaoAsync(request, cancellationToken),
+                "resultados-enquete" => await ObterRelatorioResultadosEleicaoAsync(request, cancellationToken),
                 "resultados-eleicao" => await ObterRelatorioResultadosEleicaoAsync(request, cancellationToken),
                 "engajamento-votacao" => await ObterRelatorioEngajamentoVotacaoAsync(request, cancellationToken),
                 
@@ -482,7 +485,7 @@ namespace SintrafGv.Application.Services
                 _ => await ObterRelatorioAssociadosGeralAsync(request, cancellationToken)
             };
 
-            var nomeArquivo = $"{request.TipoRelatorio}_{DateTime.Now:yyyyMMdd_HHmmss}";
+            var nomeArquivo = $"{request.TipoRelatorio}_{BrasiliaTime.ToBrasilia(DateTime.UtcNow):yyyyMMdd_HHmmss}";
 
             // Como o método de exportação usa generics, precisamos fazer cast dinâmico
             return dados switch
@@ -788,13 +791,23 @@ namespace SintrafGv.Application.Services
             RelatorioRequest request,
             CancellationToken cancellationToken = default)
         {
+            var filtros = request.Filtros ?? new Dictionary<string, object>();
+            var enqueteIdFiltro = LerGuidFiltro(filtros, "enqueteId");
+            var dataInicioFiltro = request.DataInicio ?? LerDataFiltro(filtros, "dataInicio");
+            var dataFimFiltro = request.DataFim ?? LerDataFiltro(filtros, "dataFim");
+            var statusFiltro = LerIntFiltro(filtros, "status");
+
             var eleicoes = await _eleicaoRepository.ListarAsync(0, int.MaxValue, null, null, null, null, cancellationToken);
             var associados = await _associadoRepository.ListarAsync(0, int.MaxValue, false, cancellationToken);
-            
-            if (request.DataInicio.HasValue)
-                eleicoes = eleicoes.Where(e => e.InicioVotacao >= request.DataInicio.Value).ToList();
-            if (request.DataFim.HasValue)
-                eleicoes = eleicoes.Where(e => e.FimVotacao <= request.DataFim.Value).ToList();
+
+            if (enqueteIdFiltro.HasValue)
+                eleicoes = eleicoes.Where(e => e.Id == enqueteIdFiltro.Value).ToList();
+            if (dataInicioFiltro.HasValue)
+                eleicoes = eleicoes.Where(e => e.InicioVotacao >= dataInicioFiltro.Value).ToList();
+            if (dataFimFiltro.HasValue)
+                eleicoes = eleicoes.Where(e => e.FimVotacao <= dataFimFiltro.Value).ToList();
+            if (statusFiltro.HasValue && Enum.IsDefined(typeof(StatusEleicao), statusFiltro.Value))
+                eleicoes = eleicoes.Where(e => (int)e.Status == statusFiltro.Value).ToList();
 
             var dados = new List<ResultadoEleicaoDto>();
             
@@ -802,13 +815,11 @@ namespace SintrafGv.Application.Services
             {
                 var votos = await _votoRepository.ListarPorEleicaoAsync(eleicao.Id, cancellationToken);
                 
-                // Carregar eleição com perguntas e opções para ter os nomes das opções (ListarAsync não inclui Opcoes)
                 var eleicaoCompleta = await _eleicaoRepository.ObterPorIdComPerguntasAsync(eleicao.Id, cancellationToken);
                 var opcoes = eleicaoCompleta?.Perguntas?.SelectMany(p => p.Opcoes ?? new List<Domain.Entities.Opcao>()).ToList() ?? new List<Domain.Entities.Opcao>();
                 
                 var resultadoCandidatos = opcoes.Select(opcao => 
                 {
-                    // Contar votos através de VotoDetalhe
                     var votosNaOpcao = _context.VotosDetalhes.Count(vd => vd.OpcaoId == opcao.Id);
                     
                     return new CandidatoResultadoDto
@@ -825,11 +836,12 @@ namespace SintrafGv.Application.Services
                 dados.Add(new ResultadoEleicaoDto
                 {
                     Id = eleicao.Id,
+                    EleicaoId = eleicao.Id,
                     Titulo = eleicao.Titulo,
                     Descricao = eleicao.Descricao!,
                     DataInicio = eleicao.InicioVotacao,
                     DataFim = eleicao.FimVotacao,
-                    Status = eleicao.Status.ToString(),
+                    Status = FormatarStatusEnquete(eleicao.Status),
                     TotalVotos = votos.Count,
                     TotalAssociadosElegiveis = totalElegiveis,
                     PercentualParticipacao = totalElegiveis > 0 ? (decimal)votos.Count / totalElegiveis * 100 : 0,
@@ -843,19 +855,32 @@ namespace SintrafGv.Application.Services
                 Dados = dados,
                 Metadata = new RelatorioMetadata
                 {
-                    Titulo = "Relatório de Resultados de Eleições",
-                    Subtitulo = "Detalhamento de resultados por eleição",
+                    Titulo = "Relatório de Resultados de Enquetes",
+                    Subtitulo = "Detalhamento de resultados por enquete",
                     TotalRegistros = dados.Count,
-                    FiltrosAplicados = request.Filtros
+                    FiltrosAplicados = filtros
                 },
                 Totalizadores = new Dictionary<string, object>
                 {
+                    { "totalEnquetes", dados.Count },
+                    { "totalVotosComputados", dados.Sum(d => d.TotalVotos) },
+                    { "participacaoMedia", dados.Any() ? dados.Average(d => d.PercentualParticipacao) : 0 },
+                    // Compatibilidade com consumidores antigos
                     { "TotalEleicoes", dados.Count },
                     { "TotalVotosComputados", dados.Sum(d => d.TotalVotos) },
                     { "ParticipacaoMedia", dados.Any() ? dados.Average(d => d.PercentualParticipacao) : 0 }
                 }
             };
         }
+
+        private static string FormatarStatusEnquete(StatusEleicao status) => status switch
+        {
+            StatusEleicao.Rascunho => "Rascunho",
+            StatusEleicao.Aberta => "Aberta",
+            StatusEleicao.Encerrada => "Encerrada",
+            StatusEleicao.Apurada => "Apurada",
+            _ => status.ToString()
+        };
 
         public async Task<RelatorioResponse<EngajamentoVotacaoDto>> ObterRelatorioEngajamentoVotacaoAsync(
             RelatorioRequest request,
@@ -875,17 +900,19 @@ namespace SintrafGv.Application.Services
             foreach (var eleicao in eleicoes)
             {
                 var votos = await _votoRepository.ListarPorEleicaoAsync(eleicao.Id, cancellationToken);
-                var votosPorDia = votos.GroupBy(v => v.DataHoraVoto.Date)
-                                      .ToDictionary(g => g.Key.ToString("dd/MM"), g => g.Count());
-                
-                var votosPorHorario = votos.GroupBy(v => v.DataHoraVoto.Hour)
-                                          .ToDictionary(g => $"{g.Key:00}h", g => g.Count());
+                var votosPorDia = votos
+                    .GroupBy(v => BrasiliaTime.ToBrasiliaDateOnly(v.DataHoraVoto))
+                    .ToDictionary(g => g.Key.ToString("dd/MM", CultureInfo.InvariantCulture), g => g.Count());
+
+                var votosPorHorario = votos
+                    .GroupBy(v => BrasiliaTime.ToBrasiliaHour(v.DataHoraVoto))
+                    .ToDictionary(g => $"{g.Key:00}h", g => g.Count());
 
                 var picoVotacao = votosPorDia.OrderByDescending(kvp => kvp.Value).FirstOrDefault();
                 DateTime? dataPico = null;
                 if (!string.IsNullOrEmpty(picoVotacao.Key))
                 {
-                    if (DateTime.TryParseExact(picoVotacao.Key, "dd/MM", null, System.Globalization.DateTimeStyles.None, out var parsedDate))
+                    if (DateTime.TryParseExact(picoVotacao.Key, "dd/MM", CultureInfo.InvariantCulture, DateTimeStyles.None, out var parsedDate))
                         dataPico = parsedDate;
                 }
                 

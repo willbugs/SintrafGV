@@ -23,6 +23,7 @@ import {
 } from '@mui/icons-material'
 import { useAuth } from '../contexts/AuthContext'
 import { api } from '../services/api'
+import { formatDateTimeBr, formatDateTimeSecondsBr } from '../utils/datetimeBr'
 
 interface ComprovanteVoto {
   id: string
@@ -104,17 +105,7 @@ Hash: ${comprovante.hashVoto}`
     }
   }
 
-  const formatarDataHora = (dataString: string) => {
-    const data = new Date(dataString)
-    return data.toLocaleString('pt-BR', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit'
-    })
-  }
+  const formatarDataHora = (dataString: string) => formatDateTimeSecondsBr(dataString)
 
   if (loading) {
     return (
@@ -301,7 +292,7 @@ Hash: ${comprovante.hashVoto}`
           <Typography variant="caption" color="text.secondary">
             SintrafGV - Sistema de Votação Eletrônica
             <br />
-            Gerado em {formatarDataHora(new Date().toISOString())}
+            Gerado em {formatDateTimeBr(new Date().toISOString())} (horário de Brasília)
           </Typography>
         </Box>
       </Box>

@@ -35,26 +35,72 @@ export function brDatetimeLocalToUtcIso(local: string): string {
   return new Date(`${match[1]}T${match[2]}:00${BRASILIA_UTC_OFFSET}`).toISOString()
 }
 
+const dateTimeFormatOptions: Intl.DateTimeFormatOptions = {
+  timeZone: BRASILIA_TIMEZONE,
+  day: '2-digit',
+  month: '2-digit',
+  year: 'numeric',
+  hour: '2-digit',
+  minute: '2-digit',
+}
+
+const dateTimeSecondsFormatOptions: Intl.DateTimeFormatOptions = {
+  ...dateTimeFormatOptions,
+  second: '2-digit',
+}
+
+const dateOnlyFormatOptions: Intl.DateTimeFormatOptions = {
+  timeZone: 'UTC',
+  day: '2-digit',
+  month: '2-digit',
+  year: 'numeric',
+}
+
 export function formatDateTimeBr(iso: string | undefined | null): string {
   const d = parseUtcIso(iso ?? '')
   if (!d) return '—'
-  return d.toLocaleString('pt-BR', {
-    timeZone: BRASILIA_TIMEZONE,
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  })
+  return d.toLocaleString('pt-BR', dateTimeFormatOptions)
+}
+
+export function formatDateTimeSecondsBr(iso: string | undefined | null): string {
+  const d = parseUtcIso(iso ?? '')
+  if (!d) return '—'
+  return d.toLocaleString('pt-BR', dateTimeSecondsFormatOptions)
+}
+
+/** Data civil (nascimento, filiação) — usa componentes UTC para não deslocar o dia. */
+export function formatDateOnlyBr(iso: string | undefined | null): string {
+  const d = parseUtcIso(iso ?? '')
+  if (!d) return '—'
+  return d.toLocaleDateString('pt-BR', dateOnlyFormatOptions)
 }
 
 export function formatDateBr(iso: string | undefined | null): string {
-  const d = parseUtcIso(iso ?? '')
-  if (!d) return '—'
-  return d.toLocaleDateString('pt-BR', {
-    timeZone: BRASILIA_TIMEZONE,
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-  })
+  return formatDateOnlyBr(iso)
+}
+
+/** Aceita ISO string ou Date (ex.: retorno da API já parseado). */
+export function formatDateTimeBrFromValue(value: string | Date | undefined | null): string {
+  if (value == null) return '—'
+  if (value instanceof Date) {
+    if (Number.isNaN(value.getTime())) return '—'
+    return value.toLocaleString('pt-BR', dateTimeFormatOptions)
+  }
+  return formatDateTimeBr(value)
+}
+
+export function formatDateOnlyBrFromValue(value: string | Date | undefined | null): string {
+  if (value == null) return '—'
+  if (value instanceof Date) {
+    if (Number.isNaN(value.getTime())) return '—'
+    return value.toLocaleDateString('pt-BR', dateOnlyFormatOptions)
+  }
+  return formatDateOnlyBr(value)
+}
+
+export function isWithinVotingPeriodBr(inicioIso: string, fimIso: string, nowMs: number = Date.now()): boolean {
+  const inicio = parseUtcIso(inicioIso)
+  const fim = parseUtcIso(fimIso)
+  if (!inicio || !fim) return false
+  return nowMs >= inicio.getTime() && nowMs <= fim.getTime()
 }

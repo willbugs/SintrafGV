@@ -32,7 +32,7 @@ namespace SintrafGv.Application.DTOs
     {
         public string Titulo { get; set; } = string.Empty;
         public string Subtitulo { get; set; } = string.Empty;
-        public DateTime DataGeracao { get; set; } = DateTime.Now;
+        public DateTime DataGeracao { get; set; } = DateTime.UtcNow;
         public int TotalRegistros { get; set; }
         public int? PaginaAtual { get; set; }
         public int? TotalPaginas { get; set; }
@@ -127,6 +127,6 @@ namespace SintrafGv.Application.DTOs
         public byte[] Conteudo { get; set; } = Array.Empty<byte>();
         public string ContentType { get; set; } = string.Empty;
         public long TamanhoBytes { get; set; }
-        public DateTime DataGeracao { get; set; } = DateTime.Now;
+        public DateTime DataGeracao { get; set; } = DateTime.UtcNow;
     }
 }

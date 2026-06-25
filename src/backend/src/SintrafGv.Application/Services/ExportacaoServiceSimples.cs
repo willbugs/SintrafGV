@@ -19,6 +19,7 @@ using iText.Kernel.Colors;
 using iText.IO.Font.Constants;
 using iText.Kernel.Font;
 using SintrafGv.Application.DTOs;
+using SintrafGv.Application;
 
 namespace SintrafGv.Application.Services
 {
@@ -76,7 +77,7 @@ namespace SintrafGv.Application.Services
             }
 
             // Info
-            document.Add(new Paragraph(RemoverAcentos($"Gerado em: {dados.Metadata.DataGeracao:dd/MM/yyyy HH:mm} | Total: {dados.Metadata.TotalRegistros}"))
+            document.Add(new Paragraph(RemoverAcentos($"Gerado em: {BrasiliaTime.FormatDateTime(dados.Metadata.DataGeracao)} (horario de Brasilia) | Total: {dados.Metadata.TotalRegistros}"))
                 .SetFont(font).SetFontSize(10).SetTextAlignment(TextAlignment.RIGHT));
 
             // Tabela - colunas exportáveis (exclui [ExportIgnore])
@@ -123,7 +124,7 @@ namespace SintrafGv.Application.Services
                 {
                     foreach (var col in colunasParticipacao)
                     {
-                        var valor = FormatarValorParaPdf(col.ObterValor(registro));
+                        var valor = FormatarValorParaPdf(col.ObterValor(registro), col.PropertyName);
                         tabela.AddCell(new Cell().Add(new Paragraph(valor)).SetFont(font).SetFontSize(8));
                     }
                 }
@@ -131,7 +132,7 @@ namespace SintrafGv.Application.Services
                 {
                     foreach (var prop in propriedades)
                     {
-                        var valor = FormatarValorParaPdf(prop.GetValue(registro));
+                        var valor = FormatarValorParaPdf(prop.GetValue(registro), prop.Name);
                         tabela.AddCell(new Cell().Add(new Paragraph(valor)).SetFont(font).SetFontSize(8));
                     }
                     if (propriedades.Count == 0)
@@ -150,7 +151,7 @@ namespace SintrafGv.Application.Services
                 Conteudo = memoryStream.ToArray(),
                 ContentType = "application/pdf",
                 TamanhoBytes = memoryStream.Length,
-                DataGeracao = DateTime.Now
+                DataGeracao = DateTime.UtcNow
             };
         }
 
@@ -203,7 +204,7 @@ namespace SintrafGv.Application.Services
                 {
                     foreach (var col in colunasParticipacao)
                     {
-                        EscreverCelulaExcel(worksheet, linha, coluna, col.ObterValor(registro));
+                        EscreverCelulaExcel(worksheet, linha, coluna, col.ObterValor(registro), col.PropertyName);
                         coluna++;
                     }
                 }
@@ -211,7 +212,7 @@ namespace SintrafGv.Application.Services
                 {
                     foreach (var prop in propriedades)
                     {
-                        EscreverCelulaExcel(worksheet, linha, coluna, prop.GetValue(registro));
+                        EscreverCelulaExcel(worksheet, linha, coluna, prop.GetValue(registro), prop.Name);
                         coluna++;
                     }
                 }
@@ -233,7 +234,7 @@ namespace SintrafGv.Application.Services
                 Conteudo = conteudo,
                 ContentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                 TamanhoBytes = conteudo.Length,
-                DataGeracao = DateTime.Now
+                DataGeracao = DateTime.UtcNow
             };
         }
 
@@ -243,7 +244,7 @@ namespace SintrafGv.Application.Services
 
             // Cabeçalho informativo
             csv.AppendLine($"# {dados.Metadata.Titulo}");
-            csv.AppendLine($"# Gerado em: {dados.Metadata.DataGeracao:dd/MM/yyyy HH:mm}");
+            csv.AppendLine($"# Gerado em: {BrasiliaTime.FormatDateTime(dados.Metadata.DataGeracao)} (horario de Brasilia)");
             csv.AppendLine($"# Total de registros: {dados.Metadata.TotalRegistros}");
             csv.AppendLine(); // Linha em branco
 
@@ -267,7 +268,7 @@ namespace SintrafGv.Application.Services
                 if (colunasParticipacao != null)
                 {
                     foreach (var col in colunasParticipacao)
-                        valores.Add(EscaparCsv(FormatarValorCsv(col.ObterValor(registro))));
+                        valores.Add(EscaparCsv(FormatarValorCsv(col.ObterValor(registro), col.PropertyName)));
                 }
                 else
                 {
@@ -277,7 +278,7 @@ namespace SintrafGv.Application.Services
                         var valorFormatado = valor switch
                         {
                             null => "",
-                            DateTime data => data.ToString("dd/MM/yyyy HH:mm"),
+                            DateTime data => BrasiliaTime.FormatForDisplay(data, prop.Name),
                             bool boolean => boolean ? "Sim" : "Não",
                             TimeSpan ts => ts.ToString(@"hh\:mm\:ss"),
                             IEnumerable and not string => "-",
@@ -300,7 +301,7 @@ namespace SintrafGv.Application.Services
                 Conteudo = conteudo,
                 ContentType = "text/csv; charset=utf-8",
                 TamanhoBytes = conteudo.Length,
-                DataGeracao = DateTime.Now
+                DataGeracao = DateTime.UtcNow
             };
         }
 
@@ -334,12 +335,12 @@ namespace SintrafGv.Application.Services
             return sb.ToString().Normalize(NormalizationForm.FormC);
         }
 
-        private static string FormatarValorParaPdf(object? valor)
+        private static string FormatarValorParaPdf(object? valor, string? propertyName = null)
         {
             if (valor == null) return "";
             if (valor is IEnumerable and not string) return "-";
             if (valor is DateTime data)
-                return RemoverAcentos(data.ToString("dd/MM/yyyy HH:mm"));
+                return RemoverAcentos(BrasiliaTime.FormatForDisplay(data, propertyName));
             return RemoverAcentos(valor.ToString());
         }
 
@@ -520,6 +521,7 @@ namespace SintrafGv.Application.Services
         private sealed class ColunaExportDef
         {
             public string Titulo { get; init; } = string.Empty;
+            public string PropertyName { get; init; } = string.Empty;
             public Func<object, object?> ObterValor { get; init; } = _ => null;
         }
 
@@ -535,6 +537,7 @@ namespace SintrafGv.Application.Services
                 cols.Add(new ColunaExportDef
                 {
                     Titulo = ObterTituloColuna(propInfo.Name),
+                    PropertyName = propInfo.Name,
                     ObterValor = r => propInfo.GetValue((ParticipacaoVotacaoDto)r)
                 });
             }
@@ -556,14 +559,12 @@ namespace SintrafGv.Application.Services
             return cols;
         }
 
-        private static void EscreverCelulaExcel(ExcelWorksheet worksheet, int linha, int coluna, object? valor)
+        private static void EscreverCelulaExcel(ExcelWorksheet worksheet, int linha, int coluna, object? valor, string? propertyName = null)
         {
             if (valor == null) return;
             if (valor is DateTime data)
             {
-                worksheet.Cells[linha, coluna].Value = data;
-                worksheet.Cells[linha, coluna].Style.Numberformat.Format =
-                    data.TimeOfDay == TimeSpan.Zero ? "dd/mm/yyyy" : "dd/mm/yyyy hh:mm";
+                worksheet.Cells[linha, coluna].Value = BrasiliaTime.FormatForDisplay(data, propertyName);
             }
             else if (valor is bool boolean)
             {
@@ -583,10 +584,10 @@ namespace SintrafGv.Application.Services
             }
         }
 
-        private static string FormatarValorCsv(object? valor) => valor switch
+        private static string FormatarValorCsv(object? valor, string? propertyName = null) => valor switch
         {
             null => "",
-            DateTime data => data.ToString("dd/MM/yyyy HH:mm"),
+            DateTime data => BrasiliaTime.FormatForDisplay(data, propertyName),
             bool boolean => boolean ? "Sim" : "Não",
             TimeSpan ts => ts.ToString(@"hh\:mm\:ss"),
             IEnumerable and not string => "-",
@@ -627,6 +628,12 @@ namespace SintrafGv.Application.Services
                 "TotalVotosRealizados" => "Votos Realizados",
                 "PercentualParticipacao" => "Participação (%)",
                 "UltimaVotacao" => "Data/Hora Votação",
+                "Titulo" => "Título",
+                "DataInicio" => "Data Início",
+                "DataFim" => "Data Fim",
+                "Status" => "Status",
+                "TotalVotos" => "Total Votos",
+                "Vencedor" => "Opção Mais Votada",
                 "Agencia" => "Agência",
                 "CidadeAgencia" => "Cidade Agência",
                 "CodAgencia" => "Cód. Agência",

@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SintrafGv.Application.DTOs;
+using SintrafGv.Application;
 using SintrafGv.Application.Interfaces;
 
 namespace SintrafGv.Api.Controllers
@@ -52,7 +53,7 @@ namespace SintrafGv.Api.Controllers
             {
                 var pdfBytes = await _relatorioService.GerarRelatorioPDFCartorialAsync(request);
                 
-                var nomeArquivo = $"relatorio_cartorial_{request.EleicaoId}_{DateTime.Now:yyyyMMdd_HHmmss}.pdf";
+                var nomeArquivo = $"relatorio_cartorial_{request.EleicaoId}_{BrasiliaTime.ToBrasilia(DateTime.UtcNow):yyyyMMdd_HHmmss}.pdf";
                 
                 return File(pdfBytes, "application/pdf", nomeArquivo);
             }

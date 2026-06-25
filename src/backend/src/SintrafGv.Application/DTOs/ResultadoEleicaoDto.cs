@@ -2,20 +2,28 @@ namespace SintrafGv.Application.DTOs;
 
 public class ResultadoEleicaoDto
 {
+    [ExportIgnore]
     public Guid Id { get; set; }
+    [ExportIgnore]
     public Guid EleicaoId { get; set; }
     public string Titulo { get; set; } = string.Empty;
+    [ExportIgnore]
     public string Descricao { get; set; } = string.Empty;
     public DateTime DataInicio { get; set; }
     public DateTime DataFim { get; set; }
     public string Status { get; set; } = string.Empty;
     public int TotalVotos { get; set; }
+    [ExportIgnore]
     public int TotalVotantes { get; set; }
+    [ExportIgnore]
     public int TotalHabilitados { get; set; }
+    [ExportIgnore]
     public int TotalAssociadosElegiveis { get; set; }
     public decimal PercentualParticipacao { get; set; }
+    [ExportIgnore]
     public List<CandidatoResultadoDto> Candidatos { get; set; } = new();
     public string Vencedor { get; set; } = string.Empty;
+    [ExportIgnore]
     public List<ResultadoPerguntaDto> Perguntas { get; set; } = new();
 }
 

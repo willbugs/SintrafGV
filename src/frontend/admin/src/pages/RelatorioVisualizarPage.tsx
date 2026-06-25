@@ -42,6 +42,7 @@ import type {
   CampoRelatorio,
 } from '../services/relatorioService';
 import ExportMenu from '../components/Relatorios/ExportMenu';
+import { formatDateTimeBrFromValue, formatDateOnlyBrFromValue } from '../utils/datetimeBr';
 
 interface ColunasVisibilidade {
   [key: string]: boolean;
@@ -276,12 +277,14 @@ const RelatorioVisualizarPage: React.FC = () => {
 
     switch (campo.tipo) {
       case 'date':
-        return new Date(valor).toLocaleDateString('pt-BR');
+        return formatDateOnlyBrFromValue(valor);
       case 'boolean':
         return valor ? 'Sim' : 'Não';
       case 'number':
         return valor.toLocaleString('pt-BR');
       default:
+        if (typeof valor === 'string' && /T\d/.test(valor))
+          return formatDateTimeBrFromValue(valor);
         return valor.toString();
     }
   };
@@ -393,7 +396,7 @@ const RelatorioVisualizarPage: React.FC = () => {
                 Data de Geração
               </Typography>
               <Typography variant="h6">
-                {dataGeracao ? new Date(dataGeracao).toLocaleString('pt-BR') : '-'}
+                {dataGeracao ? formatDateTimeBrFromValue(dataGeracao) : '-'}
               </Typography>
             </CardContent>
           </Card>

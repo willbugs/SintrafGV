@@ -153,7 +153,7 @@ namespace SintrafGv.Application.Services
             relatorio.Autenticacao = new DadosAutenticacaoDto
             {
                 DataGeracaoRelatorio = agora,
-                HoraGeracaoRelatorio = agora.ToString("HH:mm:ss"),
+                HoraGeracaoRelatorio = BrasiliaTime.FormatTime(agora),
                 ResponsavelRelatorio = configuracao.Presidente,
                 CargoResponsavel = "Presidente",
                 TextoAutenticacao = configuracao.TextoAutenticacao ?? 
@@ -267,7 +267,7 @@ namespace SintrafGv.Application.Services
                 foreach (var voto in relatorio.Votos.Take(100)) // Limitar a 100 votos para não sobrecarregar o PDF
                 {
                     votosTable.AddCell(new Cell().Add(new Paragraph(voto.NumeroResposta.ToString()).SetFont(normalFont)));
-                    votosTable.AddCell(new Cell().Add(new Paragraph(voto.DataHoraVoto.ToString("dd/MM/yyyy HH:mm")).SetFont(normalFont)));
+                    votosTable.AddCell(new Cell().Add(new Paragraph(BrasiliaTime.FormatDateTime(voto.DataHoraVoto)).SetFont(normalFont)));
                     votosTable.AddCell(new Cell().Add(new Paragraph(voto.CodigoVotante).SetFont(normalFont)));
                     votosTable.AddCell(new Cell().Add(new Paragraph(voto.HashVoto[..8] + "...").SetFont(normalFont)));
                 }
@@ -284,7 +284,7 @@ namespace SintrafGv.Application.Services
 
             var autenticacaoTable = new Table(2).UseAllAvailableWidth();
             autenticacaoTable.AddCell(new Cell().Add(new Paragraph("Data de Geração:").SetFont(headerFont)));
-            autenticacaoTable.AddCell(new Cell().Add(new Paragraph(relatorio.Autenticacao.DataGeracaoRelatorio.ToString("dd/MM/yyyy HH:mm:ss")).SetFont(normalFont)));
+            autenticacaoTable.AddCell(new Cell().Add(new Paragraph(BrasiliaTime.FormatDateTimeSeconds(relatorio.Autenticacao.DataGeracaoRelatorio)).SetFont(normalFont)));
             
             autenticacaoTable.AddCell(new Cell().Add(new Paragraph("Hash do Relatório:").SetFont(headerFont)));
             autenticacaoTable.AddCell(new Cell().Add(new Paragraph(relatorio.Autenticacao.HashRelatorio).SetFont(normalFont)));

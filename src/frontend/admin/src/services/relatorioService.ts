@@ -278,7 +278,14 @@ class RelatorioService {
       filtros,
       formatoExportacao: 'html'
     });
-    return response.data;
+    const raw = response.data ?? {};
+    const dados = raw.dados ?? raw.Dados ?? [];
+    const tot = raw.totalizadores ?? raw.Totalizadores ?? {};
+    return {
+      ...raw,
+      dados: Array.isArray(dados) ? dados : [],
+      totalizadores: tot,
+    };
   }
 
   async obterRelatorioEngajamentoVotacao(filtros: any = {}): Promise<any> {

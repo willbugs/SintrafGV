@@ -9,17 +9,30 @@ export function parseUtcIso(iso: string | undefined | null): Date | null {
   return Number.isNaN(d.getTime()) ? null : d
 }
 
+const dateTimeFormatOptions: Intl.DateTimeFormatOptions = {
+  timeZone: BRASILIA_TIMEZONE,
+  day: '2-digit',
+  month: '2-digit',
+  year: 'numeric',
+  hour: '2-digit',
+  minute: '2-digit',
+}
+
+const dateTimeSecondsFormatOptions: Intl.DateTimeFormatOptions = {
+  ...dateTimeFormatOptions,
+  second: '2-digit',
+}
+
 export function formatDateTimeBr(iso: string | undefined | null): string {
   const d = parseUtcIso(iso ?? '')
   if (!d) return '—'
-  return d.toLocaleString('pt-BR', {
-    timeZone: BRASILIA_TIMEZONE,
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  })
+  return d.toLocaleString('pt-BR', dateTimeFormatOptions)
+}
+
+export function formatDateTimeSecondsBr(iso: string | undefined | null): string {
+  const d = parseUtcIso(iso ?? '')
+  if (!d) return '—'
+  return d.toLocaleString('pt-BR', dateTimeSecondsFormatOptions)
 }
 
 export function isWithinVotingPeriodBr(inicioIso: string, fimIso: string, nowMs: number = Date.now()): boolean {
